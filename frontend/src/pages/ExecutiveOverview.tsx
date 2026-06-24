@@ -258,6 +258,14 @@ export default function ExecutiveOverview() {
         ))}
       </div>
 
+      {/* Status Header */}
+      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+        <p className="text-sm text-blue-800 dark:text-blue-200">
+          <strong>Status:</strong> Dashboard data loaded from TM1EnterpriseDB. 
+          Last updated: {new Date().toLocaleDateString()}. 
+          {kpiData.length > 0 && ` Showing ${kpiData.length} KPIs and ${revenueByYear.length} years of revenue data.`}
+        </p>
+      </div>
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Revenue by Year */}
@@ -351,14 +359,7 @@ export default function ExecutiveOverview() {
         onExport={handleExportFinancialSummary}
       />
 
-      {/* Status Footer */}
-      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-        <p className="text-sm text-blue-800 dark:text-blue-200">
-          <strong>Status:</strong> Dashboard data loaded from TM1EnterpriseDB. 
-          Last updated: {new Date().toLocaleDateString()}. 
-          {kpiData.length > 0 && ` Showing ${kpiData.length} KPIs and ${revenueByYear.length} years of revenue data.`}
-        </p>
-      </div>
+      
     </div>
   );
 }

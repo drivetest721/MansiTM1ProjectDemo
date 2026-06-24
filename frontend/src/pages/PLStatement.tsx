@@ -266,25 +266,8 @@ const plStatementData: FinancialRow[] = [
     forecast: undefined,
     indent: 0,
   },
-  {
-    id: 'operating-income',
-    label: 'Operating Income',
-    actual: -78800000,
-    budget: -71600000,
-    forecast: -78300000,
-    variance: -7200000,
-    variancePercent: -10.1,
-    indent: 0,
-    isSubtotal: true,
-  },
-  {
-    id: 'blank-7',
-    label: '',
-    actual: undefined,
-    budget: undefined,
-    forecast: undefined,
-    indent: 0,
-  },
+  
+ 
   {
     id: 'tax-expense',
     label: 'Tax Expense',

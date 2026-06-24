@@ -23,7 +23,7 @@ fake = Faker()
 # Database connection
 conn_str = (
     "DRIVER={ODBC Driver 17 for SQL Server};"
-    "SERVER=REAL_L001;"
+    "SERVER=localhost\\SQLEXPRESS;"
     "DATABASE=TM1EnterpriseDB;"
     "Trusted_Connection=yes;"
 )

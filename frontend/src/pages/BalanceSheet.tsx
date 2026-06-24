@@ -12,7 +12,7 @@ const balanceSheetData: FinancialRow[] = [
     label: 'ASSETS',
     actual: undefined,
     budget: undefined,
-    forecast: undefined,
+    
     indent: 0,
     isTotal: true,
   },
@@ -21,7 +21,7 @@ const balanceSheetData: FinancialRow[] = [
     label: 'Current Assets',
     actual: undefined,
     budget: undefined,
-    forecast: undefined,
+    
     indent: 0,
     isSubtotal: true,
   },
@@ -30,7 +30,7 @@ const balanceSheetData: FinancialRow[] = [
     label: 'Cash & Cash Equivalents',
     actual: 48500000,
     budget: 45000000,
-    forecast: 50000000,
+    
     variance: 3500000,
     variancePercent: 7.8,
     indent: 1,
@@ -40,7 +40,7 @@ const balanceSheetData: FinancialRow[] = [
     label: 'Accounts Receivable',
     actual: 32400000,
     budget: 30200000,
-    forecast: 33100000,
+    
     variance: 2200000,
     variancePercent: 7.3,
     indent: 1,
@@ -50,7 +50,7 @@ const balanceSheetData: FinancialRow[] = [
     label: 'Inventory',
     actual: 18700000,
     budget: 17500000,
-    forecast: 19200000,
+    
     variance: 1200000,
     variancePercent: 6.9,
     indent: 1,
@@ -60,7 +60,7 @@ const balanceSheetData: FinancialRow[] = [
     label: 'Prepaid Expenses',
     actual: 8900000,
     budget: 8500000,
-    forecast: 9100000,
+    
     variance: 400000,
     variancePercent: 4.7,
     indent: 1,
@@ -70,7 +70,7 @@ const balanceSheetData: FinancialRow[] = [
     label: 'Total Current Assets',
     actual: 108500000,
     budget: 101200000,
-    forecast: 111400000,
+    
     variance: 7300000,
     variancePercent: 7.2,
     indent: 0,
@@ -81,7 +81,7 @@ const balanceSheetData: FinancialRow[] = [
     label: '',
     actual: undefined,
     budget: undefined,
-    forecast: undefined,
+    
     indent: 0,
   },
   {
@@ -89,7 +89,7 @@ const balanceSheetData: FinancialRow[] = [
     label: 'Non-Current Assets',
     actual: undefined,
     budget: undefined,
-    forecast: undefined,
+    
     indent: 0,
     isSubtotal: true,
   },
@@ -98,7 +98,7 @@ const balanceSheetData: FinancialRow[] = [
     label: 'Property, Plant & Equipment',
     actual: 125600000,
     budget: 122000000,
-    forecast: 128000000,
+    
     variance: 3600000,
     variancePercent: 3.0,
     indent: 1,
@@ -108,7 +108,7 @@ const balanceSheetData: FinancialRow[] = [
     label: 'Intangible Assets',
     actual: 42300000,
     budget: 40800000,
-    forecast: 43200000,
+    
     variance: 1500000,
     variancePercent: 3.7,
     indent: 1,
@@ -118,7 +118,7 @@ const balanceSheetData: FinancialRow[] = [
     label: 'Total Non-Current Assets',
     actual: 167900000,
     budget: 162800000,
-    forecast: 171200000,
+    
     variance: 5100000,
     variancePercent: 3.1,
     indent: 0,
@@ -129,7 +129,7 @@ const balanceSheetData: FinancialRow[] = [
     label: '',
     actual: undefined,
     budget: undefined,
-    forecast: undefined,
+    
     indent: 0,
   },
   {
@@ -137,7 +137,7 @@ const balanceSheetData: FinancialRow[] = [
     label: 'TOTAL ASSETS',
     actual: 276400000,
     budget: 264000000,
-    forecast: 282600000,
+    
     variance: 12400000,
     variancePercent: 4.7,
     indent: 0,
@@ -148,7 +148,7 @@ const balanceSheetData: FinancialRow[] = [
     label: '',
     actual: undefined,
     budget: undefined,
-    forecast: undefined,
+    
     indent: 0,
   },
   {
@@ -156,7 +156,7 @@ const balanceSheetData: FinancialRow[] = [
     label: 'LIABILITIES',
     actual: undefined,
     budget: undefined,
-    forecast: undefined,
+    
     indent: 0,
     isTotal: true,
   },
@@ -165,7 +165,7 @@ const balanceSheetData: FinancialRow[] = [
     label: 'Current Liabilities',
     actual: undefined,
     budget: undefined,
-    forecast: undefined,
+    
     indent: 0,
     isSubtotal: true,
   },
@@ -174,7 +174,7 @@ const balanceSheetData: FinancialRow[] = [
     label: 'Accounts Payable',
     actual: 28900000,
     budget: 27200000,
-    forecast: 29500000,
+    
     variance: 1700000,
     variancePercent: 6.3,
     indent: 1,
@@ -184,7 +184,7 @@ const balanceSheetData: FinancialRow[] = [
     label: 'Accrued Expenses',
     actual: 15600000,
     budget: 14800000,
-    forecast: 16000000,
+    
     variance: 800000,
     variancePercent: 5.4,
     indent: 1,
@@ -194,7 +194,7 @@ const balanceSheetData: FinancialRow[] = [
     label: 'Tax Payable',
     actual: 8400000,
     budget: 8000000,
-    forecast: 8600000,
+    
     variance: 400000,
     variancePercent: 5.0,
     indent: 1,
@@ -204,7 +204,7 @@ const balanceSheetData: FinancialRow[] = [
     label: 'Total Current Liabilities',
     actual: 52900000,
     budget: 50000000,
-    forecast: 54100000,
+    
     variance: 2900000,
     variancePercent: 5.8,
     indent: 0,
@@ -215,7 +215,7 @@ const balanceSheetData: FinancialRow[] = [
     label: '',
     actual: undefined,
     budget: undefined,
-    forecast: undefined,
+    
     indent: 0,
   },
   {
@@ -223,7 +223,7 @@ const balanceSheetData: FinancialRow[] = [
     label: 'Long-Term Liabilities',
     actual: undefined,
     budget: undefined,
-    forecast: undefined,
+    
     indent: 0,
     isSubtotal: true,
   },
@@ -232,7 +232,7 @@ const balanceSheetData: FinancialRow[] = [
     label: 'Loans Payable',
     actual: 85600000,
     budget: 82000000,
-    forecast: 87000000,
+   
     variance: 3600000,
     variancePercent: 4.4,
     indent: 1,
@@ -242,7 +242,7 @@ const balanceSheetData: FinancialRow[] = [
     label: 'Deferred Revenue',
     actual: 32100000,
     budget: 30500000,
-    forecast: 32800000,
+    
     variance: 1600000,
     variancePercent: 5.2,
     indent: 1,
@@ -252,7 +252,7 @@ const balanceSheetData: FinancialRow[] = [
     label: 'Total Long-Term Liabilities',
     actual: 117700000,
     budget: 112500000,
-    forecast: 119800000,
+    
     variance: 5200000,
     variancePercent: 4.6,
     indent: 0,
@@ -263,7 +263,7 @@ const balanceSheetData: FinancialRow[] = [
     label: '',
     actual: undefined,
     budget: undefined,
-    forecast: undefined,
+    
     indent: 0,
   },
   {
@@ -271,7 +271,7 @@ const balanceSheetData: FinancialRow[] = [
     label: 'TOTAL LIABILITIES',
     actual: 170600000,
     budget: 162500000,
-    forecast: 173900000,
+    
     variance: 8100000,
     variancePercent: 5.0,
     indent: 0,
@@ -282,7 +282,7 @@ const balanceSheetData: FinancialRow[] = [
     label: '',
     actual: undefined,
     budget: undefined,
-    forecast: undefined,
+    
     indent: 0,
   },
   {
@@ -290,7 +290,7 @@ const balanceSheetData: FinancialRow[] = [
     label: 'EQUITY',
     actual: undefined,
     budget: undefined,
-    forecast: undefined,
+    
     indent: 0,
     isTotal: true,
   },
@@ -299,7 +299,7 @@ const balanceSheetData: FinancialRow[] = [
     label: 'Share Capital',
     actual: 150000000,
     budget: 150000000,
-    forecast: 150000000,
+    
     variance: 0,
     variancePercent: 0,
     indent: 1,
@@ -309,7 +309,7 @@ const balanceSheetData: FinancialRow[] = [
     label: 'Retained Earnings',
     actual: 37400000,
     budget: 25700000,
-    forecast: 40900000,
+    
     variance: 11700000,
     variancePercent: 45.5,
     indent: 1,
@@ -319,7 +319,7 @@ const balanceSheetData: FinancialRow[] = [
     label: 'Current Year Profit/(Loss)',
     actual: -81600000,
     budget: -74200000,
-    forecast: -81200000,
+    
     variance: -7400000,
     variancePercent: -10.0,
     indent: 1,
@@ -329,7 +329,7 @@ const balanceSheetData: FinancialRow[] = [
     label: 'TOTAL EQUITY',
     actual: 105800000,
     budget: 101500000,
-    forecast: 108700000,
+    
     variance: 4300000,
     variancePercent: 4.2,
     indent: 0,
@@ -340,7 +340,7 @@ const balanceSheetData: FinancialRow[] = [
     label: '',
     actual: undefined,
     budget: undefined,
-    forecast: undefined,
+    
     indent: 0,
   },
   {
@@ -348,7 +348,7 @@ const balanceSheetData: FinancialRow[] = [
     label: 'TOTAL LIABILITIES & EQUITY',
     actual: 276400000,
     budget: 264000000,
-    forecast: 282600000,
+  
     variance: 12400000,
     variancePercent: 4.7,
     indent: 0,

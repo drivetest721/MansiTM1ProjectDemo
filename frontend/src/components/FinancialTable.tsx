@@ -66,6 +66,20 @@ export default function FinancialTable({
     if (value < 0) return 'text-red-600 dark:text-red-400 font-semibold';
     return 'text-gray-700 dark:text-gray-300';
   };
+  const getRowVarianceColor = (row: FinancialRow, value: number | undefined) => {
+  // Cost-type rows: higher actual = bad (red), lower = good (green)
+  if (row.id === 'cost' ) {
+    return getCostVarianceColor(value);
+  }
+  // Default: higher = good (green), lower = bad (red)
+  return getVarianceColor(value);
+};
+  const getCostVarianceColor = (value: number | undefined) => {
+    if (value === undefined || value === null) return 'text-gray-700 dark:text-gray-300';
+    if (value < 0) return 'text-green-600 dark:text-green-400 font-semibold';
+    if (value > 0) return 'text-red-600 dark:text-red-400 font-semibold';
+    return 'text-gray-700 dark:text-gray-300';
+  };
 
   const toggleExpand = async (row: FinancialRow) => {
     const rowId = row.id;
@@ -214,6 +228,34 @@ export default function FinancialTable({
       ),
     },
     {
+  id: 'variance',
+  accessorKey: 'variance',
+  header: () => <div className="text-right">Variance</div>,
+  cell: ({ row }) => (
+    <div
+      className={`text-right ${getRowVarianceColor(row.original, row.original.variance)} ${
+        row.original.isTotal || row.original.isSubtotal ? 'font-bold' : ''
+      }`}
+    >
+      {formatCurrency(row.original.variance)}
+    </div>
+  ),
+},
+{
+  id: 'variancePercent',
+  accessorKey: 'variancePercent',
+  header: () => <div className="text-right">Variance %</div>,
+  cell: ({ row }) => (
+    <div
+      className={`text-right ${getRowVarianceColor(row.original, row.original.variancePercent)} ${
+        row.original.isTotal || row.original.isSubtotal ? 'font-bold' : ''
+      }`}
+    >
+      {formatPercent(row.original.variancePercent)}
+    </div>
+  ),
+},
+    {
       id: 'forecast',
       accessorKey: 'forecast',
       header: () => <div className="text-right">Forecast</div>,
@@ -229,9 +271,9 @@ export default function FinancialTable({
       header: () => <div className="text-right">Variance</div>,
       cell: ({ row }) => (
         <div
-          className={`text-right ${getVarianceColor(row.original.variance)} ${
-            row.original.isTotal || row.original.isSubtotal ? 'font-bold' : ''
-          }`}
+        className={`text-right ${getRowVarianceColor(row.original, row.original.variance)} ${
+          row.original.isTotal || row.original.isSubtotal ? 'font-bold' : ''
+        }`}
         >
           {formatCurrency(row.original.variance)}
         </div>
@@ -243,14 +285,14 @@ export default function FinancialTable({
       header: () => <div className="text-right">Variance %</div>,
       cell: ({ row }) => (
         <div
-          className={`text-right ${getVarianceColor(row.original.variancePercent)} ${
-            row.original.isTotal || row.original.isSubtotal ? 'font-bold' : ''
-          }`}
+        className={`text-right ${getRowVarianceColor(row.original, row.original.variancePercent)} ${
+          row.original.isTotal || row.original.isSubtotal ? 'font-bold' : ''
+        }`}
         >
           {formatPercent(row.original.variancePercent)}
         </div>
       ),
-    },
+    }
   ];
 
   const table = useReactTable({

@@ -183,37 +183,7 @@ export default function TM1Architecture() {
         </div>
       </div>
 
-      {/* Implemented Cubes */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Implemented Cubes</h2>
-        <div className="space-y-4">
-          {cubes.map((cube) => (
-            <div
-              key={cube.name}
-              className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-blue-400 dark:hover:border-blue-600 transition-colors"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-white">{cube.name}</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                    {cube.dimensions.length} dimensions • {cube.records} records
-                  </p>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {cube.dimensions.map((dim) => (
-                      <span
-                        key={dim}
-                        className="px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded"
-                      >
-                        {dim}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      
     </div>
   );
 }

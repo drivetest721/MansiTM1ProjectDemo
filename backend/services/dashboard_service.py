@@ -90,23 +90,7 @@ class DashboardService:
                 format="number"
             ))
             
-            # Total Budget from Budget Cube
-            query = "SELECT ISNULL(SUM(BudgetAmount), 0) as total FROM Planning.vw_BudgetCube_Source"
-            result = self.db.execute(text(query)).fetchone()
-            kpis.append(KPIMetric(
-                title="Total Budget",
-                value=float(result.total) if result else 0,
-                format="currency"
-            ))
-            
-            # Total Forecast from Forecast Cube
-            query = "SELECT ISNULL(SUM(ForecastAmount), 0) as total FROM Planning.vw_ForecastCube_Source"
-            result = self.db.execute(text(query)).fetchone()
-            kpis.append(KPIMetric(
-                title="Total Forecast",
-                value=float(result.total) if result else 0,
-                format="currency"
-            ))
+          
             
             logger.info(f"Retrieved {len(kpis)} dashboard KPIs")
             return kpis
