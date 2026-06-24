@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import CubeGrid from '../components/CubeGrid';
 import type { CubeRow } from '../components/CubeGrid';
 import GlobalFilters from '../components/GlobalFilters';
 import type { FilterOption } from '../components/GlobalFilters';
+import PivotDialog, { type PivotConfig } from '../components/PivotDialog';
 import MetricCard from '../components/MetricCard';
-import { Users, DollarSign, TrendingUp, Award, Building2, UserCheck } from 'lucide-react';
+import { Users, DollarSign, TrendingUp, Award, Building2, UserCheck, Settings2 } from 'lucide-react';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { getWorkforceByDepartment, getWorkforceByJobLevel, getWorkforceByEntity, getWorkforceDrillDown } from '../services/api';
 import { exportCubeToExcel } from '../utils/exportToExcel';
 
 export default function WorkforcePlanning() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cubeData, setCubeData] = useState<CubeRow[]>([]);
@@ -24,6 +27,14 @@ export default function WorkforcePlanning() {
     department: 'all',
     jobLevel: 'all',
     version: 'all',
+  });
+
+  // Pivot configuration state
+  const [showPivotDialog, setShowPivotDialog] = useState(false);
+  const [pivotConfig, setPivotConfig] = useState<PivotConfig>({
+    rowDimensions: ['Department'],
+    columnDimensions: ['Time'],
+    measures: ['Headcount', 'Base Salary', 'Bonus', 'Benefits', 'Total Compensation'],
   });
 
   const filterOptions: FilterOption[] = [
@@ -201,6 +212,24 @@ export default function WorkforcePlanning() {
     }
   };
 
+  const handlePivotApply = (config: PivotConfig) => {
+    console.log('📊 Applying pivot configuration:', config);
+    setPivotConfig(config);
+    setShowPivotDialog(false);
+    
+    // Navigate to pivot table view with data and configuration
+    navigate('/workforce-planning/pivot', {
+      state: {
+        title: 'Workforce Planning',
+        sourceData: cubeData,
+        pivotConfig: config,
+        sourcePage: '/workforce-planning',
+      },
+    });
+    
+    console.log('✅ Navigating to pivot table view...');
+  };
+
   const handleDrillDown = async (row: CubeRow) => {
     try {
       // Determine hierarchy: department -> cost_center -> employee
@@ -308,10 +337,21 @@ export default function WorkforcePlanning() {
         onReset={handleResetFilters}
       />
 
+      {/* Action Buttons */}
+      <div className="flex items-center justify-end gap-3 mb-4">
+        <button
+          onClick={() => setShowPivotDialog(true)}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md transition-colors shadow-sm"
+        >
+          <Settings2 size={18} />
+          Pivot Options
+        </button>
+      </div>
+
       {/* Main Cube Grid */}
       <CubeGrid
         data={cubeData}
-        measures={['Headcount', 'Base Salary', 'Bonus', 'Benefits', 'Total Compensation', 'Avg Salary']}
+        measures={pivotConfig.measures}
         title="Workforce Cube View"
         showExport={true}
         onExport={handleExport}
@@ -384,6 +424,18 @@ export default function WorkforcePlanning() {
           Use filters to drill down by time period and department. Export to Excel for detailed analysis.
         </p>
       </div>
+
+      {/* Pivot Dialog */}
+      <PivotDialog
+        isOpen={showPivotDialog}
+        onClose={() => setShowPivotDialog(false)}
+        availableDimensions={['Department', 'Time', 'Job Level', 'Entity', 'Employment Status', 'Version']}
+        currentRowDimensions={pivotConfig.rowDimensions}
+        currentColumnDimensions={pivotConfig.columnDimensions}
+        availableMeasures={['Headcount', 'Base Salary', 'Bonus', 'Benefits', 'Total Compensation', 'Avg Salary']}
+        selectedMeasures={pivotConfig.measures}
+        onApply={handlePivotApply}
+      />
     </div>
   );
 }

@@ -12,6 +12,7 @@ import CubeExplorer from './pages/CubeExplorer';
 import DimensionExplorer from './pages/DimensionExplorer';
 import TM1Architecture from './pages/TM1Architecture';
 import AdminDataHealth from './pages/AdminDataHealth';
+import PivotTableView from './pages/PivotTableView';
 import './index.css';
 
 function App() {
@@ -21,7 +22,9 @@ function App() {
         <Routes>
           <Route path="/" element={<ExecutiveOverview />} />
           <Route path="/revenue-planning" element={<RevenuePlanning />} />
+          <Route path="/revenue-planning/pivot" element={<PivotTableView />} />
           <Route path="/workforce-planning" element={<WorkforcePlanning />} />
+          <Route path="/workforce-planning/pivot" element={<PivotTableView />} />
           <Route path="/cfo-budgeting" element={<CFOBudgeting />} />
           <Route path="/forecasting-analysis" element={<ForecastingAnalysis />} />
           <Route path="/pl-statement" element={<PLStatement />} />

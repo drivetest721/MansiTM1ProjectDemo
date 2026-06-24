@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import CubeGrid from '../components/CubeGrid';
 import type { CubeRow } from '../components/CubeGrid';
 import GlobalFilters from '../components/GlobalFilters';
 import type { FilterOption } from '../components/GlobalFilters';
+import PivotDialog, { type PivotConfig } from '../components/PivotDialog';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { getRevenueByRegionAgg, getRevenueByProduct, getRevenueByCustomerSegment, getRevenueDrillDown } from '../services/api';
 import { exportCubeToExcel } from '../utils/exportToExcel';
+import { Settings2 } from 'lucide-react';
 export default function RevenuePlanning() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cubeData, setCubeData] = useState<CubeRow[]>([]);
@@ -20,6 +24,14 @@ export default function RevenuePlanning() {
     region: 'all',
     entity: 'all',
     version: 'all',
+  });
+
+  // Pivot configuration state
+  const [showPivotDialog, setShowPivotDialog] = useState(false);
+  const [pivotConfig, setPivotConfig] = useState<PivotConfig>({
+    rowDimensions: ['Product'],
+    columnDimensions: ['Time'],
+    measures: ['Revenue', 'Cost', 'Quantity', 'Margin', 'Margin %', 'Avg Selling Price'],
   });
 
   const filterOptions: FilterOption[] = [
@@ -184,6 +196,24 @@ export default function RevenuePlanning() {
     }
   };
 
+  const handlePivotApply = (config: PivotConfig) => {
+    console.log('📊 Applying pivot configuration:', config);
+    setPivotConfig(config);
+    setShowPivotDialog(false);
+    
+    // Navigate to pivot table view with data and configuration
+    navigate('/revenue-planning/pivot', {
+      state: {
+        title: 'Revenue Planning',
+        sourceData: cubeData,
+        pivotConfig: config,
+        sourcePage: '/revenue-planning',
+      },
+    });
+    
+    console.log('✅ Navigating to pivot table view...');
+  };
+
   const handleDrillDown = async (row: CubeRow) => {
     console.log('🔽 handleDrillDown called for row:', row);
     
@@ -306,10 +336,21 @@ export default function RevenuePlanning() {
         onReset={handleResetFilters}
       />
 
+      {/* Action Buttons */}
+      <div className="flex items-center justify-end gap-3 mb-4">
+        <button
+          onClick={() => setShowPivotDialog(true)}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md transition-colors shadow-sm"
+        >
+          <Settings2 size={18} />
+          Pivot Options
+        </button>
+      </div>
+
       {/* Main Cube Grid */}
       <CubeGrid
         data={cubeData}
-        measures={['Revenue', 'Cost', 'Quantity', 'Margin', 'Margin %', 'Avg Selling Price']}
+        measures={pivotConfig.measures}
         title="Revenue Cube View"
         showExport={true}
         onExport={handleExport}
@@ -381,6 +422,18 @@ export default function RevenuePlanning() {
           Use global filters to slice data by time, geography, and version. Export to Excel for further analysis.
         </p>
       </div>
+
+      {/* Pivot Dialog */}
+      <PivotDialog
+        isOpen={showPivotDialog}
+        onClose={() => setShowPivotDialog(false)}
+        availableDimensions={['Product', 'Time', 'Customer', 'Region', 'Entity', 'Version']}
+        currentRowDimensions={pivotConfig.rowDimensions}
+        currentColumnDimensions={pivotConfig.columnDimensions}
+        availableMeasures={['Revenue', 'Cost', 'Quantity', 'Margin', 'Margin %', 'Avg Selling Price']}
+        selectedMeasures={pivotConfig.measures}
+        onApply={handlePivotApply}
+      />
     </div>
   );
 }
