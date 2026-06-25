@@ -112,7 +112,7 @@ export const getCostCenters = () => api.get('/api/metadata/cost-centers');
 // ==========================================
 // REVENUE CUBE APIs
 // ==========================================
-export const getRevenueCube = (params?: RevenueFilters) => 
+export const getRevenueCube = (params?: RevenueFilters) =>
   api.get('/api/revenue', { params });
 
 export const getRevenueByRegionAgg = (params?: { year?: number; quarter?: string; entity?: string; scenario?: string; version?: string }) =>
@@ -127,7 +127,7 @@ export const getRevenueByCustomerSegment = (params?: { year?: number; quarter?: 
 // ==========================================
 // WORKFORCE PLANNING APIs
 // ==========================================
-export const getWorkforceCube = (params?: WorkforceFilters) => 
+export const getWorkforceCube = (params?: WorkforceFilters) =>
   api.get('/api/workforce/', { params });
 
 export const getWorkforceByDepartment = (params?: { year?: number; entity?: string; department?: string; job_level?: string; version?: string }) =>
@@ -142,52 +142,52 @@ export const getWorkforceByEntity = (params?: { year?: number; department?: stri
 // ==========================================
 // BUDGET APIs
 // ==========================================
-export const getBudget = (params?: BudgetFilters) => 
+export const getBudget = (params?: BudgetFilters) =>
   api.get('/api/budget-forecast/budget', { params });
 
-export const getBudgetByAccount = (params?: { year?: number; version?: string }) => 
+export const getBudgetByAccount = (params?: { year?: number; version?: string }) =>
   api.get('/api/budget-forecast/budget/by-account', { params });
 
-export const getBudgetByDepartment = (params?: { year?: number; version?: string }) => 
+export const getBudgetByDepartment = (params?: { year?: number; version?: string }) =>
   api.get('/api/budget-forecast/budget/by-department', { params });
 
-export const getBudgetByEntity = (params?: { year?: number; version?: string }) => 
+export const getBudgetByEntity = (params?: { year?: number; version?: string }) =>
   api.get('/api/budget-forecast/budget/by-entity', { params });
 
 // ==========================================
 // FORECAST APIs
 // ==========================================
-export const getForecast = (params?: ForecastFilters) => 
+export const getForecast = (params?: ForecastFilters) =>
   api.get('/api/budget-forecast/forecast', { params });
 
-export const getForecastByAccount = (params?: { year?: number; version?: string }) => 
+export const getForecastByAccount = (params?: { year?: number; version?: string }) =>
   api.get('/api/budget-forecast/forecast/by-account', { params });
 
-export const getForecastByDepartment = (params?: { year?: number; version?: string }) => 
+export const getForecastByDepartment = (params?: { year?: number; version?: string }) =>
   api.get('/api/budget-forecast/forecast/by-department', { params });
 
 // ==========================================
 // VARIANCE APIs (Budget vs Forecast)
 // ==========================================
-export const getVariance = (params?: VarianceFilters) => 
+export const getVariance = (params?: VarianceFilters) =>
   api.get('/api/budget-forecast/variance', { params });
 
 // ==========================================
 // FINANCIAL STATEMENT APIs
 // ==========================================
-export const getPLStatement = (params: PLParams) => 
+export const getPLStatement = (params: PLParams) =>
   api.get('/api/finance/pl', { params });
 
-export const getPLSummary = (params: PLParams) => 
+export const getPLSummary = (params: PLParams) =>
   api.get('/api/finance/pl/summary', { params });
 
-export const getBalanceSheet = (params: BalanceSheetParams) => 
+export const getBalanceSheet = (params: BalanceSheetParams) =>
   api.get('/api/finance/balancesheet', { params });
 
-export const getConsolidation = (params?: ConsolidationFilters) => 
+export const getConsolidation = (params?: ConsolidationFilters) =>
   api.get('/api/finance/consolidation', { params });
 
-export const getConsolidationSummary = (params?: { year?: number; version?: string }) => 
+export const getConsolidationSummary = (params?: { year?: number; version?: string }) =>
   api.get('/api/finance/consolidation/summary', { params });
 
 // ==========================================
@@ -202,13 +202,13 @@ export interface DrillDownParams {
   scenario?: string;
 }
 
-export const getRevenueDrillDown = (params: DrillDownParams) => 
+export const getRevenueDrillDown = (params: DrillDownParams) =>
   api.get('/api/revenue/drill-down', { params });
 
-export const getWorkforceDrillDown = (params: Omit<DrillDownParams, 'region' | 'scenario'>) => 
+export const getWorkforceDrillDown = (params: Omit<DrillDownParams, 'region' | 'scenario'>) =>
   api.get('/api/workforce/drill-down', { params });
 
-export const getBudgetDrillDown = (params: Omit<DrillDownParams, 'region'>) => 
+export const getBudgetDrillDown = (params: Omit<DrillDownParams, 'region'>) =>
   api.get('/api/budget-forecast/budget/drill-down', { params });
 
 // ==========================================
@@ -216,21 +216,21 @@ export const getBudgetDrillDown = (params: Omit<DrillDownParams, 'region'>) =>
 // ==========================================
 
 // P&L Statement (Enhanced)
-export const getPLStatementEnhanced = (params: PLParams) => 
+export const getPLStatementEnhanced = (params: PLParams) =>
   api.get('/api/finance-enhanced/pl-statement', { params });
 
-export const getPLDrillDown = (params: PLParams & { account_type: string }) => 
+export const getPLDrillDown = (params: PLParams & { account_type: string }) =>
   api.get('/api/finance-enhanced/pl-statement/drill-down', { params });
 
 // Balance Sheet (Enhanced)
-export const getBalanceSheetEnhanced = (params: BalanceSheetParams) => 
+export const getBalanceSheetEnhanced = (params: BalanceSheetParams) =>
   api.get('/api/finance-enhanced/balance-sheet', { params });
 
-export const getBalanceSheetDrillDown = (params: BalanceSheetParams & { account_type: string }) => 
+export const getBalanceSheetDrillDown = (params: BalanceSheetParams & { account_type: string }) =>
   api.get('/api/finance-enhanced/balance-sheet/drill-down', { params });
 
 // Financial Ratios
-export const getFinancialRatios = (params: { year: number; entity?: string }) => 
+export const getFinancialRatios = (params: { year: number; entity?: string }) =>
   api.get('/api/finance-enhanced/ratios', { params });
 
 export const getRevenueDrilldown = (params: { level: 'quarter' | 'month'; year?: number; quarter?: string }) => {
@@ -248,11 +248,11 @@ export const getRevenueDrilldown = (params: { level: 'quarter' | 'month'; year?:
 // ==========================================
 
 // P&L Statement (Mapped - Real Data)
-export const getPLStatementMapped = (params: PLParams) => 
+export const getPLStatementMapped = (params: PLParams) =>
   api.get('/api/finance-mapped/pl-statement-mapped', { params });
 
 // Balance Sheet (Mapped - Real Data)
-export const getBalanceSheetMapped = (params: BalanceSheetParams) => 
+export const getBalanceSheetMapped = (params: BalanceSheetParams) =>
   api.get('/api/finance-mapped/balance-sheet-mapped', { params });
 
 // ==========================================
@@ -260,17 +260,17 @@ export const getBalanceSheetMapped = (params: BalanceSheetParams) =>
 // ==========================================
 
 // Scenarios
-export const getForecastScenarios = () => 
+export const getForecastScenarios = () =>
   api.get('/api/forecast/scenarios');
 
-export const getScenarioSummary = (params: { year: number; entity?: string }) => 
+export const getScenarioSummary = (params: { year: number; entity?: string }) =>
   api.get('/api/forecast/scenarios/summary', { params });
 
-export const getScenarioData = (scenarioId: number, params: { year: number; entity?: string }) => 
+export const getScenarioData = (scenarioId: number, params: { year: number; entity?: string }) =>
   api.get(`/api/forecast/scenarios/${scenarioId}`, { params });
 
 // Forecast Table
-export const getForecastTable = (params: { year: number; entity?: string }) => 
+export const getForecastTable = (params: { year: number; entity?: string }) =>
   api.get('/api/forecast/table', { params });
 
 // Scenario Comparison
@@ -280,7 +280,7 @@ export interface CompareScenarioParams {
   entity?: string;
 }
 
-export const compareForecastScenarios = (params: CompareScenarioParams) => 
+export const compareForecastScenarios = (params: CompareScenarioParams) =>
   api.post('/api/forecast/comparison', null, { params });
 
 // Forecast Assumptions
@@ -296,15 +296,15 @@ export const getForecastMonthlyTrend = (params: { year: number; entity?: string 
 // ==========================================
 
 // Entity Hierarchy
-export const getEntityHierarchy = () => 
+export const getEntityHierarchy = () =>
   api.get('/api/consolidation/hierarchy');
 
 // Consolidated Financial Data
-export const getConsolidatedFinancialData = (params: { year: number }) => 
+export const getConsolidatedFinancialData = (params: { year: number }) =>
   api.get('/api/consolidation/financial-data', { params });
 
 // Consolidated Cube Data
-export const getConsolidatedCubeData = (params: { year: number }) => 
+export const getConsolidatedCubeData = (params: { year: number }) =>
   api.get('/api/consolidation/cube-data', { params });
 
 // ==========================================
@@ -312,7 +312,7 @@ export const getConsolidatedCubeData = (params: { year: number }) =>
 // ==========================================
 
 // Get workflow status for a page
-export const getWorkflowStatus = (page: string, entity: string, year: string) => 
+export const getWorkflowStatus = (page: string, entity: string, year: string) =>
   api.get('/api/workflow/status', { params: { page, entity, year } });
 
 // Set workflow status for a page
@@ -323,7 +323,7 @@ export interface SetWorkflowStatusParams {
   status: string;
 }
 
-export const setWorkflowStatus = (params: SetWorkflowStatusParams) => 
+export const setWorkflowStatus = (params: SetWorkflowStatusParams) =>
   api.post('/api/workflow/status', params);
 
 // ==========================================
@@ -331,7 +331,7 @@ export const setWorkflowStatus = (params: SetWorkflowStatusParams) =>
 // ==========================================
 
 // Get rolling forecast view
-export const getRollingForecastView = (params: { year: number }) => 
+export const getRollingForecastView = (params: { year: number }) =>
   api.get('/api/forecast/rolling-view', { params });
 
 // Update rolling forecast lock status
@@ -341,7 +341,7 @@ export interface UpdateRollingForecastLockParams {
   locked: boolean;
 }
 
-export const updateRollingForecastLock = (params: UpdateRollingForecastLockParams) => 
+export const updateRollingForecastLock = (params: UpdateRollingForecastLockParams) =>
   api.post('/api/forecast/rolling-lock', params);
 
 // ==========================================
@@ -349,19 +349,19 @@ export const updateRollingForecastLock = (params: UpdateRollingForecastLockParam
 // ==========================================
 
 // System Health
-export const getSystemStatus = () => 
+export const getSystemStatus = () =>
   api.get('/api/admin/system-status');
 
 // Table Health
-export const getTableHealth = () => 
+export const getTableHealth = () =>
   api.get('/api/admin/table-health');
 
 // Cube Health
-export const getCubeHealth = () => 
+export const getCubeHealth = () =>
   api.get('/api/admin/cube-health');
 
 // Refresh History
-export const getRefreshHistory = (days: number = 30) => 
+export const getRefreshHistory = (days: number = 30) =>
   api.get('/api/admin/refresh-history', { params: { days } });
 
 // Data Quality
@@ -373,15 +373,15 @@ export const getDataQuality = () =>
 // ==========================================
 
 // Get all cubes
-export const getCubes = () => 
+export const getCubes = () =>
   api.get('/api/metadata/cubes');
 
 // Get cube details
-export const getCubeDetails = (cubeId: string) => 
+export const getCubeDetails = (cubeId: string) =>
   api.get(`/api/metadata/cubes/${cubeId}`);
 
 // Get cube sample data
-export const getCubeSampleData = (cubeId: string, limit: number = 10) => 
+export const getCubeSampleData = (cubeId: string, limit: number = 10) =>
   api.get(`/api/metadata/cubes/${cubeId}/sample`, { params: { limit } });
 
 // ==========================================
@@ -405,3 +405,4 @@ export const getDimensionElements = (dimensionId: string, limit: number = 50) =>
   api.get(`/api/metadata/dimensions/${dimensionId}/elements`, { params: { limit } });
 
 export default api;
+

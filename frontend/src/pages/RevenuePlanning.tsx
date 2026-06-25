@@ -219,48 +219,32 @@ export default function RevenuePlanning() {
   };
 
   const handleDrillDown = async (row: CubeRow) => {
+    const level = row.level || 'category';
+    const hierarchyMap: Record<string, string> = {
+      'category': 'family',
+      'family': 'product',
+    };
+    const nextLevel = hierarchyMap[level];
+    if (!nextLevel) return [];
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
     try {
-      // Determine hierarchy: category -> family -> product
-      const level = row.level || 'category';
-      const hierarchyMap: Record<string, string> = {
-        'category': 'family',
-        'family': 'product',
-      };
-      
-      const nextLevel = hierarchyMap[level];
-      if (!nextLevel) {
-        return []; // Leaf level, no children
-      }
-      
-      // Prepare drill-down parameters
-      const params: any = {
-        level: nextLevel,
-        parent_value: row.rowLabel,
-      };
-      
+      const params: any = { level: nextLevel, parent_value: row.rowLabel };
       if (filters.year !== 'all') params.year = parseInt(filters.year);
       if (filters.region !== 'all') params.region = filters.region;
       if (filters.entity !== 'all') params.entity = filters.entity;
-      
+
       const response = await getRevenueDrillDown(params);
-      // The response might be in response.data or response.data.data
       const responseData = response.data?.data || response.data || [];
-      if (!Array.isArray(responseData)) {
-        console.error('❌ Response data is not an array:', responseData);
-        return [];
-      }
-      
-      if (responseData.length === 0) {
-        console.warn('⚠️ No children found for:', row.rowLabel);
-        return [];
-      }
-      
-      // Transform drill-down results to CubeRow format
-      const children = responseData.map((item: any) => ({
+      if (!Array.isArray(responseData) || responseData.length === 0) return [];
+
+      return responseData.map((item: any) => ({
         id: `${row.id}-${item.dimension_value}`,
         rowLabel: item.dimension_value,
         level: nextLevel,
-        hasChildren: nextLevel === 'family', // Family level has products
+        hasChildren: nextLevel === 'family',
         Revenue: item.revenue || 0,
         Cost: item.cost || 0,
         Quantity: item.quantity || 0,
@@ -268,17 +252,17 @@ export default function RevenuePlanning() {
         'Margin %': item.margin_percent || 0,
         'Avg Selling Price': (item.revenue || 0) / (item.quantity || 1),
       }));
-      
-      return children;
-    } catch (error) {
-      console.error('❌ Drill-down failed:', error);
-      if (error instanceof Error) {
-        console.error('Error details:', error.message, error.stack);
+    } catch (error: any) {
+      if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') {
+        console.error('Drill-down timed out');
+      } else {
+        console.error('Drill-down failed:', error);
       }
       return [];
+    } finally {
+      clearTimeout(timeout);
     }
   };
-
   const formatCurrency = formatCurrency2dp;
 
   if (loading) {

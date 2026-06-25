@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { DollarSign, TrendingUp, Users, Briefcase, Target, Package, Building2, Activity, ChevronDown } from 'lucide-react';
 import MetricCard from '../components/MetricCard';
 import FinancialTable from '../components/FinancialTable';
@@ -24,6 +24,107 @@ interface KPIData {
 // ---- Drill hierarchy types ----
 type DrillLevel = 'year' | 'quarter' | 'month';
 
+// ─── CollapsibleSection: owns isOpen state so chevron clicks don't re-render parent ──
+const CollapsibleSection = memo(function CollapsibleSection({
+  title, children,
+}: { title: string; children: React.ReactNode }) {
+  const [isOpen, setIsOpen] = useState(true);
+  return (
+    <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+      <button type="button" onClick={() => setIsOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+        <span className="font-semibold text-gray-700 dark:text-gray-200">{title}</span>
+        <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : 'rotate-0'}`} />
+      </button>
+      <div className={isOpen ? 'block' : 'hidden'}>{children}</div>
+    </div>
+  );
+});
+
+// ─── BudgetVsForecastSection: owns filter state so dropdown changes don't re-render parent ──
+const ALL_MONTHLY_TREND = [
+  { year: '2024', quarter: 'Q1', month: 'Jan', budget: 11200000, forecast: 11500000, actual: 11800000 },
+  { year: '2024', quarter: 'Q1', month: 'Feb', budget: 11500000, forecast: 11800000, actual: 12100000 },
+  { year: '2024', quarter: 'Q1', month: 'Mar', budget: 11800000, forecast: 12200000, actual: 12400000 },
+  { year: '2024', quarter: 'Q2', month: 'Apr', budget: 12000000, forecast: 12500000, actual: 12700000 },
+  { year: '2024', quarter: 'Q2', month: 'May', budget: 12300000, forecast: 12800000, actual: 13000000 },
+  { year: '2024', quarter: 'Q2', month: 'Jun', budget: 12500000, forecast: 13000000, actual: 11900000 },
+  { year: '2025', quarter: 'Q1', month: 'Jan', budget: 12700000, forecast: 13100000, actual: 13300000 },
+  { year: '2025', quarter: 'Q1', month: 'Feb', budget: 12900000, forecast: 13300000, actual: 13600000 },
+  { year: '2025', quarter: 'Q1', month: 'Mar', budget: 13100000, forecast: 13600000, actual: 13900000 },
+  { year: '2025', quarter: 'Q2', month: 'Apr', budget: 13300000, forecast: 13800000, actual: 14100000 },
+  { year: '2025', quarter: 'Q2', month: 'May', budget: 13500000, forecast: 14000000, actual: 14400000 },
+  { year: '2025', quarter: 'Q2', month: 'Jun', budget: 13700000, forecast: 14200000, actual: 13950000 },
+];
+const TREND_DOMAIN: [(v: number) => number, (v: number) => number] = [
+  (dataMin: number) => Math.floor(dataMin * 0.96),
+  (dataMax: number) => Math.ceil(dataMax * 1.04),
+];
+const BudgetVsForecastSection = memo(function BudgetVsForecastSection() {
+  const [trendYear, setTrendYear] = useState('all');
+  const [trendQuarter, setTrendQuarter] = useState('all');
+  const [trendMonth, setTrendMonth] = useState('all');
+  const trendYears = useMemo(() => Array.from(new Set(ALL_MONTHLY_TREND.map((d) => d.year))), []);
+  const trendQuarters = useMemo(() =>
+    trendYear === 'all' ? [] : Array.from(new Set(
+      ALL_MONTHLY_TREND.filter((d) => d.year === trendYear).map((d) => d.quarter)
+    )), [trendYear]);
+  const trendMonths = useMemo(() =>
+    trendQuarter === 'all' ? [] : Array.from(new Set(
+      ALL_MONTHLY_TREND.filter((d) => d.year === trendYear && d.quarter === trendQuarter).map((d) => d.month)
+    )), [trendYear, trendQuarter]);
+  const chartData = useMemo(() =>
+    ALL_MONTHLY_TREND.filter((d) => {
+      if (trendYear !== 'all' && d.year !== trendYear) return false;
+      if (trendQuarter !== 'all' && d.quarter !== trendQuarter) return false;
+      if (trendMonth !== 'all' && d.month !== trendMonth) return false;
+      return true;
+    }).map((d) => ({
+      month: trendYear === 'all' ? `${d.year} ${d.month}` : d.month,
+      budget: d.budget, forecast: d.forecast, actual: d.actual,
+    })),
+    [trendYear, trendQuarter, trendMonth]);
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Budget vs Forecast vs Actual</h3>
+        <div className="flex items-center gap-2">
+          <select value={trendYear} onChange={(e) => { setTrendYear(e.target.value); setTrendQuarter('all'); setTrendMonth('all'); }}
+            className="text-sm border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 bg-white dark:bg-gray-700">
+            <option value="all">All Years</option>
+            {trendYears.map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+          <select value={trendQuarter} onChange={(e) => { setTrendQuarter(e.target.value); setTrendMonth('all'); }}
+            disabled={trendYear === 'all'}
+            className="text-sm border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 bg-white dark:bg-gray-700 disabled:opacity-50">
+            <option value="all">All Quarters</option>
+            {trendQuarters.map((q) => <option key={q} value={q}>{q}</option>)}
+          </select>
+          <select value={trendMonth} onChange={(e) => setTrendMonth(e.target.value)}
+            disabled={trendQuarter === 'all'}
+            className="text-sm border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 bg-white dark:bg-gray-700 disabled:opacity-50">
+            <option value="all">All Months</option>
+            {trendMonths.map((m) => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </div>
+      </div>
+      <ResponsiveContainer width="100%" height={300}>
+        <LineChart data={chartData} margin={{ top: 20, right: 0, left: 30, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
+          <XAxis dataKey="month" stroke="#6b7280" />
+          <YAxis domain={TREND_DOMAIN} tickFormatter={formatCurrency2dp} stroke="#6b7280" />
+          <Tooltip formatter={(value) => (value ? formatCurrency2dp(Number(value)) : '')} />
+          <Legend />
+          <Line type="monotone" dataKey="budget" name="Budget" stroke={SECONDARY} strokeWidth={2} dot={{ r: 3 }}
+            label={{ position: 'top', formatter: (v: any) => formatCurrency2dp(Number(v)), fontSize: 14 }} />
+          <Line type="monotone" dataKey="forecast" name="Forecast" stroke={TERTIARY} strokeWidth={2} dot={{ r: 3 }} />
+          <Line type="monotone" dataKey="actual" name="Actual" stroke={PRIMARY} strokeWidth={2} dot={{ r: 3 }} />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+});
+
 export default function ExecutiveOverview() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,14 +144,8 @@ export default function ExecutiveOverview() {
   const [drillLoading, setDrillLoading] = useState(false);
   const [drillError, setDrillError] = useState<string | null>(null);
 
-  const [openSections, setOpenSections] = useState({ financial: true, static: true });
 
   const [pieSelectedSlice, setPieSelectedSlice] = useState<string | null>(null);
-
-  // ---- Trend chart (line) hierarchical filter: year / quarter / month ----
-  const [trendYear, setTrendYear] = useState<string>('all');
-  const [trendQuarter, setTrendQuarter] = useState<string>('all');
-  const [trendMonth, setTrendMonth] = useState<string>('all');
 
   const currentYear = new Date().getFullYear(); // 2026
   const last4YearsData = revenueByYear
@@ -67,39 +162,19 @@ export default function ExecutiveOverview() {
     }));
   };
 
-  // Handles array response from drilldown API: [{ QuarterName/MonthName, Revenue }]
-const transformDrillData = (data: any): { label: string; value: number }[] => {
-  console.log('🔍 transformDrillData received:', data);
-  
-  if (!data) {
-    console.warn('⚠️ transformDrillData: data is null/undefined');
-    return [];
-  }
-  
-  // Already in chart format { labels, datasets }
-  if (data.labels && data.datasets) {
-    console.log('✅ Data is in ChartData format, transforming...');
-    const transformed = transformChartData(data);
-    console.log('✅ Transformed result:', transformed);
-    return transformed;
-  }
-  
-  // Array format from backend
-  if (Array.isArray(data)) {
-    console.log('✅ Data is array format, mapping...');
-    const transformed = data.map((item: any) => ({
+  // Handles both { labels, datasets } and array format from the drill-down API
+  const transformDrillData = (data: any): { label: string; value: number }[] => {
+    if (!data) return [];
+    if (data.labels && data.datasets) return transformChartData(data);
+    if (Array.isArray(data)) return data.map((item: any) => ({
       label: item.QuarterName ?? item.MonthName ?? item.quarter ?? item.month ?? item.label ?? '',
       value: Number(item.Revenue ?? item.revenue ?? item.value ?? 0),
     }));
-    console.log('✅ Array transformed result:', transformed);
-    return transformed;
-  }
-  
-  console.error('❌ transformDrillData: Unknown data format:', typeof data);
-  return [];
-};
+    return [];
+  };
 
   const fetchingRef = useRef(false);
+  const drillingRef = useRef(false);
 
   const loadDashboardData = useCallback(async () => {
     if (fetchingRef.current) return;
@@ -182,84 +257,57 @@ const transformDrillData = (data: any): { label: string; value: number }[] => {
   // ---- Real drill-down data, fetched from backend on click ----
 
   const handleBarClick = async (data: any) => {
-    // FIX: Recharts passes the Rectangle's props on click; the real datum is
-    // nested under `.payload`. Check payload first, fall back to top-level.
+    if (drillingRef.current) return;
     const label = data?.payload?.label ?? data?.label;
-    console.log('🎯 Bar clicked:', { data, label, drillLevel });
-    
-    if (!label) {
-      console.warn('⚠️ No label found in clicked data');
-      return;
-    }
+    if (!label) return;
 
-    if (drillLevel === 'year') {
-        const yearNum = Number(label);
-        setDrillLoading(true);
-        setDrillError(null);
-        // ❌ REMOVE these two lines from here — don't set drill level yet
-        // setSelectedYear(label);
-        // setDrillLevel('quarter');
-        try {
-          console.log('⏳ About to call API...');  // ← add
-          const res = await getRevenueDrilldown({ level: 'quarter', year: yearNum });
-          console.log('✅ API returned:', res);                          // ← add
-          console.log('✅ res.data:', JSON.stringify(res.data));         // ← add
-          console.log('✅ res.status:', res.status);                     // ← add
-          const chartData = res.data?.data ?? res.data;
-          console.log('✅ chartData:', JSON.stringify(chartData));       // ← add
-          const transformed = transformChartData(chartData);
-          console.log('✅ transformed:', transformed);   
-                if (transformed.length === 0) {
-            setDrillError(`No quarterly data found for ${label}`);
-          } else {
-            setQuarterData(transformed);
-            // ✅ Only change drill level AFTER data is ready
-            setSelectedYear(label);
-            setDrillLevel('quarter');
-          }
-        } catch (err: any) {
-          console.error('Failed to load quarter drill-down:', err);
-          setDrillError('Failed to load quarter data');
-           console.error('❌ CAUGHT ERROR:', err);           // ← change this
-          console.error('❌ Error message:', err?.message); // ← add
-          console.error('❌ Error stack:', err?.stack);     // ← add
-          console.error('❌ Error response:', err?.response?.data); // ← add (axios error)
-          setDrillError('Failed to load quarter data');
-        } finally {
-          setDrillLoading(false);
+    drillingRef.current = true;
+    setDrillLoading(true);
+    setDrillError(null);
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
+    try {
+      if (drillLevel === 'year') {
+        const res = await getRevenueDrilldown({ level: 'quarter', year: Number(label) });
+        const raw = res.data?.data ?? res.data;
+        const transformed = transformDrillData(raw);
+        if (transformed.length === 0) {
+          setDrillError(`No quarterly data found for ${label}`);
+        } else {
+          setQuarterData(transformed);
+          setSelectedYear(label);
+          setDrillLevel('quarter');
         }
-}
- else if (drillLevel === 'quarter') {
-  setDrillLoading(true);
-  setDrillError(null);
-  // ❌ Don't set these yet
-  // setSelectedQuarter(label);
-  // setDrillLevel('month');
-  try {
-    const res = await getRevenueDrilldown({
-      level: 'month',
-      year: Number(selectedYear),
-      quarter: label,
-    });
-    const chartData = res.data?.data ?? res.data;
-    const transformed = transformChartData(chartData);
-    console.log('Month transformed:', transformed);
-    if (transformed.length === 0) {
-      setDrillError(`No monthly data found for ${selectedYear} ${label}`);
-    } else {
-      setMonthData(transformed);
-      // ✅ Only change drill level AFTER data is ready
-      setSelectedQuarter(label);
-      setDrillLevel('month');
+      } else if (drillLevel === 'quarter') {
+        const res = await getRevenueDrilldown({
+          level: 'month',
+          year: Number(selectedYear),
+          quarter: label,
+        });
+        const raw = res.data?.data ?? res.data;
+        const transformed = transformDrillData(raw);
+        if (transformed.length === 0) {
+          setDrillError(`No monthly data found for ${selectedYear} ${label}`);
+        } else {
+          setMonthData(transformed);
+          setSelectedQuarter(label);
+          setDrillLevel('month');
+        }
+      }
+    } catch (err: any) {
+      if (err?.name === 'AbortError' || err?.code === 'ERR_CANCELED') {
+        setDrillError('Request timed out — please try again');
+      } else {
+        setDrillError('Failed to load drill-down data');
+        console.error('Drill-down error:', err);
+      }
+    } finally {
+      clearTimeout(timeout);
+      setDrillLoading(false);
+      drillingRef.current = false;
     }
-  } catch (err: any) {
-    console.error('Failed to load month drill-down:', err);
-    setDrillError('Failed to load month data');
-  } finally {
-    setDrillLoading(false);
-  }
-}
-    // month = leaf level, no further drill
   };
 
   const handleBarBreadcrumb = (target: DrillLevel) => {
@@ -279,43 +327,6 @@ const transformDrillData = (data: any): { label: string; value: number }[] => {
   };
 
   // ---- Trend (line) chart: hierarchical Year/Quarter/Month filtering ----
-  // Mock monthly data; swap with API data keyed by year/month when available
-  const allMonthlyTrend = [
-    { year: '2024', quarter: 'Q1', month: 'Jan', budget: 11200000, forecast: 11500000, actual: 11800000 },
-    { year: '2024', quarter: 'Q1', month: 'Feb', budget: 11500000, forecast: 11800000, actual: 12100000 },
-    { year: '2024', quarter: 'Q1', month: 'Mar', budget: 11800000, forecast: 12200000, actual: 12400000 },
-    { year: '2024', quarter: 'Q2', month: 'Apr', budget: 12000000, forecast: 12500000, actual: 12700000 },
-    { year: '2024', quarter: 'Q2', month: 'May', budget: 12300000, forecast: 12800000, actual: 13000000 },
-    { year: '2024', quarter: 'Q2', month: 'Jun', budget: 12500000, forecast: 13000000, actual: 11900000 },
-    { year: '2025', quarter: 'Q1', month: 'Jan', budget: 12700000, forecast: 13100000, actual: 13300000 },
-    { year: '2025', quarter: 'Q1', month: 'Feb', budget: 12900000, forecast: 13300000, actual: 13600000 },
-    { year: '2025', quarter: 'Q1', month: 'Mar', budget: 13100000, forecast: 13600000, actual: 13900000 },
-    { year: '2025', quarter: 'Q2', month: 'Apr', budget: 13300000, forecast: 13800000, actual: 14100000 },
-    { year: '2025', quarter: 'Q2', month: 'May', budget: 13500000, forecast: 14000000, actual: 14400000 },
-    { year: '2025', quarter: 'Q2', month: 'Jun', budget: 13700000, forecast: 14200000, actual: 13950000 },
-  ];
-
-  const trendYears = Array.from(new Set(allMonthlyTrend.map((d) => d.year)));
-  const trendQuarters = trendYear === 'all'
-    ? []
-    : Array.from(new Set(allMonthlyTrend.filter((d) => d.year === trendYear).map((d) => d.quarter)));
-  const trendMonths = trendQuarter === 'all'
-    ? []
-    : Array.from(new Set(allMonthlyTrend.filter((d) => d.year === trendYear && d.quarter === trendQuarter).map((d) => d.month)));
-
-  const budgetVsForecast = allMonthlyTrend.filter((d) => {
-    if (trendYear !== 'all' && d.year !== trendYear) return false;
-    if (trendQuarter !== 'all' && d.quarter !== trendQuarter) return false;
-    if (trendMonth !== 'all' && d.month !== trendMonth) return false;
-    return true;
-  }).map((d) => ({ month: trendYear === 'all' ? `${d.year} ${d.month}` : d.month, budget: d.budget, forecast: d.forecast, actual: d.actual }));
-
-  // Y-axis domain that does NOT start at zero - pads around the actual data range
-  const trendDomain: [number | ((dataMin: number) => number), number | ((dataMax: number) => number)] = [
-    (dataMin: number) => Math.floor(dataMin * 0.96),
-    (dataMax: number) => Math.ceil(dataMax * 1.04),
-  ];
-
   const summaryTableData: FinancialRow[] = [
     { id: 'revenue', label: 'Revenue', actual: 142500000, budget: 138200000, forecast: 145800000, variance: 4300000, variancePercent: 3.1 },
     { id: 'COGS', label: 'COGS', actual: 98700000, budget: 95100000, forecast: 99200000, variance: 3600000, variancePercent: 3.8 },
@@ -334,9 +345,6 @@ const transformDrillData = (data: any): { label: string; value: number }[] => {
     }
   };
 
-  const toggleSection = (section: 'financial' | 'static') => {
-    setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
-  };
 
   if (loading) {
     return (
@@ -375,36 +383,23 @@ const transformDrillData = (data: any): { label: string; value: number }[] => {
         </div>
       </div>
 
-      {/* Financial KPIs */}
-      <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-        <button type="button" onClick={() => { console.log('clicked financial'); toggleSection('financial'); }} className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-          <span className="font-semibold text-gray-700 dark:text-gray-200">Financial KPIs</span>
-          <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${openSections.financial ? 'rotate-180' : 'rotate-0'}`} />
-        </button>
-      
-        <div className={`transition-all duration-200 overflow-hidden ${openSections.financial ? 'max-h-screen' : 'max-h-0'}`}>
-          <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            {kpiData.slice(0, 4).map((kpi, index) => (
-              <MetricCard key={index} title={kpi.title} value={kpi.value} change={kpi.change} icon={kpi.icon} iconColor={kpi.iconColor} />
-            ))}
-          </div>
+      {/* Financial KPIs — CollapsibleSection owns open/close, siblings don't re-render */}
+      <CollapsibleSection title="Financial KPIs">
+        <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          {kpiData.slice(0, 4).map((kpi, index) => (
+            <MetricCard key={index} title={kpi.title} value={kpi.value} change={kpi.change} icon={kpi.icon} iconColor={kpi.iconColor} />
+          ))}
         </div>
-      </div>
+      </CollapsibleSection>
 
-      {/* Static KPIs */}
-      <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-        <button type="button" onClick={() => toggleSection('static')} className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-          <span className="font-semibold text-gray-700 dark:text-gray-200">Statistical KPIs</span>
-          <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${openSections.static ? 'rotate-180' : 'rotate-0'}`} />
-        </button>
-        <div className={`transition-all duration-200 overflow-hidden ${openSections.static ? 'max-h-screen' : 'max-h-0'}`}>
-          <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            {kpiData.slice(4).map((kpi, index) => (
-              <MetricCard key={index} title={kpi.title} value={kpi.value} change={kpi.change} icon={kpi.icon} iconColor={kpi.iconColor} />
-            ))}
-          </div>
+      {/* Statistical KPIs — CollapsibleSection owns open/close, siblings don't re-render */}
+      <CollapsibleSection title="Statistical KPIs">
+        <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          {kpiData.slice(4).map((kpi, index) => (
+            <MetricCard key={index} title={kpi.title} value={kpi.value} change={kpi.change} icon={kpi.icon} iconColor={kpi.iconColor} />
+          ))}
         </div>
-      </div>
+      </CollapsibleSection>
 
     
       {/* Charts Row 1 */}
@@ -530,53 +525,8 @@ const transformDrillData = (data: any): { label: string; value: number }[] => {
 
       {/* Charts Row 2 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Budget vs Forecast vs Actual - with hierarchical Year/Quarter/Month filter */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Budget vs Forecast vs Actual</h3>
-            <div className="flex items-center gap-2">
-              <select
-                value={trendYear}
-                onChange={(e) => { setTrendYear(e.target.value); setTrendQuarter('all'); setTrendMonth('all'); }}
-                className="text-sm border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 bg-white dark:bg-gray-700"
-              >
-                <option value="all">All Years</option>
-                {trendYears.map((y) => <option key={y} value={y}>{y}</option>)}
-              </select>
-              <select
-                value={trendQuarter}
-                onChange={(e) => { setTrendQuarter(e.target.value); setTrendMonth('all'); }}
-                disabled={trendYear === 'all'}
-                className="text-sm border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 bg-white dark:bg-gray-700 disabled:opacity-50"
-              >
-                <option value="all">All Quarters</option>
-                {trendQuarters.map((q) => <option key={q} value={q}>{q}</option>)}
-              </select>
-              <select
-                value={trendMonth}
-                onChange={(e) => setTrendMonth(e.target.value)}
-                disabled={trendQuarter === 'all'}
-                className="text-sm border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 bg-white dark:bg-gray-700 disabled:opacity-50"
-              >
-                <option value="all">All Months</option>
-                {trendMonths.map((m) => <option key={m} value={m}>{m}</option>)}
-              </select>
-            </div>
-          </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={budgetVsForecast} margin={{ top: 20, right: 0, left: 30, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
-              <XAxis dataKey="month" stroke="#6b7280" />
-              <YAxis domain={trendDomain} tickFormatter={formatCurrency2dp} stroke="#6b7280" />
-              <Tooltip formatter={(value) => (value ? formatCurrency2dp(Number(value)) : '')} />
-              <Legend />
-              <Line type="monotone" dataKey="budget" name="Budget" stroke={SECONDARY} strokeWidth={2} dot={{ r: 3 }}
-                label={{ position: 'top', formatter: (v: any) => formatCurrency2dp(Number(v)), fontSize: 14 }} />
-              <Line type="monotone" dataKey="forecast" name="Forecast" stroke={TERTIARY} strokeWidth={2} dot={{ r: 3 }} />
-              <Line type="monotone" dataKey="actual" name="Actual" stroke={PRIMARY} strokeWidth={2} dot={{ r: 3 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+        {/* Budget vs Forecast — sub-component owns its own filter state */}
+        <BudgetVsForecastSection />
 
         {/* Revenue by Category */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
