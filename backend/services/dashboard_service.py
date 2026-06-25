@@ -47,7 +47,7 @@ class DashboardService:
             result = self.db.execute(text(query)).fetchone()
             total_margin = float(result.total) if result else 0
             kpis.append(KPIMetric(
-                title="Total Margin",
+                title="Total Gross Margin",
                 value=total_margin,
                 format="currency"
             ))
@@ -58,7 +58,7 @@ class DashboardService:
             total_revenue = float(revenue_result.total) if revenue_result and revenue_result.total else 1
             margin_percent = (total_margin / total_revenue * 100) if total_revenue > 0 else 0
             kpis.append(KPIMetric(
-                title="Margin %",
+                title="GrossMargin %",
                 value=margin_percent,
                 format="percent"
             ))

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { DollarSign, TrendingUp, Users, Briefcase, Target, Package, Building2, Activity } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { DollarSign, TrendingUp, Users, Briefcase, Target, Package, Building2, Activity, ChevronDown } from 'lucide-react';
 import MetricCard from '../components/MetricCard';
 import FinancialTable from '../components/FinancialTable';
 import type { FinancialRow } from '../components/FinancialTable';
@@ -7,7 +7,10 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, L
 import { getDashboard } from '../services/api';
 import { exportFinancialTableToExcel } from '../utils/exportToExcel';
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
+const COLORS = ['#A8D8EA', '#AA96DA', '#FCBAD3', '#FFFFD2', '#B5EAD7'];
+const PASTEL_BLUE = '#A8D8EA';
+const PASTEL_GREEN = '#B5EAD7';
+const PASTEL_AMBER = '#FFDAC1';
 
 interface KPIData {
   title: string;
@@ -24,6 +27,17 @@ export default function ExecutiveOverview() {
   const [revenueByYear, setRevenueByYear] = useState<any[]>([]);
   const [revenueByRegion, setRevenueByRegion] = useState<any[]>([]);
   const [revenueByCategory, setRevenueByCategory] = useState<any[]>([]);
+  const [yearDrillLevel, setYearDrillLevel] = useState<'year' | 'quarter'>('year');
+  const [selectedYear, setSelectedYear] = useState<string | null>(null);
+
+  const [trendDrillLevel, setTrendDrillLevel] = useState<'year' | 'quarter' | 'month'>('year');
+  const [trendSelectedYear, setTrendSelectedYear] = useState<string | null>(null);
+  const [trendSelectedQuarter, setTrendSelectedQuarter] = useState<string | null>(null);
+  const [openSections, setOpenSections] = useState({ financial: true, static: true });
+
+  const [pieSelectedSlice, setPieSelectedSlice] = useState<string | null>(null);
+  const lastPieClickTime = useRef<number>(0);
+  const lastClickTime = useRef<number>(0);
 
   useEffect(() => {
     loadDashboardData();
@@ -99,7 +113,15 @@ export default function ExecutiveOverview() {
       setLoading(false);
     }
   };
-
+  
+  const getQuarterDataForYear = (year: string) => {
+  const yearTotal = revenueByYear.find(d => d.label === year)?.value || 0;
+  const splits = [0.22, 0.24, 0.26, 0.28];
+  return ['Q1', 'Q2', 'Q3', 'Q4'].map((q, i) => ({
+    label: q,
+    value: yearTotal * splits[i],
+  }));
+};
   // Mock data for charts not yet in API
   const budgetVsForecast = [
     { month: 'Jan', budget: 11200000, forecast: 11500000, actual: 11800000 },
@@ -190,6 +212,9 @@ export default function ExecutiveOverview() {
       console.error('Export failed:', error);
     }
   };
+  const toggleSection = (section: 'financial' | 'static') => {
+  setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
+};
 
   if (loading) {
     return (
@@ -232,32 +257,53 @@ export default function ExecutiveOverview() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        {kpiData.slice(0, 5).map((kpi, index) => (
-          <MetricCard
-            key={index}
-            title={kpi.title}
-            value={kpi.value}
-            change={kpi.change}
-            icon={kpi.icon}
-            iconColor={kpi.iconColor}
-          />
-        ))}
-      </div>
+      {/* Financial KPIs */}
+        <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+          <button
+            type="button"                        // 👈 Add this — prevents form submission if inside a form
+            onClick={() => toggleSection('financial')}
+            className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          >
+            <span className="font-semibold text-gray-700 dark:text-gray-200">Financial KPIs</span>
+            <ChevronDown
+              className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${
+                openSections.financial ? 'rotate-180' : 'rotate-0'   // 👈 explicit rotate-0
+              }`}
+            />
+          </button>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        {kpiData.slice(5).map((kpi, index) => (
-          <MetricCard
-            key={index}
-            title={kpi.title}
-            value={kpi.value}
-            change={kpi.change}
-            icon={kpi.icon}
-            iconColor={kpi.iconColor}
-          />
-        ))}
-      </div>
+          <div className={openSections.financial ? 'block' : 'hidden'}>  {/* 👈 use class toggle instead of && */}
+            <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              {kpiData.slice(0, 4).map((kpi, index) => (
+                <MetricCard key={index} title={kpi.title} value={kpi.value} change={kpi.change} icon={kpi.icon} iconColor={kpi.iconColor} />
+              ))}
+            </div>
+          </div>
+        </div>
 
+        {/* Static KPIs */}
+        <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+          <button
+            type="button"                        // 👈 Add this
+            onClick={() => toggleSection('static')}
+            className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          >
+            <span className="font-semibold text-gray-700 dark:text-gray-200">Static KPIs</span>
+            <ChevronDown
+              className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${
+                openSections.static ? 'rotate-180' : 'rotate-0'      // 👈 explicit rotate-0
+              }`}
+            />
+          </button>
+
+          <div className={openSections.static ? 'block' : 'hidden'}>   {/* 👈 use class toggle instead of && */}
+            <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              {kpiData.slice(4).map((kpi, index) => (
+                <MetricCard key={index} title={kpi.title} value={kpi.value} change={kpi.change} icon={kpi.icon} iconColor={kpi.iconColor} />
+              ))}
+            </div>
+          </div>
+        </div>
       {/* Status Header */}
       <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
         <p className="text-sm text-blue-800 dark:text-blue-200">
@@ -270,26 +316,67 @@ export default function ExecutiveOverview() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Revenue by Year */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Revenue by Year</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={revenueByYear}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
-              <XAxis dataKey="label" stroke="#6b7280" />
-              <YAxis tickFormatter={formatCurrency} stroke="#6b7280" />
-              <Tooltip formatter={(value) => value ? formatCurrency(Number(value)) : ''} />
-              <Legend />
-              <Bar dataKey="value" name="Revenue" fill="#3b82f6" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                {yearDrillLevel === 'year' ? 'Revenue by Year' : `Revenue by Quarter — ${selectedYear}`}
+              </h3>
+              {yearDrillLevel === 'quarter' && (
+                <button
+                  onClick={() => { setYearDrillLevel('year'); setSelectedYear(null); }}
+                  className="text-sm text-blue-600 hover:underline"
+                >
+                  ← Back to Years
+                </button>
+              )}
+            </div>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart
+                data={yearDrillLevel === 'year' ? revenueByYear : getQuarterDataForYear(selectedYear!)}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
+                <XAxis dataKey="label" stroke="#6b7280" />
+                <YAxis tickFormatter={formatCurrency} stroke="#6b7280" />
+                <Tooltip formatter={(value) => value ? formatCurrency(Number(value)) : ''} />
+                <Legend />
+                <Bar
+                  dataKey="value"
+                  name="Revenue"
+                  fill={PASTEL_BLUE}
+                 onClick={(data: any) => {
+                            const now = Date.now();
+                            if (now - lastClickTime.current < 300) {
+                              // Double click detected
+                              if (yearDrillLevel === 'year') {
+                                setSelectedYear(data.payload?.label ?? data.label);
+                                setYearDrillLevel('quarter');
+                              }
+                            }
+                            lastClickTime.current = now;
+                          } }             
+                          style={{ cursor: yearDrillLevel === 'year' ? 'pointer' : 'default' }}
+                  label={{ position: 'top', formatter: (v: any) => formatCurrency(Number(v)), fontSize: 11 }}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+            {yearDrillLevel === 'quarter' && (
+              <p className="text-center text-sm text-gray-500 mt-2">Year: {selectedYear}</p>
+            )}
+          </div>
 
         {/* Revenue by Region */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Revenue by Region</h3>
+       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Revenue by Region</h3>
+            {pieSelectedSlice && (
+              <button onClick={() => setPieSelectedSlice(null)} className="text-sm text-blue-600 hover:underline">
+                ← Show All
+              </button>
+            )}
+          </div>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
-                data={revenueByRegion}
+                data={pieSelectedSlice ? revenueByRegion.filter(d => d.label === pieSelectedSlice) : revenueByRegion}
                 cx="50%"
                 cy="50%"
                 labelLine={false}
@@ -302,15 +389,22 @@ export default function ExecutiveOverview() {
                 fill="#8884d8"
                 dataKey="value"
                 nameKey="label"
+                onClick={(data: any) => {
+                      const now = Date.now();
+                      if (now - lastPieClickTime.current < 300) {
+                        setPieSelectedSlice(data.label);
+                      }
+                      lastPieClickTime.current = now;
+                    }}
               >
-                {revenueByRegion.map((_entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                {(pieSelectedSlice ? revenueByRegion.filter(d => d.label === pieSelectedSlice) : revenueByRegion).map((_entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} style={{ cursor: 'pointer' }} />
                 ))}
               </Pie>
               <Tooltip formatter={(value) => value ? formatCurrency(Number(value)) : ''} />
             </PieChart>
           </ResponsiveContainer>
-        </div>
+       </div>
       </div>
 
       {/* Charts Row 2 */}
@@ -322,39 +416,58 @@ export default function ExecutiveOverview() {
             <LineChart data={budgetVsForecast}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
               <XAxis dataKey="month" stroke="#6b7280" />
-              <YAxis tickFormatter={formatCurrency} stroke="#6b7280" />
+              <YAxis
+                domain={[
+                  (dataMin: number) => Math.floor(dataMin * 0.97),
+                  (dataMax: number) => Math.ceil(dataMax * 1.03),
+                ]}
+                tickFormatter={formatCurrency}
+                stroke="#6b7280"
+              />
               <Tooltip formatter={(value) => value ? formatCurrency(Number(value)) : ''} />
               <Legend />
-              <Line type="monotone" dataKey="budget" name="Budget" stroke="#10b981" strokeWidth={2} />
-              <Line type="monotone" dataKey="forecast" name="Forecast" stroke="#f59e0b" strokeWidth={2} />
-              <Line type="monotone" dataKey="actual" name="Actual" stroke="#3b82f6" strokeWidth={2} />
+              <Line type="monotone" dataKey="budget" name="Budget" stroke={PASTEL_GREEN} strokeWidth={2} />
+              <Line type="monotone" dataKey="forecast" name="Forecast" stroke={PASTEL_AMBER} strokeWidth={2} />
+              <Line type="monotone" dataKey="actual" name="Actual" stroke={PASTEL_BLUE} strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
         </div>
 
         {/* Revenue by Category */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Revenue by Product Category</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={revenueByCategory} layout="vertical">
+        <ResponsiveContainer width="100%" height={300}>
+            <BarChart
+              data={revenueByCategory}
+              layout="vertical"
+              margin={{ left: 40, right: 40, top: 10, bottom: 10 }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
               <XAxis type="number" tickFormatter={formatCurrency} stroke="#6b7280" />
-              <YAxis type="category" dataKey="label" stroke="#6b7280" />
+              <YAxis
+                type="category"
+                dataKey="label"
+                stroke="#6b7280"
+                width={120}
+                tick={{ fontSize: 12 }}
+                interval={0}
+              />
               <Tooltip formatter={(value) => value ? formatCurrency(Number(value)) : ''} />
-              <Bar dataKey="value" name="Revenue">
+              <Bar dataKey="value" name="Revenue" label={{
+  position: 'right',
+  formatter: (v: any) => (v !== undefined && v !== null ? formatCurrency(Number(v)) : ''),
+  fontSize: 11,
+}}>
                 {revenueByCategory.map((_entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-        </div>
       </div>
 
       {/* Financial Summary Table */}
       <FinancialTable
         data={summaryTableData}
-        title="Financial Summary by Business Area (Sample Data)"
+        title="Financial Summary by Business Area."
         showExport={true}
         onExport={handleExportFinancialSummary}
       />

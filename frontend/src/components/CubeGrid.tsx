@@ -170,7 +170,7 @@ export default function CubeGrid({
       header: 'Dimension',
       cell: ({ row }) => {
         const indent = row.original.indent || 0;
-        const hasChildren = row.original.hasChildren || childrenData[row.original.id]?.length > 0 || Boolean(row.original.level);
+        const hasChildren = row.original.hasChildren || (childrenData[row.original.id]?.length ?? 0) > 0;
         const isExpanded = expandedRows.has(row.original.id);
         const isLoading = loadingRows.has(row.original.id);
         const isTotal = row.original.isTotal;
@@ -246,7 +246,7 @@ export default function CubeGrid({
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
       {(title || showExport) && (
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           {title && <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>}

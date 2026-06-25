@@ -303,7 +303,7 @@ export default function WorkforcePlanning() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Workforce Planning</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Workforce Reporting</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">Employee compensation and headcount analysis</p>
           <div className="mt-2 flex items-center gap-2 text-sm text-indigo-600 dark:text-indigo-400">
             <span className="font-semibold">📊 Drill-Down Hierarchy:</span>

@@ -23,8 +23,8 @@ interface LayoutProps {
 
 const navigationItems = [
   { path: '/', label: 'Executive Overview', icon: LayoutDashboard },
-  { path: '/revenue-planning', label: 'Revenue Planning', icon: TrendingUp },
-  { path: '/workforce-planning', label: 'Workforce Planning', icon: Users },
+  { path: '/revenue-planning', label: 'Product Financial Analysis', icon: TrendingUp },
+  { path: '/workforce-planning', label: 'Workforce Reporting', icon: Users },
   { path: '/cfo-budgeting', label: 'CFO Budgeting', icon: Wallet },
   { path: '/forecasting-analysis', label: 'Forecasting Analysis', icon: LineChart },
   { path: '/pl-statement', label: 'P&L Statement', icon: FileText },

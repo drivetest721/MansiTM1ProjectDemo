@@ -6,6 +6,8 @@ class Settings(BaseSettings):
     DB_SERVER: str = "REAL_L001"
     DB_NAME: str = "TM1EnterpriseDB"
     DB_DRIVER: str = "{ODBC Driver 17 for SQL Server}"
+    DB_USERNAME: str
+    DB_PASSWORD: str
     
     # API settings
     API_HOST: str = "0.0.0.0"
@@ -35,7 +37,9 @@ class Settings(BaseSettings):
             f"DRIVER={self.DB_DRIVER};"
             f"SERVER={self.DB_SERVER};"
             f"DATABASE={self.DB_NAME};"
-            f"Trusted_Connection=yes;"
+            f"UID={self.DB_USERNAME};"
+            f"PWD={self.DB_PASSWORD};"
+            f"TrustServerCertificate=yes;"
         )
         # URL-encode the entire connection string
         params = quote_plus(odbc_connect)

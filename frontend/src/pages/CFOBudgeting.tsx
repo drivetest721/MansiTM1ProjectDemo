@@ -32,7 +32,7 @@ export default function CFOBudgeting() {
       id: 'year',
       label: 'Year',
       options: [
-        { value: 'all', label: 'All Years' },
+        
         ...Array.from({length: 13}, (_, i) => 2018 + i).map(y => ({ value: String(y), label: String(y) })),
       ],
     },
@@ -40,28 +40,28 @@ export default function CFOBudgeting() {
       id: 'entity',
       label: 'Entity',
       options: [
-        { value: 'all', label: 'All Entities' },
+       
       ],
     },
     {
       id: 'department',
       label: 'Department',
       options: [
-        { value: 'all', label: 'All Departments' },
+       
       ],
     },
     {
       id: 'account',
       label: 'Account',
       options: [
-        { value: 'all', label: 'All Accounts' },
+        
       ],
     },
     {
       id: 'scenario',
       label: 'Scenario',
       options: [
-        { value: 'all', label: 'All Scenarios' },
+       
         { value: 'Base', label: 'Base Case' },
         { value: 'Best', label: 'Best Case' },
         { value: 'Worst', label: 'Worst Case' },
@@ -71,7 +71,7 @@ export default function CFOBudgeting() {
       id: 'version',
       label: 'Version',
       options: [
-        { value: 'all', label: 'All Versions' },
+       
         { value: 'Actual', label: 'Actual' },
         { value: 'Budget', label: 'Budget' },
         { value: 'Forecast', label: 'Forecast' },

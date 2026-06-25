@@ -15,6 +15,8 @@ export interface FinancialRow {
   forecast?: number;
   variance?: number;
   variancePercent?: number;
+  forecastVariance?: number;           // Actual vs Forecast  ← NEW
+  forecastVariancePercent?: number
   isTotal?: boolean;
   isSubtotal?: boolean;
   indent?: number;
@@ -28,7 +30,8 @@ interface FinancialTableProps {
   data: FinancialRow[];
   title?: string;
   showExport?: boolean;
-  columns?: ColumnDef<FinancialRow>[];
+  columns?: ColumnDef<FinancialRow>[];    
+  showForecast?: boolean;          // NEW
   onExport?: () => void;
   onDrillDown?: (row: FinancialRow) => Promise<FinancialRow[]>;
 }
@@ -37,6 +40,7 @@ export default function FinancialTable({
   data,
   title,
   showExport = true,
+  showForecast = true,          // NEW
   columns,
   onExport,
   onDrillDown,
@@ -163,10 +167,10 @@ export default function FinancialTable({
   };
 
   const defaultColumns: ColumnDef<FinancialRow>[] = [
-    {
+      {
       id: 'label',
       accessorKey: 'label',
-      header: 'Line Item',
+      header: 'Particular',
       cell: ({ row }) => {
         const indent = row.original.indent || 0;
         const hasChildren =
@@ -207,94 +211,84 @@ export default function FinancialTable({
         );
       },
     },
-    {
-      id: 'actual',
-      accessorKey: 'actual',
-      header: () => <div className="text-right">Actual</div>,
-      cell: ({ row }) => (
-        <div className={`text-right ${row.original.isTotal || row.original.isSubtotal ? 'font-bold' : ''}`}>
-          {formatCurrency(row.original.actual)}
-        </div>
-      ),
-    },
-    {
-      id: 'budget',
-      accessorKey: 'budget',
-      header: () => <div className="text-right">Budget</div>,
-      cell: ({ row }) => (
-        <div className={`text-right ${row.original.isTotal || row.original.isSubtotal ? 'font-bold' : ''}`}>
-          {formatCurrency(row.original.budget)}
-        </div>
-      ),
-    },
-    {
-  id: 'variance',
-  accessorKey: 'variance',
-  header: () => <div className="text-right">Variance</div>,
-  cell: ({ row }) => (
-    <div
-      className={`text-right ${getRowVarianceColor(row.original, row.original.variance)} ${
-        row.original.isTotal || row.original.isSubtotal ? 'font-bold' : ''
-      }`}
-    >
-      {formatCurrency(row.original.variance)}
-    </div>
-  ),
-},
-{
-  id: 'variancePercent',
-  accessorKey: 'variancePercent',
-  header: () => <div className="text-right">Variance %</div>,
-  cell: ({ row }) => (
-    <div
-      className={`text-right ${getRowVarianceColor(row.original, row.original.variancePercent)} ${
-        row.original.isTotal || row.original.isSubtotal ? 'font-bold' : ''
-      }`}
-    >
-      {formatPercent(row.original.variancePercent)}
-    </div>
-  ),
-},
-    {
-      id: 'forecast',
-      accessorKey: 'forecast',
-      header: () => <div className="text-right">Forecast</div>,
-      cell: ({ row }) => (
-        <div className={`text-right ${row.original.isTotal || row.original.isSubtotal ? 'font-bold' : ''}`}>
-          {formatCurrency(row.original.forecast)}
-        </div>
-      ),
-    },
-    {
-      id: 'variance',
-      accessorKey: 'variance',
-      header: () => <div className="text-right">Variance</div>,
-      cell: ({ row }) => (
-        <div
-        className={`text-right ${getRowVarianceColor(row.original, row.original.variance)} ${
-          row.original.isTotal || row.original.isSubtotal ? 'font-bold' : ''
-        }`}
-        >
-          {formatCurrency(row.original.variance)}
-        </div>
-      ),
-    },
-    {
-      id: 'variancePercent',
-      accessorKey: 'variancePercent',
-      header: () => <div className="text-right">Variance %</div>,
-      cell: ({ row }) => (
-        <div
-        className={`text-right ${getRowVarianceColor(row.original, row.original.variancePercent)} ${
-          row.original.isTotal || row.original.isSubtotal ? 'font-bold' : ''
-        }`}
-        >
-          {formatPercent(row.original.variancePercent)}
-        </div>
-      ),
-    }
-  ];
+  {
+    id: 'actual',
+    accessorKey: 'actual',
+    header: () => <div className="text-right">Actual</div>,
+    cell: ({ row }) => (
+      <div className={`text-right ${row.original.isTotal || row.original.isSubtotal ? 'font-bold' : ''}`}>
+        {formatCurrency(row.original.actual)}
+      </div>
+    ),
+  },
+  {
+    id: 'budget',
+    accessorKey: 'budget',
+    header: () => <div className="text-right">Budget</div>,
+    cell: ({ row }) => (
+      <div className={`text-right ${row.original.isTotal || row.original.isSubtotal ? 'font-bold' : ''}`}>
+        {formatCurrency(row.original.budget)}
+      </div>
+    ),
+  },
+  // Variance: Actual vs Budget — always visible
+  {
+    id: 'variance',
+    accessorKey: 'variance',
+    header: () => <div className="text-right">Variance</div>,
+    cell: ({ row }) => (
+      <div className={`text-right ${getRowVarianceColor(row.original, row.original.variance)} ${row.original.isTotal || row.original.isSubtotal ? 'font-bold' : ''}`}>
+        {formatCurrency(row.original.variance)}
+      </div>
+    ),
+  },
+  {
+    id: 'variancePercent',
+    accessorKey: 'variancePercent',
+    header: () => <div className="text-right">Variance %</div>,
+    cell: ({ row }) => (
+      <div className={`text-right ${getRowVarianceColor(row.original, row.original.variancePercent)} ${row.original.isTotal || row.original.isSubtotal ? 'font-bold' : ''}`}>
+        {formatPercent(row.original.variancePercent)}
+      </div>
+    ),
+  },
 
+  // Forecast group — only rendered when showForecast is true
+  ...(showForecast
+    ? ([
+        {
+          id: 'forecast',
+          accessorKey: 'forecast',
+          header: () => <div className="text-right">Forecast</div>,
+          cell: ({ row }) => (
+            <div className={`text-right ${row.original.isTotal || row.original.isSubtotal ? 'font-bold' : ''}`}>
+              {formatCurrency(row.original.forecast)}
+            </div>
+          ),
+        },
+        {
+          id: 'forecastVariance',
+          accessorKey: 'forecastVariance',
+          header: () => <div className="text-right">Variance (Actual vs Forecast)</div>,
+          cell: ({ row }) => (
+            <div className={`text-right ${getRowVarianceColor(row.original, row.original.forecastVariance)} ${row.original.isTotal || row.original.isSubtotal ? 'font-bold' : ''}`}>
+              {formatCurrency(row.original.forecastVariance)}
+            </div>
+          ),
+        },
+        {
+          id: 'forecastVariancePercent',
+          accessorKey: 'forecastVariancePercent',
+          header: () => <div className="text-right">Variance % (Actual vs Forecast)</div>,
+          cell: ({ row }) => (
+            <div className={`text-right ${getRowVarianceColor(row.original, row.original.forecastVariancePercent)} ${row.original.isTotal || row.original.isSubtotal ? 'font-bold' : ''}`}>
+              {formatPercent(row.original.forecastVariancePercent)}
+            </div>
+          ),
+        },
+      ] as ColumnDef<FinancialRow>[])
+    : []),
+ ];
   const table = useReactTable({
     data: flattenData(data),
     columns: columns || defaultColumns,

@@ -238,15 +238,7 @@ export default function BalanceSheet() {
               </p>
             </div>
           </div>
-
-          {/* Balance Sheet Table */}
-          <FinancialTable
-            data={bsData}
-            title={`Balance Sheet - As of ${filters.month === 'ytd' ? 'YTD' : 'Month End'} ${filters.year}`}
-            showExport={true}
-          />
-
-          {/* Key Ratios */}
+                    {/* Key Ratios */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
               <p className="text-sm font-medium text-blue-700 dark:text-blue-300">Current Ratio</p>
@@ -287,9 +279,18 @@ export default function BalanceSheet() {
               <li>Assets = Liabilities + Equity (Fundamental Accounting Equation)</li>
               <li>Current assets/liabilities are due within one year</li>
               <li>Non-current assets include long-term investments and fixed assets</li>
-              <li>âœ… <strong>REAL DATA:</strong> Database accounts intelligently mapped to display labels (e.g., Cash, Bank, Money Market â†’ "Cash & Cash Equivalents")</li>
+              <li>✔ <strong>REAL DATA:</strong> Database accounts intelligently mapped to display labels (e.g., Cash, Bank, Money Market → "Cash & Cash Equivalents")</li>
             </ul>
           </div>
+
+          {/* Balance Sheet Table */}
+          <FinancialTable
+            data={bsData}
+            title={`Balance Sheet - As of ${filters.month === 'ytd' ? 'YTD' : 'Month End'} ${filters.year}`}
+            showExport={true}
+          />
+
+
         </>
       )}
     </div>

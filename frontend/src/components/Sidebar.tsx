@@ -16,8 +16,8 @@ import {
 
 const navigation = [
   { name: 'Executive Overview', href: '/', icon: LayoutDashboard },
-  { name: 'Revenue Planning', href: '/revenue-planning', icon: TrendingUp },
-  { name: 'Workforce Planning', href: '/workforce-planning', icon: Users },
+  { name: 'Product Financial Analysis', href: '/revenue-planning', icon: TrendingUp },
+  { name: 'Workforce Reporting', href: '/workforce-planning', icon: Users },
   { name: 'CFO Budgeting', href: '/cfo-budgeting', icon: DollarSign },
   { name: 'Forecasting Analysis', href: '/forecasting-analysis', icon: BarChart3 },
   { name: 'P&L Statement', href: '/pl-statement', icon: FileText },

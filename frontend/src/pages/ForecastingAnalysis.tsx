@@ -10,7 +10,7 @@ import { getScenarioSummary, getForecastTable, getEntities } from '../services/a
 // Scenario cards data (fallback)
 const scenariosFallback = [
   {
-    name: 'Base Case',
+    name: 'Most Likely Case',
     revenue: 145800000,
     ebitda: -54400000,
     netIncome: -61200000,
@@ -139,7 +139,7 @@ const filterOptions: FilterOption[] = [
     id: 'scenario',
     label: 'Scenario',
     options: [
-      { value: 'base', label: 'Base Case' },
+      { value: 'base', label: 'Most Likely Case' },
       { value: 'best', label: 'Best Case' },
       { value: 'worst', label: 'Worst Case' },
     ],
@@ -404,18 +404,8 @@ export default function ForecastingAnalysis() {
               </ResponsiveContainer>
             </div>
           </div>
-
-          {/* Forecast Accuracy Note */}
-          <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
-            <p className="text-sm text-purple-800 dark:text-purple-200">
-              <strong>Forecast Accuracy:</strong> Historical forecast accuracy is 94.2%. 
-              Base case scenario has 50% probability, with best and worst cases at 25% each. 
-              Rolling forecasts are updated monthly based on actuals.
-              Data loaded from Planning.vw_ForecastCube_Source and Planning.vw_BudgetForecastVariance database views.
-            </p>
-          </div>
-        </>
-      )}
+          </>
+       )}
     </div>
   );
 }

@@ -23,7 +23,7 @@ export default function RevenuePlanning() {
     quarter: 'all',
     region: 'all',
     entity: 'all',
-    version: 'all',
+    scenario: 'all',
   });
 
   // Pivot configuration state
@@ -35,46 +35,40 @@ export default function RevenuePlanning() {
   });
 
   const filterOptions: FilterOption[] = [
-    {
-      id: 'year',
-      label: 'Year',
-      options: [
-        { value: 'all', label: 'All Years' },
-        ...Array.from({length: 13}, (_, i) => 2018 + i).map(y => ({ value: String(y), label: String(y) })),
-      ],
-    },
-    {
-      id: 'quarter',
-      label: 'Quarter',
-      options: [
-        { value: 'all', label: 'All Quarters' },
-        { value: 'Q1', label: 'Q1' },
-        { value: 'Q2', label: 'Q2' },
-        { value: 'Q3', label: 'Q3' },
-        { value: 'Q4', label: 'Q4' },
-      ],
-    },
-    {
-      id: 'region',
-      label: 'Region',
-      options: [
-        { value: 'all', label: 'All Regions' },
-        { value: 'North America', label: 'North America' },
-        { value: 'Europe Middle East Africa', label: 'Europe Middle East Africa' },
-        { value: 'Asia Pacific', label: 'Asia Pacific' },
-      ],
-    },
-    {
-      id: 'version',
-      label: 'Version',
-      options: [
-        { value: 'all', label: 'All Versions' },
-        { value: 'Actual', label: 'Actual' },
-        { value: 'Budget', label: 'Budget' },
-        { value: 'Forecast', label: 'Forecast' },
-      ],
-    },
-  ];
+  {
+    id: 'year',
+    label: 'Year',
+    options: Array.from({ length: 13 }, (_, i) => 2018 + i).map(y => ({ value: String(y), label: String(y) })),
+  },
+  {
+    id: 'quarter',
+    label: 'Quarter',
+    options: [
+      { value: 'Q1', label: 'Q1' },
+      { value: 'Q2', label: 'Q2' },
+      { value: 'Q3', label: 'Q3' },
+      { value: 'Q4', label: 'Q4' },
+    ],
+  },
+  {
+    id: 'region',
+    label: 'Region',
+    options: [
+      { value: 'North America', label: 'North America' },
+      { value: 'Europe Middle East Africa', label: 'Europe Middle East Africa' },
+      { value: 'Asia Pacific', label: 'Asia Pacific' },
+    ],
+  },
+  {
+    id: 'scenario',
+    label: 'Scenario',
+    options: [
+      { value: 'Actual', label: 'Actual' },
+      { value: 'Budget', label: 'Budget' },
+      { value: 'Forecast', label: 'Forecast' },
+    ],
+  },
+];
 
   useEffect(() => {
     loadData();
@@ -90,7 +84,7 @@ export default function RevenuePlanning() {
       if (filters.year !== 'all') params.year = parseInt(filters.year);
       if (filters.quarter !== 'all') params.quarter = filters.quarter;
       if (filters.region !== 'all') params.region = filters.region;
-      if (filters.version !== 'all') params.version = filters.version;
+      if (filters.scenario !== 'all') params.scenario = filters.scenario;
 
       // Load cube data and aggregations in parallel
       const [byProduct, byRegion, bySegment] = await Promise.all([
@@ -180,7 +174,7 @@ export default function RevenuePlanning() {
       quarter: 'all',
       region: 'all',
       entity: 'all',
-      version: 'all',
+      scenario: 'all',
     });
   };
 
@@ -317,8 +311,9 @@ export default function RevenuePlanning() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Revenue Planning</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">TM1-style revenue cube with drill-down capabilities</p>          <div className="mt-2 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Product Financial Analysis</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">TM1-style Interactive cube for analyzing product revenue and profitability metrics.</p>          
+          <div className="mt-2 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
             <span className="font-semibold">📊 Drill-Down Hierarchy:</span>
             <span className="bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded">Product Category</span>
             <span>→</span>
@@ -346,7 +341,13 @@ export default function RevenuePlanning() {
           Pivot Options
         </button>
       </div>
-
+      {/* Instructions */}
+      <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4">
+        <p className="text-sm text-indigo-800 dark:text-indigo-200">
+          <strong>Cube Navigation:</strong> Click expand icons (▶) to drill down from Product Category → Product Family → Product Line. 
+          Use global filters to slice data by time, geography, and version. Export to Excel for further analysis.
+        </p>
+      </div>
       {/* Main Cube Grid */}
       <CubeGrid
         data={cubeData}
@@ -415,13 +416,7 @@ export default function RevenuePlanning() {
         </div>
       </div>
 
-      {/* Instructions */}
-      <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4">
-        <p className="text-sm text-indigo-800 dark:text-indigo-200">
-          <strong>Cube Navigation:</strong> Click expand icons (▶) to drill down from Product Category → Product Family → Product Line. 
-          Use global filters to slice data by time, geography, and version. Export to Excel for further analysis.
-        </p>
-      </div>
+      
 
       {/* Pivot Dialog */}
       <PivotDialog

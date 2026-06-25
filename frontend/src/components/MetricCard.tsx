@@ -34,12 +34,8 @@ export default function MetricCard({
           <p className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
             {formatValue(value)}
           </p>
-          {change !== undefined && (
-            <VarianceBadge value={change} format={changeFormat} size="sm" />
-          )}
-          {subtitle && (
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">{subtitle}</p>
-          )}
+         
+         
         </div>
         {Icon && (
           <div className={`p-3 rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 ${iconColor}`}>
