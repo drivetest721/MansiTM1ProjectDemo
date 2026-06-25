@@ -45,7 +45,7 @@ class ConsolidationService:
             # Get all entities from TM1 dimension
             query = text("""
                 SELECT EntityName
-                FROM TM1.vw_Dim_Entity
+                FROM TM1.vw_Dim_Entity WITH (NOLOCK)
                 ORDER BY EntityName
             """)
             
@@ -99,7 +99,7 @@ class ConsolidationService:
             # Get all entities
             entity_query = text("""
                 SELECT EntityName
-                FROM TM1.vw_Dim_Entity
+                FROM TM1.vw_Dim_Entity WITH (NOLOCK)
                 ORDER BY EntityName
             """)
             entities_result = self.db.execute(entity_query)
@@ -115,7 +115,7 @@ class ConsolidationService:
                         AccountType,
                         AccountName,
                         SUM(ActualAmount) as TotalAmount
-                    FROM Finance.vw_PL_Statement
+                    FROM Finance.vw_PL_Statement WITH (NOLOCK)
                     WHERE YearNumber = :year
                     AND EntityName = :entity
                     GROUP BY AccountType, AccountName
@@ -130,7 +130,7 @@ class ConsolidationService:
                         AccountType,
                         AccountName,
                         SUM(BalanceAmount) as TotalAmount
-                    FROM Finance.vw_BalanceSheet
+                    FROM Finance.vw_BalanceSheet WITH (NOLOCK)
                     WHERE YearNumber = :year
                     AND EntityName = :entity
                     GROUP BY AccountType, AccountName

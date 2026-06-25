@@ -5,7 +5,8 @@ import {
   flexRender,
   type ColumnDef,
 } from '@tanstack/react-table';
-import { ChevronRight, ChevronDown, Download, Loader2 } from 'lucide-react';
+import { ChevronRight, ChevronDown, Download, Loader2, ZoomIn } from 'lucide-react';
+import { useDrill } from '../context/DrillContext';
 
 export interface FinancialRow {
   id: string;
@@ -30,8 +31,10 @@ interface FinancialTableProps {
   data: FinancialRow[];
   title?: string;
   showExport?: boolean;
-  columns?: ColumnDef<FinancialRow>[];    
-  showForecast?: boolean;          // NEW
+  columns?: ColumnDef<FinancialRow>[];
+  showForecast?: boolean;
+  /** When true, single-click on any data row opens the global DrillPanel */
+  drillEnabled?: boolean;
   onExport?: () => void;
   onDrillDown?: (row: FinancialRow) => Promise<FinancialRow[]>;
 }
@@ -40,11 +43,13 @@ export default function FinancialTable({
   data,
   title,
   showExport = true,
-  showForecast = true,          // NEW
+  showForecast = true,
+  drillEnabled = false,
   columns,
   onExport,
   onDrillDown,
 }: FinancialTableProps) {
+  const drill = useDrill();
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [childrenData, setChildrenData] = useState<Record<string, FinancialRow[]>>({});
   const [loadingRows, setLoadingRows] = useState<Set<string>>(new Set());
@@ -346,27 +351,51 @@ export default function FinancialTable({
                 </td>
               </tr>
             ) : (
-              table.getRowModel().rows.map((row) => (
+              table.getRowModel().rows.map((row) => {
+                const hasChildren =
+                  (row.original.children && row.original.children.length > 0) ||
+                  row.original.expandable ||
+                  childrenData[row.original.id]?.length > 0 ||
+                  Boolean(row.original.level);
+
+                const handleRowClick = () => {
+                  if (drillEnabled && !hasChildren) {
+                    // Single-click → open global DrillPanel for leaf rows
+                    drill.openDrill({
+                      title: row.original.label,
+                      subtitle: `Actual: ${formatCurrency(row.original.actual)}  |  Budget: ${formatCurrency(row.original.budget)}`,
+                      fetchData: async () => {
+                        // Return a summary breakdown as drill rows
+                        const entries: Record<string, any>[] = [];
+                        if (row.original.actual !== undefined)
+                          entries.push({ Metric: 'Actual', Value: row.original.actual });
+                        if (row.original.budget !== undefined)
+                          entries.push({ Metric: 'Budget', Value: row.original.budget });
+                        if (row.original.forecast !== undefined)
+                          entries.push({ Metric: 'Forecast', Value: row.original.forecast });
+                        if (row.original.variance !== undefined)
+                          entries.push({ Metric: 'Variance (Actual vs Budget)', Value: row.original.variance });
+                        if (row.original.variancePercent !== undefined)
+                          entries.push({ Metric: 'Variance %', Value: `${row.original.variancePercent?.toFixed(1)}%` });
+                        return entries;
+                      },
+                    });
+                  }
+                };
+
+                return (
                 <tr
                   key={row.id}
+                  onClick={handleRowClick}
                   className={`hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors ${
                     row.original.isTotal
                       ? 'bg-blue-50 dark:bg-blue-900/20 border-t-2 border-b-2 border-blue-300 dark:border-blue-700'
                       : row.original.isSubtotal
                       ? 'bg-gray-100 dark:bg-gray-800/50'
                       : ''
-                  } ${((row.original.children && row.original.children.length > 0) || 
-                      row.original.expandable || 
-                      childrenData[row.original.id]?.length > 0 || 
-                      Boolean(row.original.level)) ? 'cursor-pointer' : ''}`}
+                  } ${hasChildren ? 'cursor-pointer' : drillEnabled ? 'cursor-zoom-in' : ''}`}
                   onDoubleClick={() => {
-                    const hasChildren = 
-                      (row.original.children && row.original.children.length > 0) ||
-                      row.original.expandable ||
-                      childrenData[row.original.id]?.length > 0 ||
-                      Boolean(row.original.level);
                     if (hasChildren) {
-                      console.log('🖱️ Double-click detected on row:', row.original.label);
                       toggleExpand(row.original);
                     }
                   }}
@@ -379,8 +408,13 @@ export default function FinancialTable({
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
+                  {drillEnabled && !hasChildren && (
+                    <td className="px-3 py-3 text-gray-300 dark:text-gray-600">
+                      <ZoomIn size={14} />
+                    </td>
+                  )}
                 </tr>
-              ))
+              );})
             )}
           </tbody>
         </table>

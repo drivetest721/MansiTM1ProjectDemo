@@ -92,8 +92,10 @@ export default function Layout({ children }: LayoutProps) {
           </nav>
         </aside>
 
-        {/* Main Content */}
-        <main className="flex-1 p-6 lg:ml-0">
+        {/* Main Content — key={location.key} forces full remount on every navigation,
+             including clicking the same sidebar link you're already on. This ensures
+             each page re-runs its useEffect and fetches fresh data every time. */}
+        <main key={location.key} className="flex-1 p-6 lg:ml-0">
           <div className="max-w-screen-2xl mx-auto">
             {children}
           </div>

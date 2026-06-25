@@ -158,6 +158,30 @@ async def compare_scenarios(
         raise HTTPException(status_code=500, detail=f"Error comparing scenarios: {str(e)}")
 
 
+# ==================== MONTHLY TREND ENDPOINT ====================
+
+@router.get("/monthly-trend", summary="Get monthly budget vs forecast trend")
+async def get_monthly_trend(
+    year: int = Query(..., description="Year for trend data"),
+    entity: Optional[str] = Query(None, description="Filter by entity name"),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Monthly Budget vs Forecast (and Variance) for the year.
+    Drives the trend line chart on the Forecasting Analysis page.
+    """
+    try:
+        service = ForecastService(db)
+        trend = service.get_monthly_trend(year=year, entity=entity)
+        return {
+            "success": True,
+            "data": trend
+        }
+    except Exception as e:
+        logger.error(f"Error in get_monthly_trend: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching monthly trend: {str(e)}")
+
+
 # ==================== ASSUMPTIONS ENDPOINTS ====================
 
 @router.get("/assumptions/{scenario_id}", summary="Get scenario assumptions")

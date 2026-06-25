@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
+import { DrillProvider } from './context/DrillContext';
 import ExecutiveOverview from './pages/ExecutiveOverview';
 import RevenuePlanning from './pages/RevenuePlanning';
 import WorkforcePlanning from './pages/WorkforcePlanning';
@@ -18,6 +19,7 @@ import './index.css';
 function App() {
   return (
     <BrowserRouter>
+      <DrillProvider>
       <Layout>
         <Routes>
           <Route path="/" element={<ExecutiveOverview />} />
@@ -36,6 +38,7 @@ function App() {
           <Route path="/admin-data-health" element={<AdminDataHealth />} />
         </Routes>
       </Layout>
+      </DrillProvider>
     </BrowserRouter>
   );
 }

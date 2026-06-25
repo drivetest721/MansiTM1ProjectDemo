@@ -1,6 +1,6 @@
 """
 Forecast Service - Handles scenario-based forecasting
-Uses Planning.vw_ForecastCube_Source and Planning.vw_BudgetForecastVariance
+Uses Planning.vw_ForecastCube_Source WITH (NOLOCK) and Planning.vw_BudgetForecastVariance WITH (NOLOCK)
 """
 import logging
 from sqlalchemy.orm import Session
@@ -24,7 +24,7 @@ class ForecastService:
         """
         Get all available forecast scenarios
         
-        Database view: Planning.vw_ForecastCube_Source
+        Database view: Planning.vw_ForecastCube_Source WITH (NOLOCK)
         Scenarios: Base Case, Best Case, Worst Case
         """
         try:
@@ -33,7 +33,7 @@ class ForecastService:
                 ScenarioID,
                 ScenarioCode,
                 ScenarioName
-            FROM Planning.vw_ForecastCube_Source
+            FROM Planning.vw_ForecastCube_Source WITH (NOLOCK)
             ORDER BY ScenarioID
             """
             
@@ -87,7 +87,7 @@ class ForecastService:
                 StatementType,
                 AccountType,
                 SUM(ISNULL(ForecastAmount, 0)) as Amount
-            FROM Planning.vw_ForecastCube_Source
+            FROM Planning.vw_ForecastCube_Source WITH (NOLOCK)
             WHERE {where_clause}
             GROUP BY ScenarioID, ScenarioCode, ScenarioName, StatementType, AccountType
             ORDER BY ScenarioID, AccountType
@@ -185,7 +185,7 @@ class ForecastService:
         """
         Get forecast table data with Budget, Forecast, and Variance
         
-        Uses Planning.vw_BudgetForecastVariance
+        Uses Planning.vw_BudgetForecastVariance WITH (NOLOCK)
         """
         try:
             where_clauses = ["YearNumber = :year"]
@@ -204,7 +204,7 @@ class ForecastService:
                 SUM(ISNULL(ForecastAmount, 0)) as Forecast,
                 SUM(ISNULL(VarianceAmount, 0)) as Variance,
                 AVG(ISNULL(VariancePercent, 0)) * 100 as VariancePercent
-            FROM Planning.vw_BudgetForecastVariance
+            FROM Planning.vw_BudgetForecastVariance WITH (NOLOCK)
             WHERE {where_clause}
             GROUP BY AccountName
             ORDER BY ABS(SUM(ISNULL(VarianceAmount, 0))) DESC
@@ -274,46 +274,110 @@ class ForecastService:
             logger.error(f"Error comparing scenarios: {str(e)}")
             raise
     
+    def get_monthly_trend(
+        self,
+        year: int,
+        entity: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Monthly Budget vs Forecast trend for a given year.
+
+        Queries vw_BudgetCube_Source and vw_ForecastCube_Source separately
+        (both confirmed to have MonthName, AccountType columns) then merges
+        the results in Python keyed on MonthName.
+
+        vw_BudgetForecastVariance does NOT have MonthName — it is year-level only.
+        """
+        MONTH_ORDER = {
+            "January": 1, "February": 2, "March": 3, "April": 4,
+            "May": 5, "June": 6, "July": 7, "August": 8,
+            "September": 9, "October": 10, "November": 11, "December": 12,
+        }
+        MONTH_ABBR = {
+            "January": "Jan", "February": "Feb", "March": "Mar",
+            "April": "Apr", "May": "May", "June": "Jun",
+            "July": "Jul", "August": "Aug", "September": "Sep",
+            "October": "Oct", "November": "Nov", "December": "Dec",
+        }
+
+        try:
+            base_params: Dict[str, Any] = {"year": year}
+            entity_clause = ""
+            if entity:
+                entity_clause = "AND EntityName = :entity"
+                base_params["entity"] = entity
+
+            # ── Budget monthly ────────────────────────────────────────────────
+            budget_query = text(f"""
+                SELECT
+                    MonthName,
+                    SUM(ISNULL(BudgetAmount, 0)) AS Budget
+                FROM Planning.vw_BudgetCube_Source WITH (NOLOCK)
+                WHERE YearNumber = :year
+                  AND AccountType = 'Revenue'
+                  {entity_clause}
+                GROUP BY MonthName
+            """)
+
+            # ── Forecast monthly (Base Case scenario) ────────────────────────
+            forecast_query = text(f"""
+                SELECT
+                    MonthName,
+                    SUM(ISNULL(ForecastAmount, 0)) AS Forecast
+                FROM Planning.vw_ForecastCube_Source WITH (NOLOCK)
+                WHERE YearNumber = :year
+                  AND AccountType = 'Revenue'
+                  AND ScenarioName = 'Base Case'
+                  {entity_clause}
+                GROUP BY MonthName
+            """)
+
+            budget_rows   = self.db.execute(budget_query,   base_params).fetchall()
+            forecast_rows = self.db.execute(forecast_query, base_params).fetchall()
+
+            # Merge into a dict keyed by MonthName
+            merged: Dict[str, Dict] = {}
+            for r in budget_rows:
+                merged.setdefault(r.MonthName, {"budget": 0.0, "forecast": 0.0})
+                merged[r.MonthName]["budget"] = float(r.Budget or 0)
+            for r in forecast_rows:
+                merged.setdefault(r.MonthName, {"budget": 0.0, "forecast": 0.0})
+                merged[r.MonthName]["forecast"] = float(r.Forecast or 0)
+
+            # Sort by calendar order and build response
+            result = []
+            for month_name in sorted(merged.keys(), key=lambda m: MONTH_ORDER.get(m, 99)):
+                vals = merged[month_name]
+                result.append({
+                    "month":    MONTH_ABBR.get(month_name, month_name),
+                    "budget":   vals["budget"],
+                    "forecast": vals["forecast"],
+                    "variance": round(vals["forecast"] - vals["budget"], 2),
+                })
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Error fetching monthly trend: {str(e)}")
+            raise
+
     def get_forecast_assumptions(
         self,
         year: int,
         scenario_id: int
     ) -> Dict[str, Any]:
-        """
-        Get assumptions for a specific scenario
-        (Placeholder - would need assumptions table)
-        """
+        """Get assumptions for a specific scenario (hardcoded placeholder)."""
         try:
-            # For now, return hardcoded assumptions
-            # In real implementation, query from Planning.ForecastAssumptions table
-            
             assumptions_map = {
-                1: {  # Base Case
-                    "revenue_growth": 5.0,
-                    "cost_inflation": 3.0,
-                    "headcount_growth": 2.0,
-                    "currency_rate": 1.0
-                },
-                2: {  # Best Case
-                    "revenue_growth": 12.0,
-                    "cost_inflation": 2.0,
-                    "headcount_growth": 5.0,
-                    "currency_rate": 0.95
-                },
-                3: {  # Worst Case
-                    "revenue_growth": -5.0,
-                    "cost_inflation": 5.0,
-                    "headcount_growth": -3.0,
-                    "currency_rate": 1.10
-                }
+                1: {"revenue_growth": 5.0,  "cost_inflation": 3.0, "headcount_growth": 2.0,  "currency_rate": 1.0},
+                2: {"revenue_growth": 12.0, "cost_inflation": 2.0, "headcount_growth": 5.0,  "currency_rate": 0.95},
+                3: {"revenue_growth": -5.0, "cost_inflation": 5.0, "headcount_growth": -3.0, "currency_rate": 1.10},
             }
-            
             return {
                 "year": year,
                 "scenario_id": scenario_id,
                 "assumptions": assumptions_map.get(scenario_id, {})
             }
-            
         except Exception as e:
             logger.error(f"Error fetching forecast assumptions: {str(e)}")
             raise

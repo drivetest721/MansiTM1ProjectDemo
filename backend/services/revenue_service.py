@@ -14,6 +14,29 @@ from models.response_models import (
 logger = logging.getLogger(__name__)
 
 
+
+import time as _time
+from typing import Dict as _Dict
+
+# ---------------------------------------------------------------------------
+# Module-level TTL cache for aggregation results.
+# A new service instance is created per FastAPI request, so caching must live
+# at the module level — not on the instance.  TTL = 5 min (300 s).
+# ---------------------------------------------------------------------------
+_AGG_CACHE: _Dict[str, dict] = {}
+_AGG_TTL = 300   # seconds
+
+
+def _agg_cached(key: str, fn):
+    """Return cached value if < _AGG_TTL seconds old; otherwise call fn()."""
+    now = _time.monotonic()
+    entry = _AGG_CACHE.get(key)
+    if entry and now - entry["ts"] < _AGG_TTL:
+        return entry["value"]
+    result = fn()
+    _AGG_CACHE[key] = {"value": result, "ts": _time.monotonic()}
+    return result
+
 class RevenueService:
     """Service for revenue operations"""
     
@@ -91,7 +114,7 @@ class RevenueService:
                 ISNULL(MarginPercent, 0) AS MarginPercent,
                 ISNULL(Quantity, 0)     AS Quantity,
                 COUNT(*) OVER()         AS TotalCount
-            FROM Sales.vw_RevenueCube_Source
+            FROM Sales.vw_RevenueCube_Source WITH (NOLOCK)
             {where_clause}
             ORDER BY DateID DESC, EntityName, ProductName
             OFFSET :offset ROWS FETCH NEXT :page_size ROWS ONLY
@@ -141,7 +164,13 @@ class RevenueService:
             logger.error(f"Error fetching revenue data: {str(e)}")
             raise
     
-    def get_revenue_by_region(
+
+    def get_revenue_by_region(self, year: Optional[int] = None, version: Optional[str] = None):
+        """Cached — delegates to _fetch_get_revenue_by_region with a 300-second TTL."""
+        key = f"rev:region:{year}:{version}"
+        return _agg_cached(key, lambda: self._fetch_get_revenue_by_region(year=year, version=version))
+
+    def _fetch_get_revenue_by_region(
         self,
         year: Optional[int] = None,
         version: Optional[str] = None
@@ -168,7 +197,7 @@ class RevenueService:
                 ISNULL(SUM(Margin), 0) as Margin,
                 CASE WHEN SUM(Revenue) > 0 THEN (SUM(Margin) / SUM(Revenue) * 100) ELSE 0 END as MarginPercent,
                 COUNT(*) as Count
-            FROM Sales.vw_RevenueCube_Source
+            FROM Sales.vw_RevenueCube_Source WITH (NOLOCK)
             {where_clause}
             GROUP BY RegionName
             ORDER BY Revenue DESC
@@ -205,7 +234,13 @@ class RevenueService:
             logger.error(f"Error fetching revenue by region: {str(e)}")
             raise
     
-    def get_revenue_by_product(
+
+    def get_revenue_by_product(self, year: Optional[int] = None, version: Optional[str] = None):
+        """Cached — delegates to _fetch_get_revenue_by_product with a 300-second TTL."""
+        key = f"rev:product:{year}:{version}"
+        return _agg_cached(key, lambda: self._fetch_get_revenue_by_product(year=year, version=version))
+
+    def _fetch_get_revenue_by_product(
         self,
         year: Optional[int] = None,
         version: Optional[str] = None
@@ -232,7 +267,7 @@ class RevenueService:
                 ISNULL(SUM(Margin), 0) as Margin,
                 CASE WHEN SUM(Revenue) > 0 THEN (SUM(Margin) / SUM(Revenue) * 100) ELSE 0 END as MarginPercent,
                 COUNT(*) as Count
-            FROM Sales.vw_RevenueCube_Source
+            FROM Sales.vw_RevenueCube_Source WITH (NOLOCK)
             {where_clause}
             GROUP BY ProductCategory
             ORDER BY Revenue DESC
@@ -269,7 +304,13 @@ class RevenueService:
             logger.error(f"Error fetching revenue by product: {str(e)}")
             raise
     
-    def get_revenue_by_customer_segment(
+
+    def get_revenue_by_customer_segment(self, year: Optional[int] = None, version: Optional[str] = None):
+        """Cached — delegates to _fetch_get_revenue_by_customer_segment with a 300-second TTL."""
+        key = f"rev:segment:{year}:{version}"
+        return _agg_cached(key, lambda: self._fetch_get_revenue_by_customer_segment(year=year, version=version))
+
+    def _fetch_get_revenue_by_customer_segment(
         self,
         year: Optional[int] = None,
         version: Optional[str] = None
@@ -296,7 +337,7 @@ class RevenueService:
                 ISNULL(SUM(Margin), 0) as Margin,
                 CASE WHEN SUM(Revenue) > 0 THEN (SUM(Margin) / SUM(Revenue) * 100) ELSE 0 END as MarginPercent,
                 COUNT(*) as Count
-            FROM Sales.vw_RevenueCube_Source
+            FROM Sales.vw_RevenueCube_Source WITH (NOLOCK)
             {where_clause}
             GROUP BY CustomerSegment
             ORDER BY Revenue DESC
@@ -412,7 +453,7 @@ class RevenueService:
                     ELSE 0 
                 END as margin_percent,
                 SUM(ISNULL(Quantity, 0)) as total_quantity
-            FROM Sales.vw_RevenueCube_Source
+            FROM Sales.vw_RevenueCube_Source WITH (NOLOCK)
             {where_clause}
             GROUP BY {target_column}
             HAVING {target_column} IS NOT NULL

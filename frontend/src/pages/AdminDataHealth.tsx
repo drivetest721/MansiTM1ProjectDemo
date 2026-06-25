@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, Loader2 } from 'lucide-react';
-import { getSystemStatus, getTableHealth, getCubeHealth, getDataQuality } from '../services/api';
+import { getSystemStatus, getTableHealth, getCubeHealth, getDataQuality, getDataFreshness, getIndexHealth } from '../services/api';
 
 interface SystemComponent {
   name: string;
@@ -56,6 +56,8 @@ export default function AdminDataHealth() {
   const [tableHealth, setTableHealth] = useState<TableHealthItem[]>([]);
   const [cubeHealth, setCubeHealth] = useState<CubeHealthItem[]>([]);
   const [dataQuality, setDataQuality] = useState<DataQuality | null>(null);
+  const [dataFreshness, setDataFreshness] = useState<any | null>(null);
+  const [indexHealth, setIndexHealth] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,29 +73,34 @@ export default function AdminDataHealth() {
       setLoading(true);
       setError(null);
 
-      // Load all data in parallel
-      const [statusRes, tablesRes, cubesRes, qualityRes] = await Promise.all([
-        getSystemStatus(),
-        getTableHealth(),
-        getCubeHealth(),
-        getDataQuality()
-      ]);
+      // Load all data in parallel — use allSettled so one failure doesn't block the rest
+      const [statusRes, tablesRes, cubesRes, qualityRes, freshnessRes, indexRes] =
+        await Promise.allSettled([
+          getSystemStatus(),
+          getTableHealth(),
+          getCubeHealth(),
+          getDataQuality(),
+          getDataFreshness(),
+          getIndexHealth(),
+        ]);
 
-      if (statusRes.data.success) {
-        setSystemStatus(statusRes.data.data);
-      }
+      if (statusRes.status === 'fulfilled' && statusRes.value.data.success)
+        setSystemStatus(statusRes.value.data.data);
 
-      if (tablesRes.data.success) {
-        setTableHealth(tablesRes.data.data.tables || []);
-      }
+      if (tablesRes.status === 'fulfilled' && tablesRes.value.data.success)
+        setTableHealth(tablesRes.value.data.data.tables || []);
 
-      if (cubesRes.data.success) {
-        setCubeHealth(cubesRes.data.data.cubes || []);
-      }
+      if (cubesRes.status === 'fulfilled' && cubesRes.value.data.success)
+        setCubeHealth(cubesRes.value.data.data.cubes || []);
 
-      if (qualityRes.data.success) {
-        setDataQuality(qualityRes.data.data);
-      }
+      if (qualityRes.status === 'fulfilled' && qualityRes.value.data.success)
+        setDataQuality(qualityRes.value.data.data);
+
+      if (freshnessRes.status === 'fulfilled' && freshnessRes.value.data.success)
+        setDataFreshness(freshnessRes.value.data.data);
+
+      if (indexRes.status === 'fulfilled' && indexRes.value.data.success)
+        setIndexHealth(indexRes.value.data.data);
     } catch (err: any) {
       console.error('Failed to load admin data:', err);
       setError('Failed to connect to backend. Please ensure the server is running.');
@@ -370,7 +377,7 @@ export default function AdminDataHealth() {
                         {cube.last_year}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-${color}-100 text-${color}-800`}>
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${color}`}>
                           {cube.health}
                         </span>
                       </td>
@@ -383,12 +390,24 @@ export default function AdminDataHealth() {
         </div>
       )}
 
-      {/* Real-time indicator */}
-      <div className="text-center text-sm text-gray-500 dark:text-gray-400">
-        Last updated: {systemStatus ? new Date(systemStatus.timestamp).toLocaleString() : 'Loading...'}
-        <br />
-        Auto-refresh every 30 seconds
-      </div>
+      {/* Data Quality */}
+      {dataQuality && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Data Quality Summary</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {Object.entries(dataQuality).map(([key, val]: [string, any]) => (
+              <div key={key} className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 capitalize">
+                  {key.replace(/_/g, ' ')}
+                </p>
+                <p className="text-lg font-bold text-gray-900 dark:text-white mt-1">
+                  {typeof val === 'number' ? val.toLocaleString() : String(val)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

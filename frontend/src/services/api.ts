@@ -274,8 +274,12 @@ export const compareForecastScenarios = (params: CompareScenarioParams) =>
   api.post('/api/forecast/comparison', null, { params });
 
 // Forecast Assumptions
-export const getScenarioAssumptions = (scenarioId: number, params: { year: number }) => 
+export const getScenarioAssumptions = (scenarioId: number, params: { year: number }) =>
   api.get(`/api/forecast/assumptions/${scenarioId}`, { params });
+
+// Monthly Budget vs Forecast trend (drives line chart)
+export const getForecastMonthlyTrend = (params: { year: number; entity?: string }) =>
+  api.get('/api/forecast/monthly-trend', { params });
 
 // ==========================================
 // CONSOLIDATION APIs (MEDIUM PRIORITY)
@@ -314,8 +318,16 @@ export const getRefreshHistory = (days: number = 30) =>
   api.get('/api/admin/refresh-history', { params: { days } });
 
 // Data Quality
-export const getDataQuality = () => 
+export const getDataQuality = () =>
   api.get('/api/admin/data-quality');
+
+// Data Freshness — when each table/view was last read or written
+export const getDataFreshness = () =>
+  api.get('/api/admin/data-freshness');
+
+// Index Health — fragmentation % + recommended ALTER INDEX commands
+export const getIndexHealth = () =>
+  api.get('/api/admin/index-health');
 
 // ==========================================
 // CUBE EXPLORER APIs (LOW PRIORITY)
@@ -354,10 +366,31 @@ export const getDimensionElements = (dimensionId: string, limit: number = 50) =>
   api.get(`/api/metadata/dimensions/${dimensionId}/elements`, { params: { limit } });
 
 // ==========================================
-// LEGACY COMPATIBILITY (deprecated, use specific endpoints above)
+// LEGACY COMPATIBILITY (deprecated, use spec
 // ==========================================
-export const getRevenueCubeFilters = getEntities; // Use getEntities, getDepartments, etc. instead
-export const getWorkforceCubeFilters = getEntities;
-export const getBudgetForecastFilters = getEntities;
+// ANNOTATIONS APIs
+// ==========================================
+export const getAnnotations = (pageKey: string) =>
+  api.get(`/api/annotations/${pageKey}`);
+export const addAnnotation = (pageKey: string, payload: { text: string; author?: string; period?: string }) =>
+  api.post(`/api/annotations/${pageKey}`, payload);
+export const deleteAnnotation = (pageKey: string, annotationId: string) =>
+  api.delete(`/api/annotations/${pageKey}/${annotationId}`);
 
-export default api;
+// ==========================================
+// WORKFLOW STATUS APIs
+// ==========================================
+export const getWorkflowStatus = (page: string, entity?: string, year?: string) =>
+  api.get('/api/workflow/status', { params: { page, entity, year } });
+export const setWorkflowStatus = (payload: { page: string; entity?: string; year?: string; status: string }) =>
+  api.post('/api/workflow/status', payload);
+
+// ==========================================
+// ROLLING FORECAST APIs
+// ==========================================
+export const getRollingForecastConfig = () =>
+  api.get('/api/rolling-forecast/config');
+export const updateRollingForecastLock = (payload: { month: number; year: number; locked: boolean }) =>
+  api.post('/api/rolling-forecast/lock', payload);
+export const getRollingForecastView = (params?: { year?: number }) =>
+  api.get('/api/rolling-forecast/view', { params });

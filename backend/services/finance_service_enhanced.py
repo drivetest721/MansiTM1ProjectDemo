@@ -30,7 +30,7 @@ class FinanceServiceEnhanced:
         """
         Get P&L statement data with aggregation by AccountType and AccountName
         
-        Database view: Finance.vw_PL_Statement
+        Database view: Finance.vw_PL_Statement WITH (NOLOCK)
         Columns: YearNumber, EntityName, AccountType, AccountName, ActualAmount
         """
         try:
@@ -53,7 +53,7 @@ class FinanceServiceEnhanced:
                 AccountType,
                 AccountName,
                 SUM(ISNULL(ActualAmount, 0)) as Actual
-            FROM Finance.vw_PL_Statement
+            FROM Finance.vw_PL_Statement WITH (NOLOCK)
             WHERE {where_clause}
             GROUP BY AccountType, AccountName
             ORDER BY 
@@ -247,7 +247,7 @@ class FinanceServiceEnhanced:
         """
         Get Balance Sheet data with aggregation
         
-        Database view: Finance.vw_BalanceSheet
+        Database view: Finance.vw_BalanceSheet WITH (NOLOCK)
         Columns: YearNumber, EntityName, AccountType, AccountName, BalanceAmount
         """
         try:
@@ -269,7 +269,7 @@ class FinanceServiceEnhanced:
                 AccountType,
                 AccountName,
                 SUM(ISNULL(BalanceAmount, 0)) as Balance
-            FROM Finance.vw_BalanceSheet
+            FROM Finance.vw_BalanceSheet WITH (NOLOCK)
             WHERE {where_clause}
             GROUP BY AccountType, AccountName
             ORDER BY 

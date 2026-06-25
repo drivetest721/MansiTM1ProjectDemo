@@ -58,34 +58,34 @@ class MetadataService:
         return _cached("entities", _METADATA_TTL, self._fetch_entities)
 
     def _fetch_entities(self) -> List[Dict[str, Any]]:
-        """Uncached DB fetch for entities"""
+        """
+        Fetch distinct entity names from Sales.vw_RevenueCube_Source WITH (NOLOCK).
+
+        The original query against MasterData.DimEntity failed because columns
+        EntityKey / EntityType / ParentEntity / Region / Country do not exist in
+        the actual table schema.  Using the Revenue view guarantees we only return
+        entities that have live data, and all columns are confirmed to exist.
+        """
         try:
             query = """
-            SELECT 
-                EntityKey,
-                EntityCode,
-                EntityName,
-                EntityType,
-                ParentEntity,
-                Region,
-                Country
-            FROM MasterData.DimEntity
-            WHERE IsActive = 1
+            SELECT DISTINCT
+                EntityName
+            FROM Sales.vw_RevenueCube_Source WITH (NOLOCK)
+            WHERE EntityName IS NOT NULL
             ORDER BY EntityName
             """
             results = self.db.execute(text(query)).fetchall()
-            
             return [
                 {
-                    "entity_key": r.EntityKey,
-                    "entity_code": r.EntityCode,
+                    "entity_key": idx + 1,
+                    "entity_code": r.EntityName,
                     "entity_name": r.EntityName,
-                    "entity_type": r.EntityType,
-                    "parent_entity": r.ParentEntity,
-                    "region": r.Region,
-                    "country": r.Country
+                    "entity_type": None,
+                    "parent_entity": None,
+                    "region": None,
+                    "country": None
                 }
-                for r in results
+                for idx, r in enumerate(results)
             ]
         except Exception as e:
             logger.error(f"Error fetching entities: {str(e)}")
@@ -103,7 +103,7 @@ class MetadataService:
                 DepartmentCode,
                 DepartmentName,
                 ParentDepartment
-            FROM MasterData.DimDepartment
+            FROM MasterData.DimDepartment WITH (NOLOCK)
             WHERE IsActive = 1
             ORDER BY DepartmentName
             """
@@ -135,7 +135,7 @@ class MetadataService:
                 Category,
                 Family,
                 Brand
-            FROM MasterData.DimProduct
+            FROM MasterData.DimProduct WITH (NOLOCK)
             WHERE IsActive = 1
             ORDER BY ProductName
             """
@@ -168,7 +168,7 @@ class MetadataService:
                 CustomerName,
                 Segment,
                 Region
-            FROM MasterData.DimCustomer
+            FROM MasterData.DimCustomer WITH (NOLOCK)
             WHERE IsActive = 1
             ORDER BY CustomerName
             """
@@ -199,7 +199,7 @@ class MetadataService:
                 VersionCode,
                 VersionName,
                 IsActive
-            FROM MasterData.DimVersion
+            FROM MasterData.DimVersion WITH (NOLOCK)
             ORDER BY VersionName
             """
             results = self.db.execute(text(query)).fetchall()
@@ -228,7 +228,7 @@ class MetadataService:
                 ScenarioCode,
                 ScenarioName,
                 ScenarioType
-            FROM MasterData.DimScenario
+            FROM MasterData.DimScenario WITH (NOLOCK)
             WHERE IsActive = 1
             ORDER BY ScenarioName
             """
@@ -256,12 +256,12 @@ class MetadataService:
             SELECT DISTINCT
                 YearNumber,
                 CAST(YearNumber AS VARCHAR) AS YearName
-            FROM Finance.vw_PL_Statement
+            FROM Finance.vw_PL_Statement WITH (NOLOCK)
             UNION
             SELECT DISTINCT
                 YearNumber,
                 CAST(YearNumber AS VARCHAR) AS YearName
-            FROM HR.vw_WorkforceCube_Source
+            FROM HR.vw_WorkforceCube_Source WITH (NOLOCK)
             ORDER BY YearNumber DESC
             """
             results = self.db.execute(text(query)).fetchall()
@@ -350,7 +350,7 @@ class MetadataService:
                         {"name": "Version", "type": "Version", "element_count": 2}
                     ],
                     "measures": ["Quantity", "Price", "Revenue", "Cost", "Margin"],
-                    "view": "Planning.vw_ForecastCube_Source",
+                    "view": "Planning.vw_ForecastCube_Source WITH (NOLOCK)",
                     "cell_count": 0,
                     "last_update": "2024-06-24"
                 },
@@ -366,7 +366,7 @@ class MetadataService:
                         {"name": "Version", "type": "Version", "element_count": 2}
                     ],
                     "measures": ["Headcount", "Salary", "Bonus", "Benefits", "Total Compensation"],
-                    "view": "Workforce.FactWorkforcePlanning",
+                    "view": "Workforce.FactWorkforcePlanning WITH (NOLOCK)",
                     "cell_count": 0,
                     "last_update": "2024-06-24"
                 },
@@ -383,7 +383,7 @@ class MetadataService:
                         {"name": "Version", "type": "Version", "element_count": 2}
                     ],
                     "measures": ["Budget", "Forecast", "Actual", "Variance", "Variance %"],
-                    "view": "Planning.vw_BudgetForecastVariance",
+                    "view": "Planning.vw_BudgetForecastVariance WITH (NOLOCK)",
                     "cell_count": 0,
                     "last_update": "2024-06-24"
                 },
@@ -398,7 +398,7 @@ class MetadataService:
                         {"name": "Account", "type": "Account", "element_count": 220}
                     ],
                     "measures": ["Actual Amount", "Budget Amount", "Forecast Amount", "Variance"],
-                    "view": "Finance.vw_PL_Statement",
+                    "view": "Finance.vw_PL_Statement WITH (NOLOCK)",
                     "cell_count": 0,
                     "last_update": "2024-06-24"
                 },
@@ -413,7 +413,7 @@ class MetadataService:
                         {"name": "Account", "type": "Account", "element_count": 80}
                     ],
                     "measures": ["Balance Amount", "Budget Amount", "Variance"],
-                    "view": "Finance.vw_BalanceSheet",
+                    "view": "Finance.vw_BalanceSheet WITH (NOLOCK)",
                     "cell_count": 0,
                     "last_update": "2024-06-24"
                 },
@@ -429,7 +429,7 @@ class MetadataService:
                         {"name": "Measure", "type": "Measure", "element_count": 7}
                     ],
                     "measures": ["Revenue", "Expense", "EBITDA", "Net Income", "Assets", "Liabilities", "Equity"],
-                    "view": "Finance.vw_EntityConsolidation",
+                    "view": "Finance.vw_EntityConsolidation WITH (NOLOCK)",
                     "cell_count": 0,
                     "last_update": "2024-06-24"
                 }
@@ -462,7 +462,7 @@ class MetadataService:
                         EntityName,
                         ScenarioName,
                         ForecastAmount
-                    FROM Planning.vw_ForecastCube_Source
+                    FROM Planning.vw_ForecastCube_Source WITH (NOLOCK)
                     ORDER BY YearNumber DESC
                 """,
                 "workforce": """
@@ -472,7 +472,7 @@ class MetadataService:
                         DepartmentName,
                         Headcount,
                         TotalCompensation
-                    FROM Workforce.FactWorkforcePlanning
+                    FROM Workforce.FactWorkforcePlanning WITH (NOLOCK)
                     ORDER BY YearNumber DESC
                 """,
                 "budget": """
@@ -484,7 +484,7 @@ class MetadataService:
                         BudgetAmount,
                         ForecastAmount,
                         VarianceAmount
-                    FROM Planning.vw_BudgetForecastVariance
+                    FROM Planning.vw_BudgetForecastVariance WITH (NOLOCK)
                     ORDER BY YearNumber DESC
                 """,
                 "pl_statement": """
@@ -494,7 +494,7 @@ class MetadataService:
                         AccountType,
                         AccountName,
                         ActualAmount
-                    FROM Finance.vw_PL_Statement
+                    FROM Finance.vw_PL_Statement WITH (NOLOCK)
                     ORDER BY YearNumber DESC
                 """,
                 "balance_sheet": """
@@ -504,7 +504,7 @@ class MetadataService:
                         AccountType,
                         AccountName,
                         BalanceAmount
-                    FROM Finance.vw_BalanceSheet
+                    FROM Finance.vw_BalanceSheet WITH (NOLOCK)
                     ORDER BY YearNumber DESC
                 """
             }
@@ -716,7 +716,7 @@ class MetadataService:
                     SELECT 
                         EntityName,
                         EntityName as EntityCode
-                    FROM TM1.vw_Dim_Entity
+                    FROM TM1.vw_Dim_Entity WITH (NOLOCK)
                     ORDER BY EntityName
                 """)
                 results = self.db.execute(query).fetchall()
@@ -769,12 +769,12 @@ class MetadataService:
                     SELECT DISTINCT
                         AccountType,
                         AccountName
-                    FROM Finance.vw_PL_Statement
+                    FROM Finance.vw_PL_Statement WITH (NOLOCK)
                     UNION
                     SELECT DISTINCT
                         AccountType,
                         AccountName
-                    FROM Finance.vw_BalanceSheet
+                    FROM Finance.vw_BalanceSheet WITH (NOLOCK)
                     ORDER BY AccountType, AccountName
                 """)
                 results = self.db.execute(query).fetchall()
@@ -854,7 +854,7 @@ class MetadataService:
                     SELECT TOP {limit}
                         EntityName as element_name,
                         EntityName as element_code
-                    FROM TM1.vw_Dim_Entity
+                    FROM TM1.vw_Dim_Entity WITH (NOLOCK)
                     ORDER BY EntityName
                 """)
             elif dimension_id == "account":
@@ -863,9 +863,9 @@ class MetadataService:
                         AccountName as element_name,
                         AccountName as element_code
                     FROM (
-                        SELECT DISTINCT AccountName FROM Finance.vw_PL_Statement
+                        SELECT DISTINCT AccountName FROM Finance.vw_PL_Statement WITH (NOLOCK)
                         UNION
-                        SELECT DISTINCT AccountName FROM Finance.vw_BalanceSheet
+                        SELECT DISTINCT AccountName FROM Finance.vw_BalanceSheet WITH (NOLOCK)
                     ) accounts
                     ORDER BY element_name
                 """)
@@ -891,7 +891,7 @@ class MetadataService:
             SELECT DISTINCT 
                 Year,
                 FiscalYear
-            FROM MasterData.DimDate
+            FROM MasterData.DimDate WITH (NOLOCK)
             ORDER BY Year DESC
             """
             results = self.db.execute(text(query)).fetchall()
@@ -920,7 +920,7 @@ class MetadataService:
                 AccountName,
                 AccountType,
                 ParentAccount
-            FROM MasterData.DimAccount
+            FROM MasterData.DimAccount WITH (NOLOCK)
             WHERE IsActive = 1
             ORDER BY AccountName
             """
@@ -951,7 +951,7 @@ class MetadataService:
                 CostCenterCode,
                 CostCenterName,
                 DepartmentKey
-            FROM MasterData.DimCostCenter
+            FROM MasterData.DimCostCenter WITH (NOLOCK)
             WHERE IsActive = 1
             ORDER BY CostCenterName
             """

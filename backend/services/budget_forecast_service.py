@@ -15,6 +15,29 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+
+import time as _time
+from typing import Dict as _Dict
+
+# ---------------------------------------------------------------------------
+# Module-level TTL cache for aggregation results.
+# A new service instance is created per FastAPI request, so caching must live
+# at the module level — not on the instance.  TTL = 5 min (300 s).
+# ---------------------------------------------------------------------------
+_AGG_CACHE: _Dict[str, dict] = {}
+_AGG_TTL = 300   # seconds
+
+
+def _agg_cached(key: str, fn):
+    """Return cached value if < _AGG_TTL seconds old; otherwise call fn()."""
+    now = _time.monotonic()
+    entry = _AGG_CACHE.get(key)
+    if entry and now - entry["ts"] < _AGG_TTL:
+        return entry["value"]
+    result = fn()
+    _AGG_CACHE[key] = {"value": result, "ts": _time.monotonic()}
+    return result
+
 class BudgetForecastService:
     """Service for budget and forecast operations"""
     
@@ -35,7 +58,7 @@ class BudgetForecastService:
         version: Optional[str] = None
     ) -> BudgetListResponse:
         """
-        Get paginated budget data from Planning.vw_BudgetCube_Source
+        Get paginated budget data from Planning.vw_BudgetCube_Source WITH (NOLOCK)
         
         Args:
             page: Page number (1-indexed)
@@ -95,7 +118,7 @@ class BudgetForecastService:
                     VersionName,
                     BudgetAmount,
                     COUNT(*) OVER() AS TotalCount
-                FROM Planning.vw_BudgetCube_Source
+                FROM Planning.vw_BudgetCube_Source WITH (NOLOCK)
                 {where_clause}
                 ORDER BY YearNumber DESC, MonthName, EntityName
                 OFFSET :offset ROWS
@@ -140,7 +163,13 @@ class BudgetForecastService:
             logger.error(f"Error in get_budget_data: {str(e)}")
             raise
 
-    def get_budget_by_account(
+
+    def get_budget_by_account(self, year: Optional[int] = None, version: Optional[str] = None):
+        """Cached — delegates to _fetch_get_budget_by_account with a 300-second TTL."""
+        key = f"bgt:account:{year}:{version}"
+        return _agg_cached(key, lambda: self._fetch_get_budget_by_account(year=year, version=version))
+
+    def _fetch_get_budget_by_account(
         self,
         year: Optional[int] = None,
         version: Optional[str] = None
@@ -173,7 +202,7 @@ class BudgetForecastService:
                     AccountName,
                     SUM(BudgetAmount) as total_amount,
                     COUNT(*) as record_count
-                FROM Planning.vw_BudgetCube_Source
+                FROM Planning.vw_BudgetCube_Source WITH (NOLOCK)
                 {where_clause}
                 GROUP BY AccountName
                 ORDER BY SUM(BudgetAmount) DESC
@@ -197,7 +226,13 @@ class BudgetForecastService:
             logger.error(f"Error in get_budget_by_account: {str(e)}")
             raise
 
-    def get_budget_by_department(
+
+    def get_budget_by_department(self, year: Optional[int] = None, version: Optional[str] = None):
+        """Cached — delegates to _fetch_get_budget_by_department with a 300-second TTL."""
+        key = f"bgt:dept:{year}:{version}"
+        return _agg_cached(key, lambda: self._fetch_get_budget_by_department(year=year, version=version))
+
+    def _fetch_get_budget_by_department(
         self,
         year: Optional[int] = None,
         version: Optional[str] = None
@@ -230,7 +265,7 @@ class BudgetForecastService:
                     DepartmentName,
                     SUM(BudgetAmount) as total_amount,
                     COUNT(*) as record_count
-                FROM Planning.vw_BudgetCube_Source
+                FROM Planning.vw_BudgetCube_Source WITH (NOLOCK)
                 {where_clause}
                 GROUP BY DepartmentName
                 ORDER BY SUM(BudgetAmount) DESC
@@ -254,7 +289,13 @@ class BudgetForecastService:
             logger.error(f"Error in get_budget_by_department: {str(e)}")
             raise
 
-    def get_budget_by_entity(
+
+    def get_budget_by_entity(self, year: Optional[int] = None, version: Optional[str] = None):
+        """Cached — delegates to _fetch_get_budget_by_entity with a 300-second TTL."""
+        key = f"bgt:entity:{year}:{version}"
+        return _agg_cached(key, lambda: self._fetch_get_budget_by_entity(year=year, version=version))
+
+    def _fetch_get_budget_by_entity(
         self,
         year: Optional[int] = None,
         version: Optional[str] = None
@@ -287,7 +328,7 @@ class BudgetForecastService:
                     EntityName,
                     SUM(BudgetAmount) as total_amount,
                     COUNT(*) as record_count
-                FROM Planning.vw_BudgetCube_Source
+                FROM Planning.vw_BudgetCube_Source WITH (NOLOCK)
                 {where_clause}
                 GROUP BY EntityName
                 ORDER BY SUM(BudgetAmount) DESC
@@ -325,7 +366,7 @@ class BudgetForecastService:
         version: Optional[str] = None
     ) -> ForecastListResponse:
         """
-        Get paginated forecast data from Planning.vw_ForecastCube_Source
+        Get paginated forecast data from Planning.vw_ForecastCube_Source WITH (NOLOCK)
         
         Args:
             page: Page number (1-indexed)
@@ -385,7 +426,7 @@ class BudgetForecastService:
                     VersionName,
                     ForecastAmount,
                     COUNT(*) OVER() AS TotalCount
-                FROM Planning.vw_ForecastCube_Source
+                FROM Planning.vw_ForecastCube_Source WITH (NOLOCK)
                 {where_clause}
                 ORDER BY YearNumber DESC, MonthName, EntityName
                 OFFSET :offset ROWS
@@ -463,7 +504,7 @@ class BudgetForecastService:
                     AccountName,
                     SUM(ForecastAmount) as total_amount,
                     COUNT(*) as record_count
-                FROM Planning.vw_ForecastCube_Source
+                FROM Planning.vw_ForecastCube_Source WITH (NOLOCK)
                 {where_clause}
                 GROUP BY AccountName
                 ORDER BY SUM(ForecastAmount) DESC
@@ -520,7 +561,7 @@ class BudgetForecastService:
                     DepartmentName,
                     SUM(ForecastAmount) as total_amount,
                     COUNT(*) as record_count
-                FROM Planning.vw_ForecastCube_Source
+                FROM Planning.vw_ForecastCube_Source WITH (NOLOCK)
                 {where_clause}
                 GROUP BY DepartmentName
                 ORDER BY SUM(ForecastAmount) DESC
@@ -558,7 +599,7 @@ class BudgetForecastService:
         """
         Get budget vs forecast variance.
 
-        Uses Planning.vw_BudgetForecastVariance (pre-joined view) instead of
+        Uses Planning.vw_BudgetForecastVariance WITH (NOLOCK) (pre-joined view) instead of
         joining vw_BudgetCube_Source and vw_ForecastCube_Source at query time.
         Also uses COUNT(*) OVER() window function to eliminate the separate COUNT query.
         """
@@ -600,7 +641,7 @@ class BudgetForecastService:
                     VarianceAmount,
                     VariancePercent,
                     COUNT(*) OVER() AS TotalCount
-                FROM Planning.vw_BudgetForecastVariance
+                FROM Planning.vw_BudgetForecastVariance WITH (NOLOCK)
                 {where_clause}
                 ORDER BY YearNumber DESC, MonthName, EntityName
                 OFFSET :offset ROWS
@@ -712,7 +753,7 @@ class BudgetForecastService:
                 {target_column} as dimension_value,
                 COUNT(DISTINCT AccountName) as account_count,
                 SUM(ISNULL(BudgetAmount, 0)) as total_budget
-            FROM Planning.vw_BudgetCube_Source
+            FROM Planning.vw_BudgetCube_Source WITH (NOLOCK)
             {where_clause}
             GROUP BY {target_column}
             HAVING {target_column} IS NOT NULL

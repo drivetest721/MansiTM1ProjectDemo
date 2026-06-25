@@ -63,7 +63,7 @@ class BudgetForecastService:
             
             count_query = f"""
             SELECT COUNT(*) as total
-            FROM Planning.vw_BudgetCube_Source
+            FROM Planning.vw_BudgetCube_Source WITH (NOLOCK)
             {where_clause}
             """
             
@@ -86,7 +86,7 @@ class BudgetForecastService:
                 ScenarioName,
                 VersionName,
                 ISNULL(BudgetAmount, 0) as BudgetAmount
-            FROM Planning.vw_BudgetCube_Source
+            FROM Planning.vw_BudgetCube_Source WITH (NOLOCK)
             {where_clause}
             ORDER BY YearNumber DESC, MonthName, EntityName, AccountName
             OFFSET :offset ROWS FETCH NEXT :page_size ROWS ONLY
@@ -154,7 +154,7 @@ class BudgetForecastService:
                 AccountName as DimensionValue,
                 SUM(ISNULL(BudgetAmount, 0)) as Amount,
                 COUNT(*) as Count
-            FROM Planning.vw_BudgetCube_Source
+            FROM Planning.vw_BudgetCube_Source WITH (NOLOCK)
             {where_clause}
             GROUP BY AccountName
             ORDER BY Amount DESC
@@ -208,7 +208,7 @@ class BudgetForecastService:
                 DepartmentName as DimensionValue,
                 SUM(ISNULL(BudgetAmount, 0)) as Amount,
                 COUNT(*) as Count
-            FROM Planning.vw_BudgetCube_Source
+            FROM Planning.vw_BudgetCube_Source WITH (NOLOCK)
             {where_clause}
             GROUP BY DepartmentName
             ORDER BY Amount DESC
@@ -262,7 +262,7 @@ class BudgetForecastService:
                 EntityName as DimensionValue,
                 SUM(ISNULL(BudgetAmount, 0)) as Amount,
                 COUNT(*) as Count
-            FROM Planning.vw_BudgetCube_Source
+            FROM Planning.vw_BudgetCube_Source WITH (NOLOCK)
             {where_clause}
             GROUP BY EntityName
             ORDER BY Amount DESC
@@ -333,7 +333,7 @@ class BudgetForecastService:
             
             count_query = f"""
             SELECT COUNT(*) as total
-            FROM Planning.vw_ForecastCube_Source
+            FROM Planning.vw_ForecastCube_Source WITH (NOLOCK)
             {where_clause}
             """
             
@@ -356,7 +356,7 @@ class BudgetForecastService:
                 ScenarioName,
                 VersionName,
                 ISNULL(ForecastAmount, 0) as ForecastAmount
-            FROM Planning.vw_ForecastCube_Source
+            FROM Planning.vw_ForecastCube_Source WITH (NOLOCK)
             {where_clause}
             ORDER BY YearNumber DESC, MonthName, EntityName, AccountName
             OFFSET :offset ROWS FETCH NEXT :page_size ROWS ONLY
@@ -424,7 +424,7 @@ class BudgetForecastService:
                 AccountName as DimensionValue,
                 SUM(ISNULL(ForecastAmount, 0)) as Amount,
                 COUNT(*) as Count
-            FROM Planning.vw_ForecastCube_Source
+            FROM Planning.vw_ForecastCube_Source WITH (NOLOCK)
             {where_clause}
             GROUP BY AccountName
             ORDER BY Amount DESC
@@ -478,7 +478,7 @@ class BudgetForecastService:
                 DepartmentName as DimensionValue,
                 SUM(ISNULL(ForecastAmount, 0)) as Amount,
                 COUNT(*) as Count
-            FROM Planning.vw_ForecastCube_Source
+            FROM Planning.vw_ForecastCube_Source WITH (NOLOCK)
             {where_clause}
             GROUP BY DepartmentName
             ORDER BY Amount DESC
@@ -541,7 +541,7 @@ class BudgetForecastService:
             
             count_query = f"""
             SELECT COUNT(*) as total
-            FROM Planning.vw_BudgetForecastVariance
+            FROM Planning.vw_BudgetForecastVariance WITH (NOLOCK)
             {where_clause}
             """
             
@@ -563,7 +563,7 @@ class BudgetForecastService:
                 ISNULL(ForecastAmount, 0) as ForecastAmount,
                 ISNULL(VarianceAmount, 0) as VarianceAmount,
                 ISNULL(VariancePercent, 0) as VariancePercent
-            FROM Planning.vw_BudgetForecastVariance
+            FROM Planning.vw_BudgetForecastVariance WITH (NOLOCK)
             {where_clause}
             ORDER BY Year DESC, Month, Entity, Account
             OFFSET :offset ROWS FETCH NEXT :page_size ROWS ONLY

@@ -101,7 +101,7 @@ class FinanceServiceMapped:
                 AccountName,
                 AccountType,
                 SUM(ISNULL(ActualAmount, 0)) as ActualAmount
-            FROM Finance.vw_PL_Statement
+            FROM Finance.vw_PL_Statement WITH (NOLOCK)
             WHERE {where_clause}
             GROUP BY AccountName, AccountType
             """
@@ -378,7 +378,7 @@ class FinanceServiceMapped:
                 AccountName,
                 AccountType,
                 SUM(ISNULL(BalanceAmount, 0)) as BalanceAmount
-            FROM Finance.vw_BalanceSheet
+            FROM Finance.vw_BalanceSheet WITH (NOLOCK)
             WHERE {where_clause}
             GROUP BY AccountName, AccountType
             """

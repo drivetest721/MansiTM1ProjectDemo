@@ -47,7 +47,7 @@ class FinanceService:
                 ISNULL(PriorYear, 0) as PriorYear,
                 ISNULL(Variance, 0) as Variance,
                 ISNULL(VariancePercent, 0) as VariancePercent
-            FROM Finance.vw_PL_Statement
+            FROM Finance.vw_PL_Statement WITH (NOLOCK)
             {where_clause}
             ORDER BY SortOrder, Account
             """
@@ -113,7 +113,7 @@ class FinanceService:
             SELECT 
                 AccountType,
                 SUM(ISNULL(CurrentYear, 0)) as Amount
-            FROM Finance.vw_PL_Statement
+            FROM Finance.vw_PL_Statement WITH (NOLOCK)
             {where_clause}
             GROUP BY AccountType
             """
@@ -167,7 +167,7 @@ class FinanceService:
                 ISNULL(PriorPeriod, 0) as PriorPeriod,
                 ISNULL(Variance, 0) as Variance,
                 ISNULL(VariancePercent, 0) as VariancePercent
-            FROM Finance.vw_BalanceSheet
+            FROM Finance.vw_BalanceSheet WITH (NOLOCK)
             {where_clause}
             ORDER BY SortOrder, Account
             """
@@ -246,7 +246,7 @@ class FinanceService:
                 ISNULL(Assets, 0) as Assets,
                 ISNULL(Liabilities, 0) as Liabilities,
                 ISNULL(Equity, 0) as Equity
-            FROM Finance.vw_EntityConsolidation
+            FROM Finance.vw_EntityConsolidation WITH (NOLOCK)
             {where_clause}
             ORDER BY ParentEntity, Entity
             """
@@ -308,7 +308,7 @@ class FinanceService:
                 SUM(ISNULL(Liabilities, 0)) as Liabilities,
                 SUM(ISNULL(Equity, 0)) as Equity,
                 COUNT(*) as EntityCount
-            FROM Finance.vw_EntityConsolidation
+            FROM Finance.vw_EntityConsolidation WITH (NOLOCK)
             WHERE Year = :year
             GROUP BY Region
             ORDER BY Revenue DESC

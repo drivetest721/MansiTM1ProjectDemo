@@ -288,6 +288,7 @@ export default function BalanceSheet() {
             data={bsData}
             title={`Balance Sheet - As of ${filters.month === 'ytd' ? 'YTD' : 'Month End'} ${filters.year}`}
             showExport={true}
+            showForecast={false}
           />
 
 

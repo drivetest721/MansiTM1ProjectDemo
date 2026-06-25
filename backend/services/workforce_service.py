@@ -14,6 +14,29 @@ from models.response_models import (
 logger = logging.getLogger(__name__)
 
 
+
+import time as _time
+from typing import Dict as _Dict
+
+# ---------------------------------------------------------------------------
+# Module-level TTL cache for aggregation results.
+# A new service instance is created per FastAPI request, so caching must live
+# at the module level — not on the instance.  TTL = 5 min (300 s).
+# ---------------------------------------------------------------------------
+_AGG_CACHE: _Dict[str, dict] = {}
+_AGG_TTL = 300   # seconds
+
+
+def _agg_cached(key: str, fn):
+    """Return cached value if < _AGG_TTL seconds old; otherwise call fn()."""
+    now = _time.monotonic()
+    entry = _AGG_CACHE.get(key)
+    if entry and now - entry["ts"] < _AGG_TTL:
+        return entry["value"]
+    result = fn()
+    _AGG_CACHE[key] = {"value": result, "ts": _time.monotonic()}
+    return result
+
 class WorkforceService:
     """Service for workforce operations"""
     
@@ -84,7 +107,7 @@ class WorkforceService:
                 ISNULL(Benefits, 0)           AS Benefits,
                 ISNULL(TotalCompensation, 0)  AS TotalCompensation,
                 COUNT(*) OVER()               AS TotalCount
-            FROM HR.vw_WorkforceCube_Source
+            FROM HR.vw_WorkforceCube_Source WITH (NOLOCK)
             {where_clause}
             ORDER BY YearNumber DESC, EntityName, DepartmentName, EmployeeName
             OFFSET :offset ROWS FETCH NEXT :page_size ROWS ONLY
@@ -131,7 +154,13 @@ class WorkforceService:
             logger.error(f"Error fetching workforce data: {str(e)}")
             raise
     
-    def get_workforce_by_department(
+
+    def get_workforce_by_department(self, year: Optional[int] = None, version: Optional[str] = None):
+        """Cached — delegates to _fetch_get_workforce_by_department with a 300-second TTL."""
+        key = f"wf:dept:{year}:{version}"
+        return _agg_cached(key, lambda: self._fetch_get_workforce_by_department(year=year, version=version))
+
+    def _fetch_get_workforce_by_department(
         self,
         year: Optional[int] = None,
         version: Optional[str] = None
@@ -159,7 +188,7 @@ class WorkforceService:
                 ISNULL(SUM(Benefits), 0) as TotalBenefits,
                 ISNULL(SUM(TotalCompensation), 0) as TotalCompensation,
                 CASE WHEN SUM(BaseSalary) > 0 THEN (SUM(TotalCompensation) / COUNT(DISTINCT EmployeeID)) ELSE 0 END as AvgCompensation
-            FROM HR.vw_WorkforceCube_Source
+            FROM HR.vw_WorkforceCube_Source WITH (NOLOCK)
             {where_clause}
             GROUP BY DepartmentName
             ORDER BY TotalCompensation DESC
@@ -200,7 +229,13 @@ class WorkforceService:
             logger.error(f"Error fetching workforce by department: {str(e)}")
             raise
     
-    def get_workforce_by_job_level(
+
+    def get_workforce_by_job_level(self, year: Optional[int] = None, version: Optional[str] = None):
+        """Cached — delegates to _fetch_get_workforce_by_job_level with a 300-second TTL."""
+        key = f"wf:level:{year}:{version}"
+        return _agg_cached(key, lambda: self._fetch_get_workforce_by_job_level(year=year, version=version))
+
+    def _fetch_get_workforce_by_job_level(
         self,
         year: Optional[int] = None,
         version: Optional[str] = None
@@ -228,7 +263,7 @@ class WorkforceService:
                 ISNULL(SUM(Benefits), 0) as TotalBenefits,
                 ISNULL(SUM(TotalCompensation), 0) as TotalCompensation,
                 CASE WHEN COUNT(DISTINCT EmployeeID) > 0 THEN (SUM(TotalCompensation) / COUNT(DISTINCT EmployeeID)) ELSE 0 END as AvgCompensation
-            FROM HR.vw_WorkforceCube_Source
+            FROM HR.vw_WorkforceCube_Source WITH (NOLOCK)
             {where_clause}
             GROUP BY JobLevel
             ORDER BY TotalCompensation DESC
@@ -337,7 +372,7 @@ class WorkforceService:
                     SUM(ISNULL(Bonus, 0)) as total_bonus,
                     SUM(ISNULL(Benefits, 0)) as total_benefits,
                     SUM(ISNULL(TotalCompensation, 0)) as total_compensation
-                FROM HR.vw_WorkforceCube_Source
+                FROM HR.vw_WorkforceCube_Source WITH (NOLOCK)
                 {where_clause}
                 GROUP BY {target_column}
                 HAVING {target_column} IS NOT NULL
@@ -353,7 +388,7 @@ class WorkforceService:
                     SUM(ISNULL(Bonus, 0)) as total_bonus,
                     SUM(ISNULL(Benefits, 0)) as total_benefits,
                     SUM(ISNULL(TotalCompensation, 0)) as total_compensation
-                FROM HR.vw_WorkforceCube_Source
+                FROM HR.vw_WorkforceCube_Source WITH (NOLOCK)
                 {where_clause}
                 GROUP BY {target_column}
                 HAVING {target_column} IS NOT NULL
@@ -380,7 +415,13 @@ class WorkforceService:
         except Exception as e:
             logger.error(f"Error getting drill-down data: {str(e)}")
             raise    
-    def get_workforce_by_entity(
+
+    def get_workforce_by_entity(self, year: Optional[int] = None, version: Optional[str] = None):
+        """Cached — delegates to _fetch_get_workforce_by_entity with a 300-second TTL."""
+        key = f"wf:entity:{year}:{version}"
+        return _agg_cached(key, lambda: self._fetch_get_workforce_by_entity(year=year, version=version))
+
+    def _fetch_get_workforce_by_entity(
         self,
         year: Optional[int] = None,
         version: Optional[str] = None
@@ -408,7 +449,7 @@ class WorkforceService:
                 ISNULL(SUM(Benefits), 0) as TotalBenefits,
                 ISNULL(SUM(TotalCompensation), 0) as TotalCompensation,
                 CASE WHEN COUNT(DISTINCT EmployeeID) > 0 THEN (SUM(TotalCompensation) / COUNT(DISTINCT EmployeeID)) ELSE 0 END as AvgCompensation
-            FROM HR.vw_WorkforceCube_Source
+            FROM HR.vw_WorkforceCube_Source WITH (NOLOCK)
             {where_clause}
             GROUP BY EntityName
             ORDER BY TotalCompensation DESC

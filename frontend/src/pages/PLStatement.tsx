@@ -3,6 +3,7 @@ import FinancialTable, { type FinancialRow } from '../components/FinancialTable'
 import GlobalFilters, { type FilterOption } from '../components/GlobalFilters';
 import { getPLStatementMapped, getEntities } from '../services/api';
 import { Loader2 } from 'lucide-react';
+import AnnotationPanel from '../components/AnnotationPanel';
 
 
 // Removed ~280 lines of mock data - now using real backend data
@@ -196,6 +197,7 @@ export default function PLStatement() {
             data={plData}
             title={`Profit & Loss Statement - ${filters.year}`}
             showExport={true}
+            showForecast={false}
           />
 
           {/* Key Metrics Summary */}
@@ -226,6 +228,12 @@ export default function PLStatement() {
             </div>
           </div>
 
+          {/* Annotation Panel */}
+          <AnnotationPanel
+            pageKey="pl-statement"
+            period={`${filters.year}:${filters.entity || 'all'}`}
+          />
+
           {/* Statement Notes */}
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
             <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">Statement Notes:</h4>
@@ -235,9 +243,15 @@ export default function PLStatement() {
               <li>Variance calculated as Actual vs Budget</li>
               <li>Negative values indicate losses or expenses</li>
               <li>Expand sections to view detailed line items</li>
-              <li>âœ… <strong>REAL DATA:</strong> Database accounts intelligently mapped to display labels (e.g., multiple inventory accounts â†’ "Inventory")</li>
+              <li>✅ <strong>REAL DATA:</strong> Database accounts mapped to display labels</li>
             </ul>
           </div>
+
+          {/* Annotation Panel */}
+          <AnnotationPanel
+            pageKey="pl-statement"
+            period={`${filters.year}:${filters.entity || 'all'}`}
+          />
         </>
       )}
     </div>

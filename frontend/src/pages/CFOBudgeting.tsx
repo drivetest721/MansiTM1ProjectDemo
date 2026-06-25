@@ -8,6 +8,8 @@ import { DollarSign, TrendingUp, CheckCircle, Building2, FileText } from 'lucide
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { getBudgetByAccount, getBudgetByDepartment, getBudgetByEntity, getBudgetDrillDown } from '../services/api';
 import { exportFinancialTableToExcel } from '../utils/exportToExcel';
+import AnnotationPanel from '../components/AnnotationPanel';
+import WorkflowStatusBadge from '../components/WorkflowStatusBadge';
 
 export default function CFOBudgeting() {
   const [loading, setLoading] = useState(true);
@@ -317,6 +319,13 @@ export default function CFOBudgeting() {
         ))}
       </div>
 
+      {/* Workflow Status */}
+      <WorkflowStatusBadge
+        page="cfo-budgeting"
+        entity={filters.entity !== 'all' ? filters.entity : 'all'}
+        year={filters.year !== 'all' ? filters.year : 'all'}
+      />
+
       {/* Global Filters */}
       <GlobalFilters
         filters={filterOptions}
@@ -378,6 +387,12 @@ export default function CFOBudgeting() {
           </ResponsiveContainer>
         </div>
       </div>
+
+      {/* Annotation Panel */}
+      <AnnotationPanel
+        pageKey="cfo-budgeting"
+        period={`${filters.year}:${filters.entity}`}
+      />
 
       {/* Instructions */}
       <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4">

@@ -218,7 +218,7 @@ class AdminService:
                     COUNT(*) as CellCount,
                     MAX(YearNumber) as LastYear,
                     'Active' as Status
-                FROM Planning.vw_ForecastCube_Source
+                FROM Planning.vw_ForecastCube_Source WITH (NOLOCK)
                 
                 UNION ALL
                 
@@ -228,7 +228,7 @@ class AdminService:
                     COUNT(*) as CellCount,
                     MAX(YearNumber) as LastYear,
                     'Active' as Status
-                FROM Workforce.FactWorkforcePlanning
+                FROM Workforce.FactWorkforcePlanning WITH (NOLOCK)
                 
                 UNION ALL
                 
@@ -238,7 +238,7 @@ class AdminService:
                     COUNT(*) as CellCount,
                     MAX(YearNumber) as LastYear,
                     'Active' as Status
-                FROM Planning.vw_BudgetForecastVariance
+                FROM Planning.vw_BudgetForecastVariance WITH (NOLOCK)
                 
                 UNION ALL
                 
@@ -248,7 +248,7 @@ class AdminService:
                     COUNT(*) as CellCount,
                     MAX(YearNumber) as LastYear,
                     'Active' as Status
-                FROM Finance.vw_PL_Statement
+                FROM Finance.vw_PL_Statement WITH (NOLOCK)
                 
                 UNION ALL
                 
@@ -258,7 +258,7 @@ class AdminService:
                     COUNT(*) as CellCount,
                     MAX(YearNumber) as LastYear,
                     'Active' as Status
-                FROM Finance.vw_BalanceSheet
+                FROM Finance.vw_BalanceSheet WITH (NOLOCK)
             """)
             
             results = self.db.execute(query).fetchall()
@@ -290,7 +290,7 @@ class AdminService:
                     MAX(YearNumber) as LastYear,
                     COUNT(*) as RecordCount,
                     GETDATE() as LastCheck
-                FROM Finance.vw_PL_Statement
+                FROM Finance.vw_PL_Statement WITH (NOLOCK)
                 
                 UNION ALL
                 
@@ -299,7 +299,7 @@ class AdminService:
                     MAX(YearNumber) as LastYear,
                     COUNT(*) as RecordCount,
                     GETDATE() as LastCheck
-                FROM Finance.vw_BalanceSheet
+                FROM Finance.vw_BalanceSheet WITH (NOLOCK)
                 
                 UNION ALL
                 
@@ -308,7 +308,7 @@ class AdminService:
                     MAX(YearNumber) as LastYear,
                     COUNT(*) as RecordCount,
                     GETDATE() as LastCheck
-                FROM Planning.vw_ForecastCube_Source
+                FROM Planning.vw_ForecastCube_Source WITH (NOLOCK)
                 
                 UNION ALL
                 
@@ -317,7 +317,7 @@ class AdminService:
                     MAX(YearNumber) as LastYear,
                     COUNT(*) as RecordCount,
                     GETDATE() as LastCheck
-                FROM Workforce.FactWorkforcePlanning
+                FROM Workforce.FactWorkforcePlanning WITH (NOLOCK)
             """)
             
             results = self.db.execute(query).fetchall()
@@ -353,7 +353,7 @@ class AdminService:
                     COUNT(*) as TotalRows,
                     SUM(CASE WHEN AccountName IS NULL THEN 1 ELSE 0 END) as NullAccountNames,
                     SUM(CASE WHEN ActualAmount IS NULL THEN 1 ELSE 0 END) as NullAmounts
-                FROM Finance.vw_PL_Statement
+                FROM Finance.vw_PL_Statement WITH (NOLOCK)
                 
                 UNION ALL
                 
@@ -362,7 +362,7 @@ class AdminService:
                     COUNT(*) as TotalRows,
                     SUM(CASE WHEN AccountName IS NULL THEN 1 ELSE 0 END) as NullAccountNames,
                     SUM(CASE WHEN BalanceAmount IS NULL THEN 1 ELSE 0 END) as NullAmounts
-                FROM Finance.vw_BalanceSheet
+                FROM Finance.vw_BalanceSheet WITH (NOLOCK)
             """)
             
             results = self.db.execute(null_check_query).fetchall()
@@ -408,3 +408,157 @@ class AdminService:
                 "error": str(e),
                 "checks": []
             }
+
+    # =========================================================================
+    # DATA FRESHNESS — Recommendation: Add LastModified / ETL timestamp column
+    # Until that column exists we query sys.dm_db_index_usage_stats which tracks
+    # when each table was last read/written by the query engine.
+    # =========================================================================
+
+    def get_data_freshness(self) -> dict:
+        """
+        Show when each semantic view's base tables were last read by a query.
+
+        Uses sys.dm_db_index_usage_stats (reset on SQL Server restart) and
+        sys.objects (creation/modify date).  This is the closest proxy for ETL
+        freshness available without a dedicated LoadDate column.
+        """
+        try:
+            query = text("""
+            SELECT
+                s.name  AS SchemaName,
+                o.name  AS TableName,
+                o.type_desc                                 AS ObjectType,
+                o.create_date                               AS CreatedDate,
+                o.modify_date                               AS LastSchemaModified,
+                MAX(u.last_user_read)                       AS LastReadByQuery,
+                MAX(u.last_user_update)                     AS LastWrittenByQuery,
+                SUM(u.user_seeks + u.user_scans + u.user_lookups) AS TotalReads,
+                SUM(u.user_updates)                         AS TotalWrites
+            FROM sys.objects o WITH (NOLOCK)
+            JOIN sys.schemas s WITH (NOLOCK) ON o.schema_id = s.schema_id
+            LEFT JOIN sys.dm_db_index_usage_stats u WITH (NOLOCK)
+                ON o.object_id = u.object_id
+                AND u.database_id = DB_ID()
+            WHERE o.type IN ('U','V')          -- U = table, V = view
+              AND s.name NOT IN ('sys','INFORMATION_SCHEMA')
+              AND o.is_ms_shipped = 0
+            GROUP BY s.name, o.name, o.type_desc, o.create_date, o.modify_date
+            ORDER BY s.name, o.name
+            """)
+
+            rows = self.db.execute(query).fetchall()
+
+            items = []
+            for r in rows:
+                last_read = r.LastReadByQuery.isoformat() if r.LastReadByQuery else None
+                last_write = r.LastWrittenByQuery.isoformat() if r.LastWrittenByQuery else None
+
+                # Freshness status based on last write time
+                status = "unknown"
+                if last_write:
+                    from datetime import timezone
+                    age_hours = (datetime.now() - r.LastWrittenByQuery).total_seconds() / 3600
+                    status = "fresh" if age_hours < 24 else "stale" if age_hours < 168 else "very_stale"
+
+                items.append({
+                    "schema": r.SchemaName,
+                    "table": r.TableName,
+                    "object_type": r.ObjectType,
+                    "created_date": r.CreatedDate.isoformat(),
+                    "last_schema_modified": r.LastSchemaModified.isoformat(),
+                    "last_read": last_read,
+                    "last_written": last_write,
+                    "total_reads": int(r.TotalReads or 0),
+                    "total_writes": int(r.TotalWrites or 0),
+                    "freshness_status": status,
+                })
+
+            return {
+                "timestamp": datetime.now().isoformat(),
+                "note": "last_read/last_written reset on SQL Server restart — use as relative freshness indicator",
+                "items": items
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to get data freshness: {e}")
+            return {"timestamp": datetime.now().isoformat(), "error": str(e), "items": []}
+
+    # =========================================================================
+    # INDEX HEALTH — Recommendation: Add index fragmentation check
+    # sys.dm_db_index_physical_stats is an expensive call; use SAMPLED mode.
+    # =========================================================================
+
+    def get_index_health(self) -> dict:
+        """
+        Return fragmentation % for indexes on all user tables.
+
+        Fragmentation thresholds:
+          < 10%  → healthy (green)
+          10-30% → rebuild recommended (amber) — use ALTER INDEX ... REORGANIZE
+          > 30%  → critical (red)             — use ALTER INDEX ... REBUILD
+        """
+        try:
+            query = text("""
+            SELECT
+                s.name                          AS SchemaName,
+                o.name                          AS TableName,
+                i.name                          AS IndexName,
+                i.type_desc                     AS IndexType,
+                ps.index_level                  AS IndexLevel,
+                ps.avg_fragmentation_in_percent AS FragmentationPct,
+                ps.page_count                   AS PageCount
+            FROM sys.dm_db_index_physical_stats(
+                    DB_ID(), NULL, NULL, NULL, 'SAMPLED') ps  -- SAMPLED = fast estimate
+            JOIN sys.objects  o WITH (NOLOCK) ON ps.object_id   = o.object_id
+            JOIN sys.schemas  s WITH (NOLOCK) ON o.schema_id    = s.schema_id
+            JOIN sys.indexes  i WITH (NOLOCK) ON ps.object_id   = i.object_id
+                                              AND ps.index_id   = i.index_id
+            WHERE o.is_ms_shipped = 0
+              AND ps.index_id > 0          -- skip heap scans
+              AND ps.page_count > 8        -- skip tiny indexes
+              AND ps.index_level = 0       -- leaf level only
+            ORDER BY ps.avg_fragmentation_in_percent DESC
+            """)
+
+            rows = self.db.execute(query).fetchall()
+
+            items = []
+            for r in rows:
+                frag = float(r.FragmentationPct or 0)
+                if frag < 10:
+                    status = "healthy"
+                    action = "none"
+                elif frag < 30:
+                    status = "warning"
+                    action = f"ALTER INDEX [{r.IndexName}] ON [{r.SchemaName}].[{r.TableName}] REORGANIZE;"
+                else:
+                    status = "critical"
+                    action = f"ALTER INDEX [{r.IndexName}] ON [{r.SchemaName}].[{r.TableName}] REBUILD WITH (ONLINE = ON);"
+
+                items.append({
+                    "schema": r.SchemaName,
+                    "table": r.TableName,
+                    "index": r.IndexName,
+                    "type": r.IndexType,
+                    "fragmentation_pct": round(frag, 1),
+                    "page_count": int(r.PageCount or 0),
+                    "status": status,
+                    "recommended_action": action,
+                })
+
+            summary = {
+                "healthy":  sum(1 for i in items if i["status"] == "healthy"),
+                "warning":  sum(1 for i in items if i["status"] == "warning"),
+                "critical": sum(1 for i in items if i["status"] == "critical"),
+            }
+
+            return {
+                "timestamp": datetime.now().isoformat(),
+                "summary": summary,
+                "indexes": items,
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to get index health: {e}")
+            return {"timestamp": datetime.now().isoformat(), "error": str(e), "summary": {}, "indexes": []}

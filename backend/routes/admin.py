@@ -119,17 +119,49 @@ def get_refresh_history(
 def get_data_quality(db: Session = Depends(get_db)) -> Dict[str, Any]:
     """
     Get data quality summary
-    
+
     Returns quality scores, null value counts, and overall data health
     """
     try:
         service = AdminService(db)
         quality = service.get_data_quality_summary()
-        
+
         return {
             "success": True,
             "data": quality
         }
     except Exception as e:
         logger.error(f"Failed to get data quality: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
+@router.get("/data-freshness")
+def get_data_freshness(db: Session = Depends(get_db)) -> Dict[str, Any]:
+    """
+    Show when each table/view was last read or written by a query.
+    Uses sys.dm_db_index_usage_stats (resets on SQL Server restart).
+    """
+    try:
+        service = AdminService(db)
+        freshness = service.get_data_freshness()
+        return {"success": True, "data": freshness}
+    except Exception as e:
+        logger.error(f"Failed to get data freshness: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/index-health")
+def get_index_health(db: Session = Depends(get_db)) -> Dict[str, Any]:
+    """
+    Return index fragmentation % for all user-table indexes.
+    Thresholds: <10% healthy | 10-30% REORGANIZE | >30% REBUILD.
+    Includes the exact ALTER INDEX command to run for each fragmented index.
+    """
+    try:
+        service = AdminService(db)
+        health = service.get_index_health()
+        return {"success": True, "data": health}
+    except Exception as e:
+        logger.error(f"Failed to get index health: {e}")
         raise HTTPException(status_code=500, detail=str(e))
