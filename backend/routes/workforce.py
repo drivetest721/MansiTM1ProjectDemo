@@ -17,7 +17,7 @@ router = APIRouter()
 @router.get("/", response_model=WorkforceListResponse, summary="Get Workforce Data")
 async def get_workforce(
     page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(50, ge=1, le=1000, description="Page size"),
+    page_size: int = Query(50, ge=1, le=500, description="Page size"),
     year: Optional[int] = Query(None, description="Filter by year"),
     entity: Optional[str] = Query(None, description="Filter by entity name"),
     department: Optional[str] = Query(None, description="Filter by department"),
@@ -53,13 +53,16 @@ async def get_workforce(
 @router.get("/by-department", response_model=WorkforceAggregationResponse, summary="Get Workforce by Department")
 async def get_workforce_by_department(
     year: Optional[int] = Query(None, description="Filter by year"),
+    entity: Optional[str] = Query(None, description="Filter by entity"),
+    department: Optional[str] = Query(None, description="Filter by department"),
+    job_level: Optional[str] = Query(None, description="Filter by job level"),
     version: Optional[str] = Query(None, description="Filter by version"),
     db: Session = Depends(get_db)
 ):
     """Get workforce aggregated by department"""
     try:
         service = WorkforceService(db)
-        return service.get_workforce_by_department(year=year, version=version)
+        return service.get_workforce_by_department(year=year, entity=entity, department=department, job_level=job_level, version=version)
     except Exception as e:
         logger.error(f"Error in get_workforce_by_department: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error fetching workforce by department: {str(e)}")
@@ -68,13 +71,15 @@ async def get_workforce_by_department(
 @router.get("/by-job-level", response_model=WorkforceAggregationResponse, summary="Get Workforce by Job Level")
 async def get_workforce_by_job_level(
     year: Optional[int] = Query(None, description="Filter by year"),
+    entity: Optional[str] = Query(None, description="Filter by entity"),
+    department: Optional[str] = Query(None, description="Filter by department"),
     version: Optional[str] = Query(None, description="Filter by version"),
     db: Session = Depends(get_db)
 ):
     """Get workforce aggregated by job level"""
     try:
         service = WorkforceService(db)
-        return service.get_workforce_by_job_level(year=year, version=version)
+        return service.get_workforce_by_job_level(year=year, entity=entity, department=department, version=version)
     except Exception as e:
         logger.error(f"Error in get_workforce_by_job_level: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error fetching workforce by job level: {str(e)}")
@@ -119,20 +124,25 @@ async def get_workforce_drill_down(
 @router.get("/by-entity", response_model=WorkforceAggregationResponse, summary="Get Workforce by Entity")
 async def get_workforce_by_entity(
     year: Optional[int] = Query(None, description="Filter by year"),
+    department: Optional[str] = Query(None, description="Filter by department"),
+    job_level: Optional[str] = Query(None, description="Filter by job level"),
     version: Optional[str] = Query(None, description="Filter by version"),
     db: Session = Depends(get_db)
 ):
     """Get workforce aggregated by entity"""
     try:
         service = WorkforceService(db)
-        return service.get_workforce_by_entity(year=year, version=version)
+        return service.get_workforce_by_entity(year=year, department=department, job_level=job_level, version=version)
     except Exception as e:
         logger.error(f"Error in get_workforce_by_entity: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error fetching workforce by entity: {str(e)}")
 
 @router.get("/by-department", response_model=WorkforceAggregationResponse, summary="Get Workforce by Department")
-async def get_workforce_by_department(
+async def get_workforce_by_department_v2(
     year: Optional[int] = Query(None, description="Filter by year"),
+    entity: Optional[str] = Query(None, description="Filter by entity"),
+    department: Optional[str] = Query(None, description="Filter by department"),
+    job_level: Optional[str] = Query(None, description="Filter by job level"),
     version: Optional[str] = Query(None, description="Filter by version"),
     db: Session = Depends(get_db)
 ):
@@ -146,7 +156,7 @@ async def get_workforce_by_department(
     """
     try:
         service = WorkforceService(db)
-        return service.get_workforce_by_department(year=year, version=version)
+        return service.get_workforce_by_department(year=year, entity=entity, department=department, job_level=job_level, version=version)
     except Exception as e:
         logger.error(f"Error in get_workforce_by_department: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error fetching workforce by department: {str(e)}")
@@ -168,7 +178,7 @@ async def get_workforce_by_joblevel(
     """
     try:
         service = WorkforceService(db)
-        return service.get_workforce_by_job_level(year=year, version=version)
+        return service.get_workforce_by_job_level(year=year, version=version)  # kept for backward compat
     except Exception as e:
         logger.error(f"Error in get_workforce_by_joblevel: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error fetching workforce by job level: {str(e)}")

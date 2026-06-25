@@ -165,14 +165,20 @@ class RevenueService:
             raise
     
 
-    def get_revenue_by_region(self, year: Optional[int] = None, version: Optional[str] = None):
+    def get_revenue_by_region(self, year: Optional[int] = None, quarter: Optional[str] = None,
+                               entity: Optional[str] = None, scenario: Optional[str] = None,
+                               version: Optional[str] = None):
         """Cached — delegates to _fetch_get_revenue_by_region with a 300-second TTL."""
-        key = f"rev:region:{year}:{version}"
-        return _agg_cached(key, lambda: self._fetch_get_revenue_by_region(year=year, version=version))
+        key = f"rev:region:{year}:{quarter}:{entity}:{scenario}:{version}"
+        return _agg_cached(key, lambda: self._fetch_get_revenue_by_region(
+            year=year, quarter=quarter, entity=entity, scenario=scenario, version=version))
 
     def _fetch_get_revenue_by_region(
         self,
         year: Optional[int] = None,
+        quarter: Optional[str] = None,
+        entity: Optional[str] = None,
+        scenario: Optional[str] = None,
         version: Optional[str] = None
     ) -> RevenueAggregationResponse:
         """Get revenue aggregated by region"""
@@ -183,6 +189,15 @@ class RevenueService:
             if year:
                 where_clauses.append("YearNumber = :year")
                 params["year"] = year
+            if quarter:
+                where_clauses.append("QuarterName = :quarter")
+                params["quarter"] = quarter
+            if entity:
+                where_clauses.append("EntityName = :entity")
+                params["entity"] = entity
+            if scenario:
+                where_clauses.append("ScenarioName = :scenario")
+                params["scenario"] = scenario
             if version:
                 where_clauses.append("VersionName = :version")
                 params["version"] = version
@@ -235,14 +250,21 @@ class RevenueService:
             raise
     
 
-    def get_revenue_by_product(self, year: Optional[int] = None, version: Optional[str] = None):
+    def get_revenue_by_product(self, year: Optional[int] = None, quarter: Optional[str] = None,
+                                region: Optional[str] = None, entity: Optional[str] = None,
+                                scenario: Optional[str] = None, version: Optional[str] = None):
         """Cached — delegates to _fetch_get_revenue_by_product with a 300-second TTL."""
-        key = f"rev:product:{year}:{version}"
-        return _agg_cached(key, lambda: self._fetch_get_revenue_by_product(year=year, version=version))
+        key = f"rev:product:{year}:{quarter}:{region}:{entity}:{scenario}:{version}"
+        return _agg_cached(key, lambda: self._fetch_get_revenue_by_product(
+            year=year, quarter=quarter, region=region, entity=entity, scenario=scenario, version=version))
 
     def _fetch_get_revenue_by_product(
         self,
         year: Optional[int] = None,
+        quarter: Optional[str] = None,
+        region: Optional[str] = None,
+        entity: Optional[str] = None,
+        scenario: Optional[str] = None,
         version: Optional[str] = None
     ) -> RevenueAggregationResponse:
         """Get revenue aggregated by product category"""
@@ -253,6 +275,18 @@ class RevenueService:
             if year:
                 where_clauses.append("YearNumber = :year")
                 params["year"] = year
+            if quarter:
+                where_clauses.append("QuarterName = :quarter")
+                params["quarter"] = quarter
+            if region:
+                where_clauses.append("RegionName = :region")
+                params["region"] = region
+            if entity:
+                where_clauses.append("EntityName = :entity")
+                params["entity"] = entity
+            if scenario:
+                where_clauses.append("ScenarioName = :scenario")
+                params["scenario"] = scenario
             if version:
                 where_clauses.append("VersionName = :version")
                 params["version"] = version
@@ -305,14 +339,21 @@ class RevenueService:
             raise
     
 
-    def get_revenue_by_customer_segment(self, year: Optional[int] = None, version: Optional[str] = None):
+    def get_revenue_by_customer_segment(self, year: Optional[int] = None, quarter: Optional[str] = None,
+                                         region: Optional[str] = None, entity: Optional[str] = None,
+                                         scenario: Optional[str] = None, version: Optional[str] = None):
         """Cached — delegates to _fetch_get_revenue_by_customer_segment with a 300-second TTL."""
-        key = f"rev:segment:{year}:{version}"
-        return _agg_cached(key, lambda: self._fetch_get_revenue_by_customer_segment(year=year, version=version))
+        key = f"rev:segment:{year}:{quarter}:{region}:{entity}:{scenario}:{version}"
+        return _agg_cached(key, lambda: self._fetch_get_revenue_by_customer_segment(
+            year=year, quarter=quarter, region=region, entity=entity, scenario=scenario, version=version))
 
     def _fetch_get_revenue_by_customer_segment(
         self,
         year: Optional[int] = None,
+        quarter: Optional[str] = None,
+        region: Optional[str] = None,
+        entity: Optional[str] = None,
+        scenario: Optional[str] = None,
         version: Optional[str] = None
     ) -> RevenueAggregationResponse:
         """Get revenue aggregated by customer segment"""
@@ -323,6 +364,18 @@ class RevenueService:
             if year:
                 where_clauses.append("YearNumber = :year")
                 params["year"] = year
+            if quarter:
+                where_clauses.append("QuarterName = :quarter")
+                params["quarter"] = quarter
+            if region:
+                where_clauses.append("RegionName = :region")
+                params["region"] = region
+            if entity:
+                where_clauses.append("EntityName = :entity")
+                params["entity"] = entity
+            if scenario:
+                where_clauses.append("ScenarioName = :scenario")
+                params["scenario"] = scenario
             if version:
                 where_clauses.append("VersionName = :version")
                 params["version"] = version

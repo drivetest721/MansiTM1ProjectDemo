@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import FinancialTable, { type FinancialRow } from '../components/FinancialTable';
 import GlobalFilters, { type FilterOption } from '../components/GlobalFilters';
 import { getPLStatementMapped, getEntities } from '../services/api';
@@ -10,6 +10,7 @@ import AnnotationPanel from '../components/AnnotationPanel';
 
 
 export default function PLStatement() {
+  const fetchingRef = useRef(false);
   const [filters, setFilters] = useState<Record<string, string>>({
     year: '2024',
     month: 'ytd',
@@ -47,7 +48,10 @@ export default function PLStatement() {
 
   // Fetch P&L statement data
   useEffect(() => {
+    const controller = new AbortController();
     const loadPLData = async () => {
+      if (fetchingRef.current) return;
+      fetchingRef.current = true;
       setLoading(true);
       setError(null);
       
@@ -76,10 +80,12 @@ export default function PLStatement() {
         setPlData([]);
       } finally {
         setLoading(false);
+        fetchingRef.current = false;
       }
     };
 
     loadPLData();
+    return () => { controller.abort(); fetchingRef.current = false; };
   }, [filters.year, filters.entity]);
 
   const filterOptions: FilterOption[] = [
@@ -198,7 +204,7 @@ export default function PLStatement() {
       <GlobalFilters
         filters={filterOptions}
         values={filters}
-        onChange={(id, val) => setFilters({ ...filters, [id]: val })}
+        onApply={setFilters}
         onReset={() => setFilters({ year: '2024', month: 'ytd', entity: '', version: 'final' })}
       />
 

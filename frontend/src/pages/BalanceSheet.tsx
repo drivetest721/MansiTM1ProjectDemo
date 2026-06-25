@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import FinancialTable from '../components/FinancialTable';
 import type { FinancialRow } from '../components/FinancialTable';
 import GlobalFilters from '../components/GlobalFilters';
@@ -47,6 +47,7 @@ const filterOptions: FilterOption[] = [
 ];
 
 export default function BalanceSheet() {
+  const fetchingRef = useRef(false);
   const [filters, setFilters] = useState<Record<string, string>>({
     year: '2024',
     month: 'ytd',
@@ -84,7 +85,10 @@ export default function BalanceSheet() {
 
   // Fetch Balance Sheet data
   useEffect(() => {
+    const controller = new AbortController();
     const loadBalanceSheetData = async () => {
+      if (fetchingRef.current) return;
+      fetchingRef.current = true;
       setLoading(true);
       setError(null);
       
@@ -113,10 +117,12 @@ export default function BalanceSheet() {
         setBsData([]);
       } finally {
         setLoading(false);
+        fetchingRef.current = false;
       }
     };
 
     loadBalanceSheetData();
+    return () => { controller.abort(); fetchingRef.current = false; };
   }, [filters.year, filters.entity]);
 
   const filterOptions: FilterOption[] = [
@@ -195,7 +201,7 @@ export default function BalanceSheet() {
       <GlobalFilters
         filters={filterOptions}
         values={filters}
-        onChange={(id, val) => setFilters({ ...filters, [id]: val })}
+        onApply={setFilters}
         onReset={() => setFilters({ year: '2024', month: 'ytd', entity: '', version: 'final' })}
       />
 

@@ -1,7 +1,7 @@
 /**
  * WorkflowStatusBadge — Budget / Forecast approval workflow
  *
- * Shows the current status of a page (Draft → Submitted → Approved → Locked)
+* Shows the current status of a page (Draft → Submitted → Approved → Locked)
  * and lets authorised users advance or reset it.
  *
  * Usage:

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback, useRef } from 'react';
 import CubeGrid from '../components/CubeGrid';
 import type { CubeRow } from '../components/CubeGrid';
 import GlobalFilters from '../components/GlobalFilters';
@@ -60,6 +60,7 @@ export default function FinancialConsolidation() {
 
   const [hierarchyData, setHierarchyData] = useState<HierarchyNode[]>([]);
   const [cubeData, setCubeData] = useState<CubeRow[]>([]);
+  const fetchingRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -100,14 +101,12 @@ export default function FinancialConsolidation() {
   }, []);
   
 
-  useEffect(() => {
-  if (cubeData.length > 0) {
-    console.log('🔍 cubeData sample (first 3 rows):', JSON.stringify(cubeData.slice(0, 3), null, 2));
-  }
-}, [cubeData]);
   // Load consolidated cube data
   useEffect(() => {
+    const controller = new AbortController();
     const loadCubeData = async () => {
+      if (fetchingRef.current) return;
+      fetchingRef.current = true;
       setLoading(true);
       setError(null);
 
@@ -129,10 +128,12 @@ export default function FinancialConsolidation() {
         setCubeData([]);
       } finally {
         setLoading(false);
+        fetchingRef.current = false;
       }
     };
 
     loadCubeData();
+    return () => { controller.abort(); fetchingRef.current = false; };
   }, [filters.year]);
 
   return (
@@ -147,7 +148,7 @@ export default function FinancialConsolidation() {
       <GlobalFilters
         filters={filterOptions}
         values={filters}
-        onChange={(id, val) => setFilters({ ...filters, [id]: val })}
+        onApply={setFilters}
         onReset={() => setFilters({ year: '2024', month: 'ytd', currency: 'usd', version: 'actual' })}
       />
 
@@ -185,7 +186,7 @@ export default function FinancialConsolidation() {
                 measures={['Revenue', 'Expense', 'EBITDA', 'Net Income', 'Assets', 'Liabilities', 'Equity']}
                 title="Consolidated Financial Data"
                 showExport={true}
-                onExport={() => console.log('Export')}
+                onExport={() => {}}
                 onDrillDown={async (row) => getChildRows(row)}  // ← key fix
               />
             </div>

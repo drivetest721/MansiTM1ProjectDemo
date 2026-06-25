@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { DollarSign, TrendingUp, Users, Briefcase, Target, Package, Building2, Activity, ChevronDown } from 'lucide-react';
 import MetricCard from '../components/MetricCard';
 import FinancialTable from '../components/FinancialTable';
@@ -99,7 +99,11 @@ const transformDrillData = (data: any): { label: string; value: number }[] => {
   return [];
 };
 
-  const loadDashboardData = async () => {
+  const fetchingRef = useRef(false);
+
+  const loadDashboardData = useCallback(async () => {
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
     try {
       setLoading(true);
       setError(null);
@@ -150,20 +154,20 @@ const transformDrillData = (data: any): { label: string; value: number }[] => {
       setRevenueByRegion(transformChartData(data.revenue_by_region));
       setRevenueByCategory(transformChartData(data.revenue_by_category));
       
-      // Debug: verify year data for drill-down
-      const yearData = transformChartData(data.revenue_by_year);
-      console.log('📊 Initial revenueByYear data:', yearData);
     } catch (err: any) {
       console.error('Error loading dashboard data:', err);
       setError(err.message || 'Failed to load dashboard data');
     } finally {
       setLoading(false);
+      fetchingRef.current = false;
     }
-  };
+  }, []);
   
   useEffect(() => {
+    const controller = new AbortController();
     loadDashboardData();
-  }, []);
+    return () => { controller.abort(); fetchingRef.current = false; };
+  }, [loadDashboardData]);
 
 
 
@@ -174,18 +178,6 @@ const transformDrillData = (data: any): { label: string; value: number }[] => {
               ? quarterData
               : monthData;
 
-  // Debug: Log drill state changes
-  useEffect(() => {
-    console.log('📊 Drill state changed:', {
-      drillLevel,
-      selectedYear,
-      selectedQuarter,
-      yearDataCount: last4YearsData.length,
-      quarterDataCount: quarterData.length,
-      monthDataCount: monthData.length,
-      currentBarDataCount: currentBarData.length
-    });
-  }, [drillLevel, selectedYear, selectedQuarter, quarterData, monthData, last4YearsData]);
 
   // ---- Real drill-down data, fetched from backend on click ----
 

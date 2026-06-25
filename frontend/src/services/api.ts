@@ -115,13 +115,13 @@ export const getCostCenters = () => api.get('/api/metadata/cost-centers');
 export const getRevenueCube = (params?: RevenueFilters) => 
   api.get('/api/revenue', { params });
 
-export const getRevenueByRegionAgg = (params?: { year?: number; version?: string }) => 
+export const getRevenueByRegionAgg = (params?: { year?: number; quarter?: string; entity?: string; scenario?: string; version?: string }) =>
   api.get('/api/revenue/by-region', { params });
 
-export const getRevenueByProduct = (params?: { year?: number; version?: string }) => 
+export const getRevenueByProduct = (params?: { year?: number; quarter?: string; region?: string; entity?: string; scenario?: string; version?: string }) =>
   api.get('/api/revenue/by-product', { params });
 
-export const getRevenueByCustomerSegment = (params?: { year?: number; version?: string }) => 
+export const getRevenueByCustomerSegment = (params?: { year?: number; quarter?: string; region?: string; entity?: string; scenario?: string; version?: string }) =>
   api.get('/api/revenue/by-customer-segment', { params });
 
 // ==========================================
@@ -130,13 +130,13 @@ export const getRevenueByCustomerSegment = (params?: { year?: number; version?: 
 export const getWorkforceCube = (params?: WorkforceFilters) => 
   api.get('/api/workforce/', { params });
 
-export const getWorkforceByDepartment = (params?: { year?: number; version?: string }) => 
+export const getWorkforceByDepartment = (params?: { year?: number; entity?: string; department?: string; job_level?: string; version?: string }) =>
   api.get('/api/workforce/by-department', { params });
 
-export const getWorkforceByJobLevel = (params?: { year?: number; version?: string }) => 
+export const getWorkforceByJobLevel = (params?: { year?: number; entity?: string; department?: string; version?: string }) =>
   api.get('/api/workforce/by-job-level', { params });
 
-export const getWorkforceByEntity = (params?: { year?: number; version?: string }) => 
+export const getWorkforceByEntity = (params?: { year?: number; department?: string; job_level?: string; version?: string }) =>
   api.get('/api/workforce/by-entity', { params });
 
 // ==========================================
@@ -234,10 +234,7 @@ export const getFinancialRatios = (params: { year: number; entity?: string }) =>
   api.get('/api/finance-enhanced/ratios', { params });
 
 export const getRevenueDrilldown = (params: { level: 'quarter' | 'month'; year?: number; quarter?: string }) => {
-  console.log('🌐 API: Calling getRevenueDrilldown with params:', params);
   return api.get('/api/dashboard/revenue-drilldown', { params }).then(response => {
-    console.log('✅ API: getRevenueDrilldown response:', response);
-    console.log('📦 API: response.data:', response.data);
     return response;
   }).catch(error => {
     console.error('❌ API: getRevenueDrilldown error:', error);
@@ -311,6 +308,43 @@ export const getConsolidatedCubeData = (params: { year: number }) =>
   api.get('/api/consolidation/cube-data', { params });
 
 // ==========================================
+// WORKFLOW / APPROVAL APIs
+// ==========================================
+
+// Get workflow status for a page
+export const getWorkflowStatus = (page: string, entity: string, year: string) => 
+  api.get('/api/workflow/status', { params: { page, entity, year } });
+
+// Set workflow status for a page
+export interface SetWorkflowStatusParams {
+  page: string;
+  entity: string;
+  year: string;
+  status: string;
+}
+
+export const setWorkflowStatus = (params: SetWorkflowStatusParams) => 
+  api.post('/api/workflow/status', params);
+
+// ==========================================
+// ROLLING FORECAST APIs
+// ==========================================
+
+// Get rolling forecast view
+export const getRollingForecastView = (params: { year: number }) => 
+  api.get('/api/forecast/rolling-view', { params });
+
+// Update rolling forecast lock status
+export interface UpdateRollingForecastLockParams {
+  month: number;
+  year: number;
+  locked: boolean;
+}
+
+export const updateRollingForecastLock = (params: UpdateRollingForecastLockParams) => 
+  api.post('/api/forecast/rolling-lock', params);
+
+// ==========================================
 // ADMIN & HEALTH MONITORING APIs (MEDIUM PRIORITY)
 // ==========================================
 
@@ -334,14 +368,6 @@ export const getRefreshHistory = (days: number = 30) =>
 export const getDataQuality = () =>
   api.get('/api/admin/data-quality');
 
-// Data Freshness — when each table/view was last read or written
-export const getDataFreshness = () =>
-  api.get('/api/admin/data-freshness');
-
-// Index Health — fragmentation % + recommended ALTER INDEX commands
-export const getIndexHealth = () =>
-  api.get('/api/admin/index-health');
-
 // ==========================================
 // CUBE EXPLORER APIs (LOW PRIORITY)
 // ==========================================
@@ -363,47 +389,19 @@ export const getCubeSampleData = (cubeId: string, limit: number = 10) =>
 // ==========================================
 
 // Get all dimensions
-export const getDimensions = () => 
+export const getDimensions = () =>
   api.get('/api/metadata/dimensions');
 
 // Get dimension details
-export const getDimensionDetails = (dimensionId: string) => 
+export const getDimensionDetails = (dimensionId: string) =>
   api.get(`/api/metadata/dimensions/${dimensionId}`);
 
 // Get dimension hierarchy
-export const getDimensionHierarchy = (dimensionId: string) => 
+export const getDimensionHierarchy = (dimensionId: string) =>
   api.get(`/api/metadata/dimensions/${dimensionId}/hierarchy`);
 
 // Get dimension elements
-export const getDimensionElements = (dimensionId: string, limit: number = 50) => 
+export const getDimensionElements = (dimensionId: string, limit: number = 50) =>
   api.get(`/api/metadata/dimensions/${dimensionId}/elements`, { params: { limit } });
 
-// ==========================================
-// LEGACY COMPATIBILITY (deprecated, use spec
-// ==========================================
-// ANNOTATIONS APIs
-// ==========================================
-export const getAnnotations = (pageKey: string) =>
-  api.get(`/api/annotations/${pageKey}`);
-export const addAnnotation = (pageKey: string, payload: { text: string; author?: string; period?: string }) =>
-  api.post(`/api/annotations/${pageKey}`, payload);
-export const deleteAnnotation = (pageKey: string, annotationId: string) =>
-  api.delete(`/api/annotations/${pageKey}/${annotationId}`);
-
-// ==========================================
-// WORKFLOW STATUS APIs
-// ==========================================
-export const getWorkflowStatus = (page: string, entity?: string, year?: string) =>
-  api.get('/api/workflow/status', { params: { page, entity, year } });
-export const setWorkflowStatus = (payload: { page: string; entity?: string; year?: string; status: string }) =>
-  api.post('/api/workflow/status', payload);
-
-// ==========================================
-// ROLLING FORECAST APIs
-// ==========================================
-export const getRollingForecastConfig = () =>
-  api.get('/api/rolling-forecast/config');
-export const updateRollingForecastLock = (payload: { month: number; year: number; locked: boolean }) =>
-  api.post('/api/rolling-forecast/lock', payload);
-export const getRollingForecastView = (params?: { year?: number }) =>
-  api.get('/api/rolling-forecast/view', { params });
+export default api;

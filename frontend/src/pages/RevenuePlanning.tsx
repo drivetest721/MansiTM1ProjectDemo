@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CubeGrid from '../components/CubeGrid';
 import type { CubeRow } from '../components/CubeGrid';
@@ -26,6 +26,8 @@ export default function RevenuePlanning() {
     entity: 'all',
     scenario: 'all',
   });
+
+  const fetchingRef = useRef(false);
 
   // Pivot configuration state
   const [showPivotDialog, setShowPivotDialog] = useState(false);
@@ -72,10 +74,14 @@ export default function RevenuePlanning() {
 ];
 
   useEffect(() => {
-    loadData();
-  }, [filters]);
+    const controller = new AbortController();
+    loadData(controller.signal);
+    return () => { controller.abort(); fetchingRef.current = false; };
+  }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const loadData = async () => {
+  const loadData = useCallback(async (signal?: AbortSignal) => {
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
     setLoading(true);
     setError(null);
     
@@ -87,11 +93,19 @@ export default function RevenuePlanning() {
       if (filters.region !== 'all') params.region = filters.region;
       if (filters.scenario !== 'all') params.scenario = filters.scenario;
 
-      // Load cube data and aggregations in parallel
+      // Build shared filter params — pass every active filter to aggregation endpoints
+      const aggParams: Record<string, any> = {};
+      if (filters.year !== 'all') aggParams.year = parseInt(filters.year);
+      if (filters.quarter !== 'all') aggParams.quarter = filters.quarter;
+      if (filters.region !== 'all') aggParams.region = filters.region;
+      if (filters.scenario !== 'all') aggParams.scenario = filters.scenario;
+      if (filters.entity !== 'all') aggParams.entity = filters.entity;
+
+      // Load aggregations in parallel — all filters applied
       const [byProduct, byRegion, bySegment] = await Promise.all([
-        getRevenueByProduct(filters.year !== 'all' ? { year: parseInt(filters.year) } : {}),
-        getRevenueByRegionAgg(filters.year !== 'all' ? { year: parseInt(filters.year) } : {}),
-        getRevenueByCustomerSegment(filters.year !== 'all' ? { year: parseInt(filters.year) } : {}),
+        getRevenueByProduct(aggParams),
+        getRevenueByRegionAgg(aggParams),
+        getRevenueByCustomerSegment(aggParams),
       ]);
 
       // Transform category data to CubeRow format (ROOT LEVEL - categories)
@@ -162,12 +176,9 @@ export default function RevenuePlanning() {
       setError(err.message || 'Failed to load revenue data');
     } finally {
       setLoading(false);
+      fetchingRef.current = false;
     }
-  };
-
-  const handleFilterChange = (filterId: string, value: string) => {
-    setFilters({ ...filters, [filterId]: value });
-  };
+  }, []);
 
   const handleResetFilters = () => {
     setFilters({
@@ -192,7 +203,6 @@ export default function RevenuePlanning() {
   };
 
   const handlePivotApply = (config: PivotConfig) => {
-    console.log('📊 Applying pivot configuration:', config);
     setPivotConfig(config);
     setShowPivotDialog(false);
     
@@ -206,12 +216,9 @@ export default function RevenuePlanning() {
       },
     });
     
-    console.log('✅ Navigating to pivot table view...');
   };
 
   const handleDrillDown = async (row: CubeRow) => {
-    console.log('🔽 handleDrillDown called for row:', row);
-    
     try {
       // Determine hierarchy: category -> family -> product
       const level = row.level || 'category';
@@ -221,10 +228,7 @@ export default function RevenuePlanning() {
       };
       
       const nextLevel = hierarchyMap[level];
-      console.log('📍 Current level:', level, '→ Next level:', nextLevel);
-      
       if (!nextLevel) {
-        console.log('🛑 Leaf level reached, no children');
         return []; // Leaf level, no children
       }
       
@@ -238,14 +242,9 @@ export default function RevenuePlanning() {
       if (filters.region !== 'all') params.region = filters.region;
       if (filters.entity !== 'all') params.entity = filters.entity;
       
-      console.log('📡 Calling API with params:', params);
       const response = await getRevenueDrillDown(params);
-      console.log('📦 API Response:', response);
-      
       // The response might be in response.data or response.data.data
       const responseData = response.data?.data || response.data || [];
-      console.log('📊 Extracted data:', responseData);
-      
       if (!Array.isArray(responseData)) {
         console.error('❌ Response data is not an array:', responseData);
         return [];
@@ -270,7 +269,6 @@ export default function RevenuePlanning() {
         'Avg Selling Price': (item.revenue || 0) / (item.quantity || 1),
       }));
       
-      console.log('✅ Transformed children:', children);
       return children;
     } catch (error) {
       console.error('❌ Drill-down failed:', error);
@@ -296,7 +294,7 @@ export default function RevenuePlanning() {
       <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
         <p className="text-red-800 dark:text-red-200">Error: {error}</p>
         <button
-          onClick={loadData}
+          onClick={() => loadData()}
           className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
         >
           Retry
@@ -326,7 +324,7 @@ export default function RevenuePlanning() {
       <GlobalFilters
         filters={filterOptions}
         values={filters}
-        onChange={handleFilterChange}
+        onApply={setFilters}
         onReset={handleResetFilters}
       />
 

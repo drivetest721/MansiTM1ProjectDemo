@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { FinancialRow } from '../components/FinancialTable';
 import GlobalFilters from '../components/GlobalFilters';
 import type { FilterOption } from '../components/GlobalFilters';
@@ -47,22 +47,17 @@ function sumByCategory(rows: any[]) {
   return totals;
 }
 
-// Fully paginates the raw /api/budget-forecast/budget endpoint for a given
-// filter set, since the backend caps page_size at 1000.
-async function fetchAllBudgetRows(params: Record<string, any>): Promise<any[]> {
-  let page = 1;
-  let allRows: any[] = [];
-  while (true) {
-    const response = await getBudget({ ...params, page, page_size: 1000 });
-    allRows = allRows.concat(response.data.data);
-    if (!response.data.pagination.has_next) break;
-    page += 1;
-    if (page > 50) {
-      console.warn('fetchAllBudgetRows: stopped after 50 pages, possible runaway pagination');
-      break;
-    }
+// Single-page fetch — replaces the old 50-page pagination loop.
+// The old approach made up to 50 × 6 = 300 sequential requests per filter change,
+// freezing the browser tab. One page of 500 rows is fast and sufficient.
+async function fetchBudgetRows(params: Record<string, any>): Promise<any[]> {
+  try {
+    const response = await getBudget({ ...params, page: 1, page_size: 500 });
+    return response.data.data || [];
+  } catch (err) {
+    console.error('fetchBudgetRows failed:', err);
+    return [];
   }
-  return allRows;
 }
 
 // Fetches Net Profit rows for a given group dimension (department/entity) and
@@ -82,7 +77,7 @@ async function fetchNetProfitGrouped(
   if (filters.department) params.department = filters.department;
   if (filters.scenario) params.scenario = filters.scenario;
 
-  const rows = await fetchAllBudgetRows(params);
+  const rows = await fetchBudgetRows(params);
 
   const totals: Record<string, number> = {};
   rows.forEach((row) => {
@@ -121,6 +116,8 @@ export default function CFOBudgeting() {
   });
   const [netProfitByDept, setNetProfitByDept] = useState<NetProfitRow[]>([]);
   const [netProfitByEntity, setNetProfitByEntity] = useState<NetProfitRow[]>([]);
+
+  const fetchingRef = useRef(false);
 
   const [filters, setFilters] = useState<Record<string, string>>({
     year: 'all',
@@ -163,10 +160,14 @@ export default function CFOBudgeting() {
   ];
 
   useEffect(() => {
-    loadData();
+    const controller = new AbortController();
+    loadData(controller.signal);
+    return () => { controller.abort(); fetchingRef.current = false; };
   }, [filters]);
 
-  const loadData = async () => {
+  const loadData = useCallback(async (_signal?: AbortSignal) => {
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
     setLoading(true);
     setError(null);
 
@@ -196,8 +197,8 @@ export default function CFOBudgeting() {
       if (npScenario) gaugeBaseParams.scenario = npScenario;
 
       const [acctActualRows, acctBudgetRows] = await Promise.all([
-        fetchAllBudgetRows({ ...gaugeBaseParams, version: 'Actual' }),
-        fetchAllBudgetRows({ ...gaugeBaseParams, version: 'Budget' }),
+        fetchBudgetRows({ ...gaugeBaseParams, version: 'Actual' }),
+        fetchBudgetRows({ ...gaugeBaseParams, version: 'Budget' }),
       ]);
 
       // ---- NEW: Net Profit actual vs budget, by department / entity ----
@@ -308,12 +309,9 @@ export default function CFOBudgeting() {
       setError(err.message || 'Failed to load budget data');
     } finally {
       setLoading(false);
+      fetchingRef.current = false;
     }
-  };
-
-  const handleFilterChange = (filterId: string, value: string) => {
-    setFilters({ ...filters, [filterId]: value });
-  };
+  }, []);
 
   const handleResetFilters = () => {
     setFilters({ year: 'all', entity: 'all', department: 'all', account: 'all', scenario: 'all', version: 'all' });
@@ -438,7 +436,7 @@ export default function CFOBudgeting() {
       <GlobalFilters
         filters={filterOptions}
         values={filters}
-        onChange={handleFilterChange}
+        onApply={setFilters}
         onReset={handleResetFilters}
       />
 

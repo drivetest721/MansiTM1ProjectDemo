@@ -17,7 +17,7 @@ router = APIRouter()
 @router.get("/", response_model=RevenueListResponse, summary="Get Revenue Data")
 async def get_revenue(
     page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(50, ge=1, le=1000, description="Page size"),
+    page_size: int = Query(50, ge=1, le=500, description="Page size"),
     year: Optional[int] = Query(None, description="Filter by year"),
     quarter: Optional[str] = Query(None, description="Filter by quarter (Q1, Q2, Q3, Q4)"),
     month: Optional[str] = Query(None, description="Filter by month"),
@@ -56,6 +56,9 @@ async def get_revenue(
 @router.get("/by-region", response_model=RevenueAggregationResponse, summary="Get Revenue by Region")
 async def get_revenue_by_region(
     year: Optional[int] = Query(None, description="Filter by year"),
+    quarter: Optional[str] = Query(None, description="Filter by quarter"),
+    entity: Optional[str] = Query(None, description="Filter by entity"),
+    scenario: Optional[str] = Query(None, description="Filter by scenario"),
     version: Optional[str] = Query(None, description="Filter by version"),
     db: Session = Depends(get_db)
 ):
@@ -69,7 +72,7 @@ async def get_revenue_by_region(
     """
     try:
         service = RevenueService(db)
-        return service.get_revenue_by_region(year=year, version=version)
+        return service.get_revenue_by_region(year=year, quarter=quarter, entity=entity, scenario=scenario, version=version)
     except Exception as e:
         logger.error(f"Error in get_revenue_by_region: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error fetching revenue by region: {str(e)}")
@@ -78,6 +81,10 @@ async def get_revenue_by_region(
 @router.get("/by-product", response_model=RevenueAggregationResponse, summary="Get Revenue by Product")
 async def get_revenue_by_product(
     year: Optional[int] = Query(None, description="Filter by year"),
+    quarter: Optional[str] = Query(None, description="Filter by quarter"),
+    region: Optional[str] = Query(None, description="Filter by region"),
+    entity: Optional[str] = Query(None, description="Filter by entity"),
+    scenario: Optional[str] = Query(None, description="Filter by scenario"),
     version: Optional[str] = Query(None, description="Filter by version"),
     db: Session = Depends(get_db)
 ):
@@ -91,7 +98,7 @@ async def get_revenue_by_product(
     """
     try:
         service = RevenueService(db)
-        return service.get_revenue_by_product(year=year, version=version)
+        return service.get_revenue_by_product(year=year, quarter=quarter, region=region, entity=entity, scenario=scenario, version=version)
     except Exception as e:
         logger.error(f"Error in get_revenue_by_product: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error fetching revenue by product: {str(e)}")
@@ -100,6 +107,10 @@ async def get_revenue_by_product(
 @router.get("/by-customer-segment", response_model=RevenueAggregationResponse, summary="Get Revenue by Customer Segment")
 async def get_revenue_by_customer_segment(
     year: Optional[int] = Query(None, description="Filter by year"),
+    quarter: Optional[str] = Query(None, description="Filter by quarter"),
+    region: Optional[str] = Query(None, description="Filter by region"),
+    entity: Optional[str] = Query(None, description="Filter by entity"),
+    scenario: Optional[str] = Query(None, description="Filter by scenario"),
     version: Optional[str] = Query(None, description="Filter by version"),
     db: Session = Depends(get_db)
 ):
@@ -113,7 +124,7 @@ async def get_revenue_by_customer_segment(
     """
     try:
         service = RevenueService(db)
-        return service.get_revenue_by_customer_segment(year=year, version=version)
+        return service.get_revenue_by_customer_segment(year=year, quarter=quarter, region=region, entity=entity, scenario=scenario, version=version)
     except Exception as e:
         logger.error(f"Error in get_revenue_by_customer_segment: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error fetching revenue by customer segment: {str(e)}")
@@ -142,12 +153,6 @@ async def get_revenue_drill_down(
     Returns aggregated revenue metrics at the requested level.
     """
     try:
-        print("\n" + "="*80)
-        print(f"🔍 DRILL-DOWN REQUEST RECEIVED")
-        print(f"   Level: {level}")
-        print(f"   Parent: {parent_value}")
-        print(f"   Filters: year={year}, region={region}, entity={entity}")
-        print("="*80)
         
         service = RevenueService(db)
         result = service.get_drill_down(
@@ -158,15 +163,11 @@ async def get_revenue_drill_down(
             entity=entity
         )
         
-        print(f"✅ DRILL-DOWN SUCCESS: Returned {len(result)} items")
-        print("="*80 + "\n")
         
         return result
     except ValueError as e:
-        print(f"❌ DRILL-DOWN ERROR: Invalid parameters - {str(e)}")
         logger.error(f"Invalid drill-down parameters: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        print(f"❌ DRILL-DOWN ERROR: {str(e)}")
         logger.error(f"Error getting revenue drill-down: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")

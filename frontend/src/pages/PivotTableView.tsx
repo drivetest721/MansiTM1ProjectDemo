@@ -39,9 +39,6 @@ export default function PivotTableView() {
   const buildPivotTable = (data: any[], config: PivotConfig) => {
     setLoading(true);
     try {
-      console.log('🔄 Building pivot table with config:', config);
-      console.log('📊 Source data:', data);
-
       if (!data || data.length === 0) {
         setPivotData([]);
         setColumnHeaders([]);
@@ -114,7 +111,6 @@ export default function PivotTableView() {
         headers.push(...config.measures);
       }
 
-      console.log('✅ Pivot table built:', pivotRows.length, 'rows');
       setPivotData(pivotRows);
       setColumnHeaders(headers);
     } catch (error) {

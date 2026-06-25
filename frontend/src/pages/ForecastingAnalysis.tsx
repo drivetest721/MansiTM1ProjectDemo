@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import FinancialTable from '../components/FinancialTable';
 import type { FinancialRow } from '../components/FinancialTable';
 import GlobalFilters from '../components/GlobalFilters';
@@ -80,6 +80,7 @@ export default function ForecastingAnalysis() {
     scenario: 'base',
   });
 
+  const fetchingRef = useRef(false);
   const [scenarios, setScenarios]           = useState<any[]>(scenariosFallback);
   const [forecastTableData, setForecastTableData] = useState<FinancialRow[]>([]);
   const [forecastTrendData, setForecastTrendData] = useState<any[]>(forecastTrendFallback);
@@ -118,6 +119,8 @@ export default function ForecastingAnalysis() {
   // -------------------------------------------------------------------------
   useEffect(() => {
     const loadForecastData = async () => {
+      if (fetchingRef.current) return;
+      fetchingRef.current = true;
       setLoading(true);
       setError(null);
 
@@ -190,10 +193,13 @@ export default function ForecastingAnalysis() {
         setScenarios(scenariosFallback);
       } finally {
         setLoading(false);
+        fetchingRef.current = false;
       }
     };
 
+    const controller = new AbortController();
     loadForecastData();
+    return () => { controller.abort(); fetchingRef.current = false; };
   }, [filters.year, filters.entity]);
 
   // -------------------------------------------------------------------------
@@ -271,7 +277,7 @@ export default function ForecastingAnalysis() {
       <GlobalFilters
         filters={filterOptions}
         values={filters}
-        onChange={(id, val) => setFilters({ ...filters, [id]: val })}
+        onApply={setFilters}
         onReset={() => setFilters({ year: '2024', entity: '', scenario: 'base' })}
       />
 

@@ -4,6 +4,7 @@ FastAPI application for enterprise financial planning and reporting
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from config import settings
 import logging
 import logging.handlers
@@ -40,6 +41,9 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
+
+# GZip compression — shrinks large JSON responses ~10x
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # CORS Configuration
 app.add_middleware(
@@ -102,11 +106,4 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-    logger.info(f"Starting uvicorn server on {settings.API_HOST}:{settings.API_PORT}")
-    uvicorn.run(
-        "main:app",
-        host=settings.API_HOST,
-        port=settings.API_PORT,
-        reload=settings.API_RELOAD,
-        log_level="info"
-    )
+    uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -304,7 +304,6 @@ export default function FinancialTable({
     if (onExport) {
       onExport();
     } else {
-      console.log('Export to Excel functionality - no handler provided');
     }
   };
 

@@ -68,19 +68,8 @@ export default function CubeGrid({
   const toggleExpand = useCallback(async (row: CubeRow) => {
     const rowId = row.id;
     
-    console.log('🔍 toggleExpand called! Row:', {
-      id: rowId,
-      label: row.rowLabel,
-      level: row.level,
-      hasChildren: row.hasChildren,
-      isExpanded: expandedRows.has(rowId),
-      hasCachedChildren: !!childrenData[rowId],
-      onDrillDownExists: !!onDrillDown,
-    });
-
     // If already expanded, collapse
     if (expandedRows.has(rowId)) {
-      console.log('⬇️ Collapsing row:', rowId);
       setExpandedRows(prev => {
         const newExpanded = new Set(prev);
         newExpanded.delete(rowId);
@@ -91,13 +80,10 @@ export default function CubeGrid({
 
     // If not cached and has onDrillDown, fetch children
     if (!childrenData[rowId] && onDrillDown && (row.hasChildren || row.level)) {
-      console.log('🌐 Fetching children for:', rowId);
       setLoadingRows(prev => new Set([...prev, rowId]));
       
       try {
         const children = await onDrillDown(row);
-        console.log('✅ Received children:', children.length, 'items', children);
-        
         if (children.length === 0) {
           console.warn('⚠️ No children returned for:', rowId);
         }
@@ -122,7 +108,6 @@ export default function CubeGrid({
           return newExpanded;
         });
         
-        console.log('✅ Expanded row:', rowId, 'with', enrichedChildren.length, 'children');
       } catch (error) {
         console.error('❌ Error loading drill-down data:', error);
         // Show user-friendly error
@@ -136,7 +121,6 @@ export default function CubeGrid({
       }
     } else {
       // Already cached or no drill-down, just expand
-      console.log('📂 Expanding with cached data:', rowId);
       setExpandedRows(prev => {
         const newExpanded = new Set(prev);
         newExpanded.add(rowId);
@@ -192,7 +176,6 @@ export default function CubeGrid({
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  console.log('🖱️ Button clicked!', row.original.rowLabel);
                   toggleExpand(row.original);
                 }}
                 disabled={isLoading}
@@ -251,7 +234,6 @@ export default function CubeGrid({
     if (onExport) {
       onExport();
     } else {
-      console.log('Export to Excel functionality - no handler provided');
     }
   };
 
@@ -310,7 +292,6 @@ export default function CubeGrid({
                   } ${row.original.hasChildren ? 'cursor-pointer' : ''}`}
                   onDoubleClick={() => {
                     if (row.original.hasChildren) {
-                      console.log('🖱️ Double-click detected on row:', row.original.rowLabel);
                       toggleExpand(row.original);
                     }
                   }}

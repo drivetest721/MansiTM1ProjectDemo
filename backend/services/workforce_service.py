@@ -155,14 +155,20 @@ class WorkforceService:
             raise
     
 
-    def get_workforce_by_department(self, year: Optional[int] = None, version: Optional[str] = None):
+    def get_workforce_by_department(self, year: Optional[int] = None, entity: Optional[str] = None,
+                                     department: Optional[str] = None, job_level: Optional[str] = None,
+                                     version: Optional[str] = None):
         """Cached — delegates to _fetch_get_workforce_by_department with a 300-second TTL."""
-        key = f"wf:dept:{year}:{version}"
-        return _agg_cached(key, lambda: self._fetch_get_workforce_by_department(year=year, version=version))
+        key = f"wf:dept:{year}:{entity}:{department}:{job_level}:{version}"
+        return _agg_cached(key, lambda: self._fetch_get_workforce_by_department(
+            year=year, entity=entity, department=department, job_level=job_level, version=version))
 
     def _fetch_get_workforce_by_department(
         self,
         year: Optional[int] = None,
+        entity: Optional[str] = None,
+        department: Optional[str] = None,
+        job_level: Optional[str] = None,
         version: Optional[str] = None
     ) -> WorkforceAggregationResponse:
         """Get workforce aggregated by department"""
@@ -176,6 +182,15 @@ class WorkforceService:
             if version:
                 where_clauses.append("VersionName = :version")
                 params["version"] = version
+            if entity:
+                where_clauses.append("EntityName = :entity")
+                params["entity"] = entity
+            if department:
+                where_clauses.append("DepartmentName = :department")
+                params["department"] = department
+            if job_level:
+                where_clauses.append("JobLevel = :job_level")
+                params["job_level"] = job_level
             
             where_clause = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
             
@@ -230,14 +245,18 @@ class WorkforceService:
             raise
     
 
-    def get_workforce_by_job_level(self, year: Optional[int] = None, version: Optional[str] = None):
+    def get_workforce_by_job_level(self, year: Optional[int] = None, entity: Optional[str] = None,
+                                    department: Optional[str] = None, version: Optional[str] = None):
         """Cached — delegates to _fetch_get_workforce_by_job_level with a 300-second TTL."""
-        key = f"wf:level:{year}:{version}"
-        return _agg_cached(key, lambda: self._fetch_get_workforce_by_job_level(year=year, version=version))
+        key = f"wf:level:{year}:{entity}:{department}:{version}"
+        return _agg_cached(key, lambda: self._fetch_get_workforce_by_job_level(
+            year=year, entity=entity, department=department, version=version))
 
     def _fetch_get_workforce_by_job_level(
         self,
         year: Optional[int] = None,
+        entity: Optional[str] = None,
+        department: Optional[str] = None,
         version: Optional[str] = None
     ) -> WorkforceAggregationResponse:
         """Get workforce aggregated by job level"""
@@ -251,6 +270,12 @@ class WorkforceService:
             if version:
                 where_clauses.append("VersionName = :version")
                 params["version"] = version
+            if entity:
+                where_clauses.append("EntityName = :entity")
+                params["entity"] = entity
+            if department:
+                where_clauses.append("DepartmentName = :department")
+                params["department"] = department
             
             where_clause = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
             
@@ -416,14 +441,16 @@ class WorkforceService:
             logger.error(f"Error getting drill-down data: {str(e)}")
             raise    
 
-    def get_workforce_by_entity(self, year: Optional[int] = None, version: Optional[str] = None):
+    def get_workforce_by_entity(self, year: Optional[int] = None, department: Optional[str] = None, job_level: Optional[str] = None, version: Optional[str] = None):
         """Cached — delegates to _fetch_get_workforce_by_entity with a 300-second TTL."""
-        key = f"wf:entity:{year}:{version}"
-        return _agg_cached(key, lambda: self._fetch_get_workforce_by_entity(year=year, version=version))
+        key = f"wf:entity:{year}:{department}:{job_level}:{version}"
+        return _agg_cached(key, lambda: self._fetch_get_workforce_by_entity(year=year, department=department, job_level=job_level, version=version))
 
     def _fetch_get_workforce_by_entity(
         self,
         year: Optional[int] = None,
+        department: Optional[str] = None,
+        job_level: Optional[str] = None,
         version: Optional[str] = None
     ) -> WorkforceAggregationResponse:
         """Get workforce aggregated by entity"""
@@ -437,6 +464,12 @@ class WorkforceService:
             if version:
                 where_clauses.append("VersionName = :version")
                 params["version"] = version
+            if department:
+                where_clauses.append("DepartmentName = :department")
+                params["department"] = department
+            if job_level:
+                where_clauses.append("JobLevel = :job_level")
+                params["job_level"] = job_level
             
             where_clause = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
             

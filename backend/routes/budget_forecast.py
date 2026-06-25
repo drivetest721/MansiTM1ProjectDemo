@@ -22,7 +22,7 @@ router = APIRouter()
 @router.get("/budget", response_model=BudgetListResponse, summary="Get Budget Data")
 async def get_budget(
     page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(50, ge=1, le=1000, description="Page size"),
+    page_size: int = Query(50, ge=1, le=500, description="Page size"),
     year: Optional[int] = Query(None, description="Filter by year"),
     entity: Optional[str] = Query(None, description="Filter by entity name"),
     department: Optional[str] = Query(None, description="Filter by department"),
@@ -122,7 +122,7 @@ async def get_budget_by_entity(
 @router.get("/forecast", response_model=ForecastListResponse, summary="Get Forecast Data")
 async def get_forecast(
     page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(50, ge=1, le=1000, description="Page size"),
+    page_size: int = Query(50, ge=1, le=500, description="Page size"),
     year: Optional[int] = Query(None, description="Filter by year"),
     entity: Optional[str] = Query(None, description="Filter by entity name"),
     department: Optional[str] = Query(None, description="Filter by department"),
@@ -201,7 +201,7 @@ async def get_forecast_by_department(
 @router.get("/variance", response_model=VarianceListResponse, summary="Get Budget vs Forecast Variance")
 async def get_variance(
     page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(50, ge=1, le=1000, description="Page size"),
+    page_size: int = Query(50, ge=1, le=500, description="Page size"),
     year: Optional[int] = Query(None, description="Filter by year"),
     entity: Optional[str] = Query(None, description="Filter by entity name"),
     department: Optional[str] = Query(None, description="Filter by department"),

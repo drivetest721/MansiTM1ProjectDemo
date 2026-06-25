@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { type LucideIcon } from 'lucide-react';
 import VarianceBadge from './VarianceBadge';
 
@@ -11,7 +12,7 @@ interface MetricCardProps {
   subtitle?: string;
 }
 
-export default function MetricCard({ 
+const MetricCard = memo(function MetricCard({ 
   title, 
   value, 
   change, 
@@ -45,4 +46,6 @@ export default function MetricCard({
       </div>
     </div>
   );
-}
+});
+
+export default MetricCard;

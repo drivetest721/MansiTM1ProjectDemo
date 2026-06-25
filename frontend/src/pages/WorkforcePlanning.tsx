@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CubeGrid from '../components/CubeGrid';
 import type { CubeRow } from '../components/CubeGrid';
@@ -38,6 +38,8 @@ export default function WorkforcePlanning() {
     columnDimensions: ['Time'],
     measures: ['Headcount', 'Base Salary', 'Bonus', 'Benefits', 'Total Compensation'],
   });
+
+  const fetchingRef = useRef(false);
 
   const filterOptions: FilterOption[] = [
     {
@@ -83,10 +85,14 @@ export default function WorkforcePlanning() {
   ];
 
   useEffect(() => {
-    loadData();
+    const controller = new AbortController();
+    loadData(controller.signal);
+    return () => { controller.abort(); fetchingRef.current = false; };
   }, [filters]);
 
-  const loadData = async () => {
+  const loadData = useCallback(async (_signal?: AbortSignal) => {
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
     setLoading(true);
     setError(null);
     
@@ -97,10 +103,18 @@ export default function WorkforcePlanning() {
       if (filters.jobLevel !== 'all') params.job_level = filters.jobLevel;
       if (filters.version !== 'all') params.version = filters.version;
 
+      // Build shared filter params — pass every active filter
+      const aggParams: Record<string, any> = {};
+      if (filters.year !== 'all') aggParams.year = parseInt(filters.year);
+      if (filters.department !== 'all') aggParams.department = filters.department;
+      if (filters.entity !== 'all') aggParams.entity = filters.entity;
+      if (filters.jobLevel !== 'all') aggParams.job_level = filters.jobLevel;
+      if (filters.version !== 'all') aggParams.version = filters.version;
+
       const [byDept, byLevel, byEnt] = await Promise.all([
-        getWorkforceByDepartment(filters.year !== 'all' ? { year: parseInt(filters.year) } : {}),
-        getWorkforceByJobLevel(filters.year !== 'all' ? { year: parseInt(filters.year) } : {}),
-        getWorkforceByEntity(filters.year !== 'all' ? { year: parseInt(filters.year) } : {}),
+        getWorkforceByDepartment(aggParams),
+        getWorkforceByJobLevel(aggParams),
+        getWorkforceByEntity(aggParams),
       ]);
 
       // Transform department data to CubeRow format (ROOT LEVEL - departments)
@@ -183,12 +197,9 @@ export default function WorkforcePlanning() {
       setError(err.message || 'Failed to load workforce data');
     } finally {
       setLoading(false);
+      fetchingRef.current = false;
     }
-  };
-
-  const handleFilterChange = (filterId: string, value: string) => {
-    setFilters({ ...filters, [filterId]: value });
-  };
+  }, [filters]);
 
   const handleResetFilters = () => {
     setFilters({
@@ -213,7 +224,6 @@ export default function WorkforcePlanning() {
   };
 
   const handlePivotApply = (config: PivotConfig) => {
-    console.log('📊 Applying pivot configuration:', config);
     setPivotConfig(config);
     setShowPivotDialog(false);
     
@@ -227,7 +237,6 @@ export default function WorkforcePlanning() {
       },
     });
     
-    console.log('✅ Navigating to pivot table view...');
   };
 
   const handleDrillDown = async (row: CubeRow) => {
@@ -289,7 +298,7 @@ export default function WorkforcePlanning() {
       <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
         <p className="text-red-800 dark:text-red-200">Error: {error}</p>
         <button
-          onClick={loadData}
+          onClick={() => loadData()}
           className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
         >
           Retry
@@ -333,7 +342,7 @@ export default function WorkforcePlanning() {
       <GlobalFilters
         filters={filterOptions}
         values={filters}
-        onChange={handleFilterChange}
+        onApply={setFilters}
         onReset={handleResetFilters}
       />
 
