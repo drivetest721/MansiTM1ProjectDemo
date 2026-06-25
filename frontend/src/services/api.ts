@@ -233,6 +233,19 @@ export const getBalanceSheetDrillDown = (params: BalanceSheetParams & { account_
 export const getFinancialRatios = (params: { year: number; entity?: string }) => 
   api.get('/api/finance-enhanced/ratios', { params });
 
+export const getRevenueDrilldown = (params: { level: 'quarter' | 'month'; year?: number; quarter?: string }) => {
+  console.log('🌐 API: Calling getRevenueDrilldown with params:', params);
+  return api.get('/api/dashboard/revenue-drilldown', { params }).then(response => {
+    console.log('✅ API: getRevenueDrilldown response:', response);
+    console.log('📦 API: response.data:', response.data);
+    return response;
+  }).catch(error => {
+    console.error('❌ API: getRevenueDrilldown error:', error);
+    console.error('❌ API: error.response:', error.response);
+    throw error;
+  });
+};
+
 // ==========================================
 // MAPPED FINANCIAL STATEMENTS (REAL DATA WITH FRONTEND LABELS)
 // ==========================================

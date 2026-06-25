@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import CubeGrid from '../components/CubeGrid';
 import type { CubeRow } from '../components/CubeGrid';
 import GlobalFilters from '../components/GlobalFilters';
@@ -9,6 +9,10 @@ import { getEntityHierarchy, getConsolidatedCubeData } from '../services/api';
 import { Loader2 } from 'lucide-react';
 
 // Removed ~230 lines of mock data - now using real backend data from consolidation_service.py
+const CHILDREN_INDENT: Record<number, number> = {
+  0: 1,
+  1: 2,
+};
 
 const filterOptions: FilterOption[] = [
   {
@@ -59,6 +63,26 @@ export default function FinancialConsolidation() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const getChildRows = useCallback((parentRow: CubeRow): CubeRow[] => {
+    const childIndent = CHILDREN_INDENT[parentRow.indent ?? 0];
+    if (childIndent === undefined) return [];
+
+    const parentIndex = cubeData.findIndex(r => r.id === parentRow.id);
+    if (parentIndex === -1) return [];
+
+    const children: CubeRow[] = [];
+
+    for (let i = parentIndex + 1; i < cubeData.length; i++) {
+      const row = cubeData[i];
+      const rowIndent = row.indent ?? 0;
+
+      if (rowIndent <= (parentRow.indent ?? 0)) break;
+      if (rowIndent === childIndent) children.push(row);
+    }
+
+    return children;
+  }, [cubeData]);
+
   // Load entity hierarchy
   useEffect(() => {
     const loadHierarchy = async () => {
@@ -74,7 +98,13 @@ export default function FinancialConsolidation() {
     };
     loadHierarchy();
   }, []);
+  
 
+  useEffect(() => {
+  if (cubeData.length > 0) {
+    console.log('🔍 cubeData sample (first 3 rows):', JSON.stringify(cubeData.slice(0, 3), null, 2));
+  }
+}, [cubeData]);
   // Load consolidated cube data
   useEffect(() => {
     const loadCubeData = async () => {
@@ -151,11 +181,12 @@ export default function FinancialConsolidation() {
             {/* Consolidation Cube */}
             <div className="lg:col-span-2">
               <CubeGrid
-                data={cubeData}
+                data={cubeData.filter(row => (row.indent ?? 0) === 0)} // only Global row
                 measures={['Revenue', 'Expense', 'EBITDA', 'Net Income', 'Assets', 'Liabilities', 'Equity']}
                 title="Consolidated Financial Data"
                 showExport={true}
                 onExport={() => console.log('Export')}
+                onDrillDown={async (row) => getChildRows(row)}  // ← key fix
               />
             </div>
           </div>

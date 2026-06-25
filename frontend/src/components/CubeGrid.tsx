@@ -16,6 +16,8 @@ export interface CubeRow {
   isSubtotal?: boolean;
   level?: string;
   parentValue?: string;
+    children?: CubeRow[];       // ← add this
+
   [key: string]: any; // Dynamic measure columns (Revenue, Cost, Quantity, etc.)
 }
 
@@ -144,22 +146,26 @@ export default function CubeGrid({
   }, [expandedRows, childrenData, onDrillDown]);
 
   const flattenData = useCallback((rows: CubeRow[]): CubeRow[] => {
-    const result: CubeRow[] = [];
+  const result: CubeRow[] = [];
 
-    for (const row of rows) {
-      result.push(row);
-      
-      // If expanded, add children
-      if (expandedRows.has(row.id)) {
-        const children = childrenData[row.id];
-        if (children && children.length > 0) {
-          result.push(...flattenData(children));
-        }
+  for (const row of rows) {
+    result.push(row);
+    
+    if (expandedRows.has(row.id)) {
+      // First check dynamically fetched children
+      const fetchedChildren = childrenData[row.id];
+      if (fetchedChildren && fetchedChildren.length > 0) {
+        result.push(...flattenData(fetchedChildren));
+      }
+      // Then check children embedded in the row itself (pre-loaded data)
+      else if (row.children && row.children.length > 0) {
+        result.push(...flattenData(row.children));
       }
     }
+  }
 
-    return result;
-  }, [expandedRows, childrenData]);
+  return result;
+}, [expandedRows, childrenData]);
 
   const tableData = useMemo(() => flattenData(data), [data, flattenData]);
 
@@ -168,7 +174,7 @@ export default function CubeGrid({
       id: 'rowLabel',
       accessorKey: 'rowLabel',
       header: 'Dimension',
-      cell: ({ row }) => {
+      cell: ({ row }: any) => {
         const indent = row.original.indent || 0;
         const hasChildren = row.original.hasChildren || (childrenData[row.original.id]?.length ?? 0) > 0;
         const isExpanded = expandedRows.has(row.original.id);
@@ -215,19 +221,23 @@ export default function CubeGrid({
       accessorKey: measure,
       header: () => <div className="text-right">{measure}</div>,
       cell: ({ row }: any) => {
-        const value = row.original[measure];
-        const formatted = measure.includes('%') || measure.toLowerCase().includes('percent')
-          ? formatPercent(value)
-          : formatNumber(value);
+          const value = row.original[measure];
+          
+          // Don't format Headcount as currency
+          const isCount = measure.toLowerCase().includes('headcount') || measure.toLowerCase().includes('count');
+          
+          const formatted = isCount
+            ? (value ?? '-').toString()
+            : measure.includes('%') || measure.toLowerCase().includes('percent')
+            ? formatPercent(value)
+            : formatNumber(value);
 
-        return (
-          <div
-            className={`text-right ${row.original.isTotal || row.original.isSubtotal ? 'font-bold' : ''}`}
-          >
-            {formatted}
-          </div>
-        );
-      },
+          return (
+            <div className={`text-right ${row.original.isTotal || row.original.isSubtotal ? 'font-bold' : ''}`}>
+              {formatted}
+            </div>
+          );
+        },
     })),
   ], [measures, toggleExpand, expandedRows, childrenData, loadingRows]);
 

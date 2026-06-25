@@ -82,11 +82,10 @@ class FinanceServiceMapped:
     # ============================================================================
     # P&L STATEMENT WITH REAL DATA
     # ============================================================================
-    
+
     def get_pl_statement_with_real_data(self, year: int, entity: str = None) -> List[Dict[str, Any]]:
         """Get P&L statement with real data mapped to frontend labels"""
         try:
-            # Get raw data from database
             where_clauses = ["YearNumber = :year"]
             params = {"year": year}
             
@@ -110,7 +109,6 @@ class FinanceServiceMapped:
             rows = result.fetchall()
             result.close()
             
-            # Convert to list of dicts
             raw_data = [
                 {
                     'account_name': row.AccountName,
@@ -120,242 +118,195 @@ class FinanceServiceMapped:
                 for row in rows
             ]
             
-            # Aggregate using mapping rules
             aggregated = self._aggregate_by_mapping(raw_data, self.PL_MAPPING, 'amount')
-            
-            # Calculate simulated budget and forecast (you can enhance this with real budget data)
-            revenue_total = (
-                aggregated.get("Product Revenue", 0) +
-                aggregated.get("Service Revenue", 0) +
-                aggregated.get("Subscription Revenue", 0)
-            )
-            
-            cogs_total = (
-                aggregated.get("Direct Cost", 0) +
-                aggregated.get("Delivery Cost", 0)
-            )
-            
-            opex_total = (
-                aggregated.get("Salary Expense", 0) +
-                aggregated.get("Bonus Expense", 0) +
-                aggregated.get("Benefits Expense", 0) +
-                aggregated.get("Rent Expense", 0) +
-                aggregated.get("Travel Expense", 0) +
-                aggregated.get("Marketing Expense", 0) +
-                aggregated.get("Software Expense", 0)
-            )
-            
-            # Build structured response matching exact frontend format
+
+            # Helper to compute all variance fields in one place
+            def build_line(id, label, actual, budget_factor, forecast_factor, indent, is_total=False, is_subtotal=False):
+                actual = actual or 0
+                budget = actual * budget_factor
+                forecast = actual * forecast_factor
+                variance = actual - budget
+                variance_pct = (variance / budget * 100) if budget != 0 else 0
+                forecast_variance = actual - forecast
+                forecast_variance_pct = (forecast_variance / forecast * 100) if forecast != 0 else 0
+
+                line = {
+                    "id": id,
+                    "label": label,
+                    "actual": actual,
+                    "budget": budget,
+                    "forecast": forecast,
+                    "variance": variance,
+                    "variancePercent": variance_pct,
+                    "forecastVariance": forecast_variance,
+                    "forecastVariancePercent": forecast_variance_pct,
+                    "indent": indent,
+                }
+                if is_total:
+                    line["isTotal"] = True
+                if is_subtotal:
+                    line["isSubtotal"] = True
+                return line
+
+            def blank(id):
+                return {"id": id, "label": "", "actual": None, "budget": None, "forecast": None,
+                        "variance": None, "variancePercent": None,
+                        "forecastVariance": None, "forecastVariancePercent": None, "indent": 0}
+
             lines = []
-            
-            # Revenue section
+
+            # ── Revenue ──────────────────────────────────────────────
             lines.append({
-                "id": "revenue-header",
-                "label": "Revenue",
-                "actual": None,
-                "budget": None,
-                "forecast": None,
-                "variance": None,
-                "variancePercent": None,
-                "indent": 0,
-                "isSubtotal": True
+                "id": "revenue-header", "label": "Revenue",
+                "actual": None, "budget": None, "forecast": None,
+                "variance": None, "variancePercent": None,
+                "forecastVariance": None, "forecastVariancePercent": None,
+                "indent": 0, "isSubtotal": True
             })
-            
+
+            revenue_total = 0
             for label in ["Product Revenue", "Service Revenue", "Subscription Revenue"]:
                 actual = aggregated.get(label, 0)
-                budget = actual * 0.96  # Simulated
-                forecast = actual * 1.02  # Simulated
-                variance = actual - budget
-                variance_pct = (variance / budget * 100) if budget != 0 else 0
-                
-                lines.append({
-                    "id": label.lower().replace(" ", "-"),
-                    "label": label,
-                    "actual": actual,
-                    "budget": budget,
-                    "forecast": forecast,
-                    "variance": variance,
-                    "variancePercent": variance_pct,
-                    "indent": 1
-                })
-            
+                revenue_total += actual
+                lines.append(build_line(
+                    id=label.lower().replace(" ", "-"),
+                    label=label,
+                    actual=actual,
+                    budget_factor=0.96,
+                    forecast_factor=1.02,
+                    indent=1
+                ))
+
+            lines.append(build_line(
+                id="total-revenue", label="Total Revenue",
+                actual=revenue_total,
+                budget_factor=0.96, forecast_factor=1.02,
+                indent=0, is_subtotal=True
+            ))
+
+            lines.append(blank("blank-1"))
+
+            # ── COGS ─────────────────────────────────────────────────
             lines.append({
-                "id": "total-revenue",
-                "label": "Total Revenue",
-                "actual": revenue_total,
-                "budget": revenue_total * 0.96,
-                "forecast": revenue_total * 1.02,
-                "variance": revenue_total - (revenue_total * 0.96),
-                "variancePercent": 4.2,
-                "indent": 0,
-                "isSubtotal": True
+                "id": "cogs-header", "label": "Cost of Goods Sold",
+                "actual": None, "budget": None, "forecast": None,
+                "variance": None, "variancePercent": None,
+                "forecastVariance": None, "forecastVariancePercent": None,
+                "indent": 0, "isSubtotal": True
             })
-            
-            lines.append({"id": "blank-1", "label": "", "actual": None, "budget": None, "forecast": None, "indent": 0})
-            
-            # COGS section
-            lines.append({
-                "id": "cogs-header",
-                "label": "Cost of Goods Sold",
-                "actual": None,
-                "budget": None,
-                "forecast": None,
-                "indent": 0,
-                "isSubtotal": True
-            })
-            
+
+            cogs_total = 0
             for label in ["Direct Cost", "Delivery Cost"]:
                 actual = aggregated.get(label, 0)
-                budget = actual * 0.96
-                forecast = actual * 1.01
-                variance = actual - budget
-                variance_pct = (variance / budget * 100) if budget != 0 else 0
-                
-                lines.append({
-                    "id": label.lower().replace(" ", "-"),
-                    "label": label,
-                    "actual": actual,
-                    "budget": budget,
-                    "forecast": forecast,
-                    "variance": variance,
-                    "variancePercent": variance_pct,
-                    "indent": 1
-                })
-            
-            lines.append({
-                "id": "total-cogs",
-                "label": "Total COGS",
-                "actual": cogs_total,
-                "budget": cogs_total * 0.96,
-                "forecast": cogs_total * 1.01,
-                "variance": cogs_total - (cogs_total * 0.96),
-                "variancePercent": 4.0,
-                "indent": 0,
-                "isSubtotal": True
-            })
-            
-            lines.append({"id": "blank-2", "label": "", "actual": None, "budget": None, "forecast": None, "indent": 0})
-            
+                cogs_total += actual
+                lines.append(build_line(
+                    id=label.lower().replace(" ", "-"),
+                    label=label,
+                    actual=actual,
+                    budget_factor=0.96, forecast_factor=1.01,
+                    indent=1
+                ))
+
+            lines.append(build_line(
+                id="total-cogs", label="Total COGS",
+                actual=cogs_total,
+                budget_factor=0.96, forecast_factor=1.01,
+                indent=0, is_subtotal=True
+            ))
+
+            lines.append(blank("blank-2"))
+
+            # ── Gross Profit ──────────────────────────────────────────
             gross_profit = revenue_total - cogs_total
+            lines.append(build_line(
+                id="gross-profit", label="Gross Profit",
+                actual=gross_profit,
+                budget_factor=0.98, forecast_factor=1.03,
+                indent=0, is_subtotal=True
+            ))
+
+            lines.append(blank("blank-3"))
+
+            # ── Operating Expenses ────────────────────────────────────
             lines.append({
-                "id": "gross-profit",
-                "label": "Gross Profit",
-                "actual": gross_profit,
-                "budget": gross_profit * 0.98,
-                "forecast": gross_profit * 1.03,
-                "variance": gross_profit - (gross_profit * 0.98),
-                "variancePercent": 2.0,
-                "indent": 0,
-                "isSubtotal": True
+                "id": "opex-header", "label": "Operating Expenses",
+                "actual": None, "budget": None, "forecast": None,
+                "variance": None, "variancePercent": None,
+                "forecastVariance": None, "forecastVariancePercent": None,
+                "indent": 0, "isSubtotal": True
             })
-            
-            lines.append({"id": "blank-3", "label": "", "actual": None, "budget": None, "forecast": None, "indent": 0})
-            
-            # Operating Expenses
-            lines.append({
-                "id": "opex-header",
-                "label": "Operating Expenses",
-                "actual": None,
-                "budget": None,
-                "forecast": None,
-                "indent": 0,
-                "isSubtotal": True
-            })
-            
-            for label in ["Salary Expense", "Bonus Expense", "Benefits Expense", "Rent Expense", "Travel Expense", "Marketing Expense", "Software Expense"]:
+
+            opex_total = 0
+            for label in ["Salary Expense", "Bonus Expense", "Benefits Expense",
+                        "Rent Expense", "Travel Expense", "Marketing Expense", "Software Expense"]:
                 actual = aggregated.get(label, 0)
-                budget = actual * 0.95
-                forecast = actual * 1.02
-                variance = actual - budget
-                variance_pct = (variance / budget * 100) if budget != 0 else 0
-                
-                lines.append({
-                    "id": label.lower().replace(" ", "-"),
-                    "label": label,
-                    "actual": actual,
-                    "budget": budget,
-                    "forecast": forecast,
-                    "variance": variance,
-                    "variancePercent": variance_pct,
-                    "indent": 1
-                })
-            
-            lines.append({
-                "id": "total-opex",
-                "label": "Total Operating Expenses",
-                "actual": opex_total,
-                "budget": opex_total * 0.95,
-                "forecast": opex_total * 1.02,
-                "variance": opex_total - (opex_total * 0.95),
-                "variancePercent": 5.3,
-                "indent": 0,
-                "isSubtotal": True
-            })
-            
-            lines.append({"id": "blank-4", "label": "", "actual": None, "budget": None, "forecast": None, "indent": 0})
-            
+                opex_total += actual
+                lines.append(build_line(
+                    id=label.lower().replace(" ", "-"),
+                    label=label,
+                    actual=actual,
+                    budget_factor=0.95, forecast_factor=1.02,
+                    indent=1
+                ))
+
+            lines.append(build_line(
+                id="total-opex", label="Total Operating Expenses",
+                actual=opex_total,
+                budget_factor=0.95, forecast_factor=1.02,
+                indent=0, is_subtotal=True
+            ))
+
+            lines.append(blank("blank-4"))
+
+            # ── EBITDA ────────────────────────────────────────────────
             ebitda = gross_profit - opex_total
-            lines.append({
-                "id": "ebitda",
-                "label": "EBITDA",
-                "actual": ebitda,
-                "budget": ebitda * 1.05,
-                "forecast": ebitda * 0.98,
-                "variance": ebitda - (ebitda * 1.05),
-                "variancePercent": -5.0,
-                "indent": 0,
-                "isSubtotal": True
-            })
-            
-            lines.append({"id": "blank-5", "label": "", "actual": None, "budget": None, "forecast": None, "indent": 0})
-            
+            lines.append(build_line(
+                id="ebitda", label="EBITDA",
+                actual=ebitda,
+                budget_factor=1.05, forecast_factor=0.98,
+                indent=0, is_subtotal=True
+            ))
+
+            lines.append(blank("blank-5"))
+
+            # ── D&A ───────────────────────────────────────────────────
             depreciation = aggregated.get("Depreciation & Amortization", 0)
-            lines.append({
-                "id": "depreciation",
-                "label": "Depreciation & Amortization",
-                "actual": depreciation,
-                "budget": depreciation * 0.98,
-                "forecast": depreciation * 1.0,
-                "variance": depreciation - (depreciation * 0.98),
-                "variancePercent": 2.0,
-                "indent": 0
-            })
-            
-            lines.append({"id": "blank-6", "label": "", "actual": None, "budget": None, "forecast": None, "indent": 0})
-            
+            lines.append(build_line(
+                id="depreciation", label="Depreciation & Amortization",
+                actual=depreciation,
+                budget_factor=0.98, forecast_factor=1.0,
+                indent=0
+            ))
+
+            lines.append(blank("blank-6"))
+
+            # ── Tax ───────────────────────────────────────────────────
             tax = aggregated.get("Tax Expense", 0)
-            lines.append({
-                "id": "tax-expense",
-                "label": "Tax Expense",
-                "actual": tax,
-                "budget": tax * 0.92,
-                "forecast": tax * 1.03,
-                "variance": tax - (tax * 0.92),
-                "variancePercent": 8.7,
-                "indent": 0
-            })
-            
-            lines.append({"id": "blank-8", "label": "", "actual": None, "budget": None, "forecast": None, "indent": 0})
-            
+            lines.append(build_line(
+                id="tax-expense", label="Tax Expense",
+                actual=tax,
+                budget_factor=0.92, forecast_factor=1.03,
+                indent=0
+            ))
+
+            lines.append(blank("blank-8"))
+
+            # ── Net Income ────────────────────────────────────────────
             net_income = ebitda - depreciation - tax
-            lines.append({
-                "id": "net-income",
-                "label": "Net Income",
-                "actual": net_income,
-                "budget": net_income * 1.10,
-                "forecast": net_income * 0.99,
-                "variance": net_income - (net_income * 1.10),
-                "variancePercent": -9.1,
-                "indent": 0,
-                "isTotal": True
-            })
-            
+            lines.append(build_line(
+                id="net-income", label="Net Income",
+                actual=net_income,
+                budget_factor=1.10, forecast_factor=0.99,
+                indent=0, is_total=True
+            ))
+
             return lines
-            
+
         except Exception as e:
             logger.error(f"Error fetching mapped P&L data: {str(e)}")
-            raise
-    
+            raise 
+   
+
     # ============================================================================
     # BALANCE SHEET WITH REAL DATA
     # ============================================================================

@@ -70,7 +70,7 @@ class DashboardService:
             margin_pct    = (total_margin / total_revenue * 100) if total_revenue > 0 else 0
 
             kpis.append(KPIMetric(title="Total Revenue",      value=total_revenue, format="currency"))
-            kpis.append(KPIMetric(title="Total Cost",         value=total_cost,    format="currency"))
+            kpis.append(KPIMetric(title="Total Cogs",         value=total_cost,    format="currency"))
             kpis.append(KPIMetric(title="Total Gross Margin", value=total_margin,  format="currency"))
             kpis.append(KPIMetric(title="GrossMargin %",      value=margin_pct,    format="percent"))
             kpis.append(KPIMetric(title="Total Customers",    value=float(rev.TotalCustomers if rev else 0), format="number"))
@@ -219,4 +219,68 @@ class DashboardService:
             )
         except Exception as e:
             logger.error(f"Error fetching complete dashboard: {str(e)}")
+            raise
+
+
+    def get_revenue_drilldown(self, level: str, year: int = None, quarter: str = None):
+        """
+        Real drill-down aggregation — no fabricated splits.
+        level: 'quarter' (requires year) or 'month' (requires year + quarter)
+        """
+        cache_key = f"dash:drill:{level}:{year}:{quarter}"
+        return _agg_cached(cache_key, lambda: self._fetch_revenue_drilldown(level, year, quarter))
+
+    def _fetch_revenue_drilldown(self, level: str, year: int = None, quarter: str = None) -> ChartData:
+        try:
+            logger.info(f"🔍 Fetching drill-down: level={level}, year={year}, quarter={quarter}")
+            
+            if level == "quarter":
+                if year is None:
+                    raise ValueError("year is required for quarter-level drill-down")
+                query = """
+                SELECT QuarterName, ISNULL(SUM(Revenue), 0) as Revenue
+                FROM Sales.vw_RevenueCube_Source WITH (NOLOCK)
+                WHERE YearNumber = :year
+                GROUP BY QuarterName
+                ORDER BY QuarterName
+                """
+                results = self.db.execute(text(query), {"year": year}).fetchall()
+                logger.info(f"✅ Quarter query returned {len(results)} rows")
+                
+                labels = [r.QuarterName for r in results]
+                data = [float(r.Revenue) for r in results]
+                logger.info(f"📊 Quarter labels: {labels}")
+                logger.info(f"📊 Quarter values: {data}")
+
+            elif level == "month":
+                if year is None or quarter is None:
+                    raise ValueError("year and quarter are required for month-level drill-down")
+                query = """
+                SELECT MonthName, ISNULL(SUM(Revenue), 0) as Revenue
+                FROM Sales.vw_RevenueCube_Source WITH (NOLOCK)
+                WHERE YearNumber = :year AND QuarterName = :quarter
+                GROUP BY MonthName, DATEPART(MONTH, CONVERT(date, CAST(DateID AS varchar(8)), 112))
+                ORDER BY DATEPART(MONTH, CONVERT(date, CAST(DateID AS varchar(8)), 112))
+                """
+                results = self.db.execute(text(query), {"year": year, "quarter": quarter}).fetchall()
+                logger.info(f"✅ Month query returned {len(results)} rows")
+                
+                labels = [r.MonthName for r in results]
+                data = [float(r.Revenue) for r in results]
+                logger.info(f"📊 Month labels: {labels}")
+                logger.info(f"📊 Month values: {data}")
+
+            else:
+                raise ValueError(f"Unsupported drill-down level: {level}")
+
+            result = ChartData(
+                labels=labels,
+                datasets=[ChartDataset(label="Revenue", data=data)]
+            )
+            logger.info(f"✅ Returning ChartData with {len(labels)} labels and {len(data)} values")
+            return result
+            
+        except Exception as e:
+            logger.error(f"❌ Error fetching revenue drill-down ({level}): {str(e)}")
+            logger.exception(e)  # This will log the full stack trace
             raise

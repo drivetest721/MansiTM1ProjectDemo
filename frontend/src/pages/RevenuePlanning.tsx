@@ -9,6 +9,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { getRevenueByRegionAgg, getRevenueByProduct, getRevenueByCustomerSegment, getRevenueDrillDown } from '../services/api';
 import { exportCubeToExcel } from '../utils/exportToExcel';
 import { Settings2 } from 'lucide-react';
+import { THEME_COLORS, formatCurrency2dp } from '../theme/colors';
 export default function RevenuePlanning() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -31,7 +32,7 @@ export default function RevenuePlanning() {
   const [pivotConfig, setPivotConfig] = useState<PivotConfig>({
     rowDimensions: ['Product'],
     columnDimensions: ['Time'],
-    measures: ['Revenue', 'Cost', 'Quantity', 'Margin', 'Margin %', 'Avg Selling Price'],
+    measures: ['Revenue', 'Cost', 'Quantity', 'Gross Margin', 'Gross Margin %', 'Avg Selling Price'],
   });
 
   const filterOptions: FilterOption[] = [
@@ -131,7 +132,7 @@ export default function RevenuePlanning() {
       setCubeData(gridData);
 
       // Transform aggregations for charts
-      const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#f43f5e'];
+      const colors = THEME_COLORS;
       
       setRevenueByCategory(
         byProduct.data.data.map((item: any, idx: number) => ({
@@ -280,9 +281,7 @@ export default function RevenuePlanning() {
     }
   };
 
-  const formatCurrency = (value: number) => {
-    return `$${(value / 1000000).toFixed(1)}M`;
-  };
+  const formatCurrency = formatCurrency2dp;
 
   if (loading) {
     return (
@@ -372,7 +371,7 @@ export default function RevenuePlanning() {
                 label={(props: any) => {
                   const { name, percent } = props;
                   if (!percent || !name) return '';
-                  return `${name} ${(percent * 100).toFixed(0)}%`;
+                  return `${name} ${(percent * 100).toFixed(2)}%`;
                 }}
                 outerRadius={80}
                 fill="#8884d8"
@@ -387,16 +386,16 @@ export default function RevenuePlanning() {
           </ResponsiveContainer>
         </div>
 
-        {/* Margin % by Region */}
+        {/* Gross Margin % by Region */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Margin % by Region</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Gross Margin % by Region</h3>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={revenueByRegion}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
               <XAxis dataKey="region" stroke="#6b7280" tick={{ fontSize: 11 }} />
               <YAxis stroke="#6b7280" />
-              <Tooltip formatter={(value: any) => value ? `${Number(value).toFixed(1)}%` : ''} />
-              <Bar dataKey="margin" fill="#3b82f6" />
+                <Tooltip formatter={(value: any) => value ? `${Number(value).toFixed(2)}%` : ''} />
+              <Bar dataKey="margin" fill={THEME_COLORS[0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -410,7 +409,7 @@ export default function RevenuePlanning() {
               <XAxis type="number" tickFormatter={formatCurrency} stroke="#6b7280" />
               <YAxis type="category" dataKey="segment" stroke="#6b7280" />
               <Tooltip formatter={(value: any) => value ? formatCurrency(Number(value)) : ''} />
-              <Bar dataKey="value" fill="#10b981" />
+              <Bar dataKey="value" fill={THEME_COLORS[3]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

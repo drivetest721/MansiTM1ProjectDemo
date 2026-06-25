@@ -166,6 +166,33 @@ export default function PLStatement() {
           </p>
         </div>
       </div>
+        {/* Key Metrics Summary */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+              <p className="text-sm font-medium text-blue-700 dark:text-blue-300">Gross Margin %</p>
+              <p className="text-2xl font-bold text-blue-900 dark:text-blue-100 mt-1">
+                {margins.grossMargin.toFixed(1)}%
+              </p>
+            </div>
+            <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg p-4 border border-green-200 dark:border-green-800">
+              <p className="text-sm font-medium text-green-700 dark:text-green-300">Operating Margin %</p>
+              <p className="text-2xl font-bold text-green-900 dark:text-green-100 mt-1">
+                {margins.operatingMargin.toFixed(1)}%
+              </p>
+            </div>
+            <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg p-4 border border-purple-200 dark:border-purple-800">
+              <p className="text-sm font-medium text-purple-700 dark:text-purple-300">EBITDA Margin %</p>
+              <p className="text-2xl font-bold text-purple-900 dark:text-purple-100 mt-1">
+                {margins.ebitdaMargin.toFixed(1)}%
+              </p>
+            </div>
+            <div className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-lg p-4 border border-orange-200 dark:border-orange-800">
+              <p className="text-sm font-medium text-orange-700 dark:text-orange-300">Net Margin %</p>
+              <p className="text-2xl font-bold text-orange-900 dark:text-orange-100 mt-1">
+                {margins.netMargin.toFixed(1)}%
+              </p>
+            </div>
+          </div>
 
       {/* Global Filters */}
       <GlobalFilters
@@ -200,53 +227,7 @@ export default function PLStatement() {
             showForecast={false}
           />
 
-          {/* Key Metrics Summary */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
-              <p className="text-sm font-medium text-blue-700 dark:text-blue-300">Gross Margin %</p>
-              <p className="text-2xl font-bold text-blue-900 dark:text-blue-100 mt-1">
-                {margins.grossMargin.toFixed(1)}%
-              </p>
-            </div>
-            <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg p-4 border border-green-200 dark:border-green-800">
-              <p className="text-sm font-medium text-green-700 dark:text-green-300">Operating Margin %</p>
-              <p className="text-2xl font-bold text-green-900 dark:text-green-100 mt-1">
-                {margins.operatingMargin.toFixed(1)}%
-              </p>
-            </div>
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg p-4 border border-purple-200 dark:border-purple-800">
-              <p className="text-sm font-medium text-purple-700 dark:text-purple-300">EBITDA Margin %</p>
-              <p className="text-2xl font-bold text-purple-900 dark:text-purple-100 mt-1">
-                {margins.ebitdaMargin.toFixed(1)}%
-              </p>
-            </div>
-            <div className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-lg p-4 border border-orange-200 dark:border-orange-800">
-              <p className="text-sm font-medium text-orange-700 dark:text-orange-300">Net Margin %</p>
-              <p className="text-2xl font-bold text-orange-900 dark:text-orange-100 mt-1">
-                {margins.netMargin.toFixed(1)}%
-              </p>
-            </div>
-          </div>
-
-          {/* Annotation Panel */}
-          <AnnotationPanel
-            pageKey="pl-statement"
-            period={`${filters.year}:${filters.entity || 'all'}`}
-          />
-
-          {/* Statement Notes */}
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-            <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">Statement Notes:</h4>
-            <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1 list-disc list-inside">
-              <li>All amounts shown in USD</li>
-              <li>Financial statement follows GAAP accounting principles</li>
-              <li>Variance calculated as Actual vs Budget</li>
-              <li>Negative values indicate losses or expenses</li>
-              <li>Expand sections to view detailed line items</li>
-              <li>✅ <strong>REAL DATA:</strong> Database accounts mapped to display labels</li>
-            </ul>
-          </div>
-
+    
           {/* Annotation Panel */}
           <AnnotationPanel
             pageKey="pl-statement"

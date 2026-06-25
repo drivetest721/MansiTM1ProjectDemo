@@ -270,22 +270,12 @@ export default function BalanceSheet() {
             </div>
           </div>
 
-          {/* Notes */}
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-            <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">Statement Notes:</h4>
-            <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1 list-disc list-inside">
-              <li>All amounts shown in USD</li>
-              <li>Balance sheet follows GAAP accounting principles</li>
-              <li>Assets = Liabilities + Equity (Fundamental Accounting Equation)</li>
-              <li>Current assets/liabilities are due within one year</li>
-              <li>Non-current assets include long-term investments and fixed assets</li>
-              <li>✔ <strong>REAL DATA:</strong> Database accounts intelligently mapped to display labels (e.g., Cash, Bank, Money Market → "Cash & Cash Equivalents")</li>
-            </ul>
-          </div>
+        
 
           {/* Balance Sheet Table */}
           <FinancialTable
             data={bsData}
+        
             title={`Balance Sheet - As of ${filters.month === 'ytd' ? 'YTD' : 'Month End'} ${filters.year}`}
             showExport={true}
             showForecast={false}

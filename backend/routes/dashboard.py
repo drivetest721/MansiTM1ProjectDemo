@@ -2,7 +2,7 @@
 Dashboard Routes
 Handles dashboard API endpoints
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from database import get_db
 from services.dashboard_service import DashboardService
@@ -100,3 +100,27 @@ async def get_revenue_by_segment(db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Error in get_revenue_by_segment: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error fetching revenue by segment: {str(e)}")
+
+
+@router.get("/revenue-drilldown", response_model=ChartData, summary="Revenue Drill-down Year→Quarter→Month")
+def get_revenue_drilldown(
+    level: str = Query(..., regex="^(quarter|month)$"),
+    year: int = Query(None),
+    quarter: str = Query(None),
+    db: Session = Depends(get_db)
+):
+    try:
+        logger.info(f"🎯 Drilldown request: level={level}, year={year}, quarter={quarter}")
+        service = DashboardService(db)
+        result = service.get_revenue_drilldown(level=level, year=year, quarter=quarter)
+        logger.info(f"✅ Drilldown response: {len(result.labels)} labels, {len(result.datasets)} datasets")
+        logger.info(f"📊 Response labels: {result.labels}")
+        logger.info(f"📊 Response data: {result.datasets[0].data if result.datasets else 'No datasets'}")
+        return result
+    except ValueError as e:
+        logger.error(f"❌ Validation error: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"❌ Error in get_revenue_drilldown: {str(e)}")
+        logger.exception(e)
+        raise HTTPException(status_code=500, detail=f"Error fetching drill-down: {str(e)}")

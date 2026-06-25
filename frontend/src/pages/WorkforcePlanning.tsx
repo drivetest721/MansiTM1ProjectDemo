@@ -10,6 +10,8 @@ import { Users, DollarSign, TrendingUp, Award, Building2, UserCheck, Settings2 }
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { getWorkforceByDepartment, getWorkforceByJobLevel, getWorkforceByEntity, getWorkforceDrillDown } from '../services/api';
 import { exportCubeToExcel } from '../utils/exportToExcel';
+import { THEME_COLORS, formatCurrency2dp } from '../theme/colors';
+
 
 export default function WorkforcePlanning() {
   const navigate = useNavigate();
@@ -42,7 +44,7 @@ export default function WorkforcePlanning() {
       id: 'year',
       label: 'Year',
       options: [
-        { value: 'all', label: 'All Years' },
+        
         ...Array.from({length: 13}, (_, i) => 2018 + i).map(y => ({ value: String(y), label: String(y) })),
       ],
     },
@@ -50,7 +52,7 @@ export default function WorkforcePlanning() {
       id: 'department',
       label: 'Department',
       options: [
-        { value: 'all', label: 'All Departments' },
+       
         { value: 'Sales', label: 'Sales' },
         { value: 'Engineering', label: 'Engineering' },
         { value: 'Marketing', label: 'Marketing' },
@@ -58,10 +60,10 @@ export default function WorkforcePlanning() {
       ],
     },
     {
-      id: 'jobLevel',
-      label: 'Job Level',
+      id: 'jobPosition',
+      label: 'Job Position',
       options: [
-        { value: 'all', label: 'All Levels' },
+       
         { value: 'Executive', label: 'Executive' },
         { value: 'Senior', label: 'Senior' },
         { value: 'Mid', label: 'Mid' },
@@ -69,10 +71,10 @@ export default function WorkforcePlanning() {
       ],
     },
     {
-      id: 'version',
-      label: 'Version',
+      id: 'scenario',
+      label: 'Scenario',
       options: [
-        { value: 'all', label: 'All Versions' },
+       
         { value: 'Actual', label: 'Actual' },
         { value: 'Budget', label: 'Budget' },
         { value: 'Forecast', label: 'Forecast' },
@@ -145,14 +147,12 @@ export default function WorkforcePlanning() {
       setKpiData([
         { title: 'Total Headcount', value: totalHeadcount.toLocaleString(), icon: Users, color: 'text-blue-600' },
         { title: 'Total Compensation', value: `$${(totalComp / 1000000).toFixed(1)}M`, icon: DollarSign, color: 'text-green-600' },
-        { title: 'Avg Compensation', value: `$${avgComp.toFixed(0)}`, icon: TrendingUp, color: 'text-indigo-600' },
-        { title: 'Total Departments', value: byDept.data.data.length.toString(), icon: Building2, color: 'text-purple-600' },
-        { title: 'Job Levels', value: byLevel.data.data.length.toString(), icon: Award, color: 'text-amber-600' },
-        { title: 'Entities', value: byEnt.data.data.length.toString(), icon: UserCheck, color: 'text-teal-600' },
+       
       ]);
 
       // Transform aggregations for charts
-      const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
+      const colors = THEME_COLORS;
+
       
       setByDepartment(
         byDept.data.data.slice(0, 10).map((item: any, idx: number) => ({
@@ -337,6 +337,8 @@ export default function WorkforcePlanning() {
         onReset={handleResetFilters}
       />
 
+      
+
       {/* Action Buttons */}
       <div className="flex items-center justify-end gap-3 mb-4">
         <button
@@ -373,7 +375,7 @@ export default function WorkforcePlanning() {
                 label={(props: any) => {
                   const { name, percent } = props;
                   if (!percent || !name) return '';
-                  return `${name.split(' ')[0]} ${(percent * 100).toFixed(0)}%`;
+                  return `${name.split(' ')[0]} ${(percent * 100).toFixed(2)}%`;
                 }}
                 outerRadius={80}
                 fill="#8884d8"
@@ -395,9 +397,9 @@ export default function WorkforcePlanning() {
             <BarChart data={byJobLevel}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
               <XAxis dataKey="level" stroke="#6b7280" tick={{ fontSize: 10 }} />
-              <YAxis stroke="#6b7280" tickFormatter={(value: any) => `$${(value / 1000).toFixed(0)}K`} />
+              <YAxis stroke="#6b7280" tickFormatter={(value: any) => `$${(value / 1000000).toFixed(2)}M`} />
               <Tooltip formatter={(value: any) => value ? formatCurrency(Number(value)) : ''} />
-              <Bar dataKey="avgComp" fill="#3b82f6" />
+              <Bar dataKey="avgComp" fill={THEME_COLORS[0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -410,21 +412,14 @@ export default function WorkforcePlanning() {
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
               <XAxis type="number" tickFormatter={formatCurrency} stroke="#6b7280" />
               <YAxis type="category" dataKey="entity" stroke="#6b7280" width={100} tick={{ fontSize: 10 }} />
-              <Tooltip formatter={(value: any) => value ? `$${(Number(value) / 1000000).toFixed(1)}M` : ''} />
-              <Bar dataKey="compensation" fill="#10b981" />
+              <Tooltip formatter={(value: any) => value ? `$${(Number(value) / 1000000).toFixed(2)}M` : ''} />
+              <Bar dataKey="compensation" fill={THEME_COLORS[4]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* Instructions */}
-      <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4">
-        <p className="text-sm text-indigo-800 dark:text-indigo-200">
-          <strong>Workforce Analytics:</strong> Analyze employee compensation, headcount, and distribution across departments, job levels, and entities.
-          Use filters to drill down by time period and department. Export to Excel for detailed analysis.
-        </p>
-      </div>
-
+      
       {/* Pivot Dialog */}
       <PivotDialog
         isOpen={showPivotDialog}
