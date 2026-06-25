@@ -7,7 +7,7 @@ import type { FilterOption } from '../components/GlobalFilters';
 import PivotDialog, { type PivotConfig } from '../components/PivotDialog';
 import MetricCard from '../components/MetricCard';
 import { Users, DollarSign, TrendingUp, Award, Building2, UserCheck, Settings2 } from 'lucide-react';
-import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
 import { getWorkforceByDepartment, getWorkforceByJobLevel, getWorkforceByEntity, getWorkforceDrillDown } from '../services/api';
 import { exportCubeToExcel } from '../utils/exportToExcel';
 import { THEME_COLORS, formatCurrency2dp } from '../theme/colors';
@@ -375,7 +375,7 @@ export default function WorkforcePlanning() {
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Headcount by Department</h3>
           <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
+            <PieChart >
               <Pie
                 data={byDepartment}
                 cx="50%"
@@ -386,9 +386,10 @@ export default function WorkforcePlanning() {
                   if (!percent || !name) return '';
                   return `${name.split(' ')[0]} ${(percent * 100).toFixed(2)}%`;
                 }}
-                outerRadius={80}
+                outerRadius={70}
                 fill="#8884d8"
                 dataKey="value"
+                
               >
                 {byDepartment.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -405,10 +406,17 @@ export default function WorkforcePlanning() {
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={byJobLevel}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
-              <XAxis dataKey="level" stroke="#6b7280" tick={{ fontSize: 10 }} />
+              <XAxis dataKey="level" stroke="#6b7280" tick={{ fontSize: 14 }} angle={25} origin={20}/>
               <YAxis stroke="#6b7280" tickFormatter={(value: any) => `$${(value / 1000000).toFixed(2)}M`} />
               <Tooltip formatter={(value: any) => value ? formatCurrency(Number(value)) : ''} />
-              <Bar dataKey="avgComp" fill={THEME_COLORS[0]} />
+              <Bar dataKey="avgComp" fill={THEME_COLORS[0]}>
+                <LabelList
+                  dataKey="avgComp"
+                  position="top"
+                  formatter={(value: any) => value ? formatCurrency(Number(value)) : ''} 
+                  style={{ fontSize: 14, fontWeight: 500, fill: '#6b7280' }}
+                />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -420,9 +428,11 @@ export default function WorkforcePlanning() {
             <BarChart data={byEntity} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
               <XAxis type="number" tickFormatter={formatCurrency} stroke="#6b7280" />
-              <YAxis type="category" dataKey="entity" stroke="#6b7280" width={100} tick={{ fontSize: 10 }} />
+              <YAxis type="category" dataKey="entity" stroke="#6b7280" width={100} tick={{ fontSize: 14 }} />
               <Tooltip formatter={(value: any) => value ? `$${(Number(value) / 1000000).toFixed(2)}M` : ''} />
-              <Bar dataKey="compensation" fill={THEME_COLORS[4]} />
+              <Bar dataKey="compensation" fill={THEME_COLORS[4]} 
+              label={{ position: 'right', formatter: (v: any) => v ? `$${(Number(v) / 1000000).toFixed(2)}M` : '', fontSize: 8, fill: '#374151', fontWeight: 'bold' }}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -436,7 +446,7 @@ export default function WorkforcePlanning() {
         availableDimensions={['Department', 'Time', 'Job Level', 'Entity', 'Employment Status', 'Version']}
         currentRowDimensions={pivotConfig.rowDimensions}
         currentColumnDimensions={pivotConfig.columnDimensions}
-        availableMeasures={['Headcount', 'Base Salary', 'Bonus', 'Benefits', 'Total Compensation', 'Avg Salary']}
+        availableMeasures={['Headcount', 'Base Salary', 'Bonus', 'Benefits', 'Total Compensation']}
         selectedMeasures={pivotConfig.measures}
         onApply={handlePivotApply}
       />

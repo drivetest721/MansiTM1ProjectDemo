@@ -338,13 +338,7 @@ export default function RevenuePlanning() {
           Pivot Options
         </button>
       </div>
-      {/* Instructions */}
-      <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4">
-        <p className="text-sm text-indigo-800 dark:text-indigo-200">
-          <strong>Cube Navigation:</strong> Click expand icons (▶) to drill down from Product Category → Product Family → Product Line. 
-          Use global filters to slice data by time, geography, and version. Export to Excel for further analysis.
-        </p>
-      </div>
+      
       {/* Main Cube Grid */}
       <CubeGrid
         data={cubeData}
@@ -360,7 +354,7 @@ export default function RevenuePlanning() {
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Revenue by Category</h3>
           <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
+            <PieChart className="p-3.5">
               <Pie
                 data={revenueByCategory}
                 cx="50%"
@@ -393,7 +387,10 @@ export default function RevenuePlanning() {
               <XAxis dataKey="region" stroke="#6b7280" tick={{ fontSize: 11 }} />
               <YAxis stroke="#6b7280" />
                 <Tooltip formatter={(value: any) => value ? `${Number(value).toFixed(2)}%` : ''} />
-              <Bar dataKey="margin" fill={THEME_COLORS[0]} />
+              
+                <Bar dataKey="margin" fill={THEME_COLORS[0]}
+                  label={{ position: 'top', formatter: (v: any) => `${Number(v).toFixed(1)}%`, fontSize: 14, fill: '#374151', fontWeight: 'bold' }}
+                />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -402,12 +399,14 @@ export default function RevenuePlanning() {
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Revenue by Segment</h3>
           <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={revenueBySegment} layout="vertical">
+            <BarChart data={revenueBySegment} layout="vertical" className="p-3" margin={{top: 0, right: 50, bottom: 0, left: 3}}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
               <XAxis type="number" tickFormatter={formatCurrency} stroke="#6b7280" />
               <YAxis type="category" dataKey="segment" stroke="#6b7280" />
               <Tooltip formatter={(value: any) => value ? formatCurrency(Number(value)) : ''} />
-              <Bar dataKey="value" fill={THEME_COLORS[3]} />
+              <Bar dataKey="value" fill={THEME_COLORS[3]} 
+                label={{ position: 'right', formatter: (v: any) => v ? formatCurrency(Number(v)) : '', fontSize: 14, fill: '#374151', fontWeight: 'bold' }}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -422,7 +421,7 @@ export default function RevenuePlanning() {
         availableDimensions={['Product', 'Time', 'Customer', 'Region', 'Entity', 'Version']}
         currentRowDimensions={pivotConfig.rowDimensions}
         currentColumnDimensions={pivotConfig.columnDimensions}
-        availableMeasures={['Revenue', 'Cost', 'Quantity', 'Margin', 'Margin %', 'Avg Selling Price']}
+        availableMeasures={['Revenue', 'Cost', 'Quantity', 'Margin', 'Margin %']}
         selectedMeasures={pivotConfig.measures}
         onApply={handlePivotApply}
       />

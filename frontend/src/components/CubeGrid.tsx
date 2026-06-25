@@ -44,18 +44,16 @@ export default function CubeGrid({
   const [childrenData, setChildrenData] = useState<Record<string, CubeRow[]>>({});
   const [loadingRows, setLoadingRows] = useState<Set<string>>(new Set());
 
-  const formatNumber = (value: any) => {
-    if (value === undefined || value === null || isNaN(value)) return '-';
-    if (typeof value === 'number') {
-      if (value >= 1000000) {
-        return `$${(value / 1000000).toFixed(2)}M`;
-      } else if (value >= 1000) {
-        return `$${(value / 1000).toFixed(1)}K`;
-      }
-      return `$${value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-    }
-    return String(value);
-  };
+  const formatNumber = (value: number | undefined) => {
+  if (value === undefined || value === null) return '-';
+
+  const formatted = (Math.abs(value) / 1_000_000).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+  return value < 0 ? `($${formatted}M)` : `$${formatted}M`;
+};
 
   const formatPercent = (value: any) => {
     if (value === undefined || value === null || isNaN(value)) return '-';
@@ -157,7 +155,7 @@ export default function CubeGrid({
     {
       id: 'rowLabel',
       accessorKey: 'rowLabel',
-      header: 'Dimension',
+      header: 'Particulars',
       cell: ({ row }: any) => {
         const indent = row.original.indent || 0;
         const hasChildren = row.original.hasChildren || (childrenData[row.original.id]?.length ?? 0) > 0;
@@ -207,7 +205,7 @@ export default function CubeGrid({
           const value = row.original[measure];
           
           // Don't format Headcount as currency
-          const isCount = measure.toLowerCase().includes('headcount') || measure.toLowerCase().includes('count');
+          const isCount = measure.toLowerCase().includes('headcount') || measure.toLowerCase().includes('count') || measure.toLowerCase().includes('quantity');
           
           const formatted = isCount
             ? (value ?? '-').toString()

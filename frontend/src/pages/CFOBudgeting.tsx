@@ -17,23 +17,37 @@ import GaugeChart from '../components/GaugeChart';
 import NetProfitChart, { type NetProfitRow } from '../components/NetProfitChart';
 import { THEME_COLORS, formatCurrency2dp, formatPercent2dp } from '../theme/colors';
 
-// CONFIRM THIS against your Account dimension. Change if your model uses
-// "Net Income" / "Net Earnings" / etc. instead of "Net Profit".
-const NET_PROFIT_ACCOUNT_NAME = 'Net Profit';
-
+// Your chart of accounts only has these 5 account_type values:
+// 'Equity' | 'Expense' | 'Revenue' | 'Asset' | 'Liability'
+// Revenue and Expense map directly to P&L. There is no literal "Net Profit"
+// account — it's always Revenue minus Expense, computed, never a stored row.
 type AccountCategory = 'revenue' | 'cogs' | 'opex' | 'other';
 
-function classifyAccount(row: { account?: string; account_type?: string }): AccountCategory {
-  // Prefer account_type if your data populates it cleanly — it's more reliable
-  // than guessing off the free-text account name.
-  const typeStr = (row.account_type || '').toLowerCase();
-  const nameStr = (row.account || '').toLowerCase();
-  const n = typeStr || nameStr;
+// HEURISTIC — your account_type doesn't separate COGS from OpEx, so this
+// guesses based on keywords in the account NAME. VERIFY this against the
+// console.log output below (search for "Unique Expense account names") and
+// tell me the actual naming convention so I can replace this with an exact map.
+function classifyExpenseSubtype(accountName: string): 'cogs' | 'opex' {
+  const n = (accountName || '').toLowerCase();
+  
+  const cogsKeywords = [
+    'cogs', 'cost of goods', 'cost of sales', 'cost of revenue',
+    'direct cost', 'materials', 'production cost', 'raw material',
+  ];
+  if (cogsKeywords.some((kw) => n.includes(kw))) return 'cogs';
+  return 'opex'; // default bucket for everything else classified as Expense
+}
 
-  if (n.includes('revenue') || n.includes('income') || n.includes('sales')) return 'revenue';
-  if (n.includes('cogs') || n.includes('cost of goods') || n.includes('cost of sales')) return 'cogs';
-  if (n.includes('operating expense') || n.includes('opex') || n.includes('expense')) return 'opex';
-  return 'other';
+function classifyAccount(row: { account?: string; account_type?: string }): AccountCategory {
+  switch (row.account_type) {
+    case 'Revenue':
+      return 'revenue';
+    case 'Expense':
+      return classifyExpenseSubtype(row.account || '');
+    default:
+      // Equity / Asset / Liability — Balance Sheet items, not part of P&L gauges
+      return 'other';
+  }
 }
 
 function sumByCategory(rows: any[]) {
@@ -60,18 +74,15 @@ async function fetchBudgetRows(params: Record<string, any>): Promise<any[]> {
   }
 }
 
-// Fetches Net Profit rows for a given group dimension (department/entity) and
-// version, then sums amount per group key. Uses the raw /budget endpoint
-// because /by-department and /by-entity don't accept an `account` filter.
-async function fetchNetProfitGrouped(
+// Fetches all budget rows in scope (no account filter — account_type isn't a
+// backend query param), then sums only Revenue-typed rows per department/entity.
+// Used for the "Actual vs Budget by Department/Entity" charts.
+async function fetchRevenueGrouped(
   groupKey: 'department' | 'entity',
   version: 'Actual' | 'Budget',
   filters: { year?: number; entity?: string; department?: string; scenario?: string }
 ): Promise<Record<string, number>> {
-  const params: Record<string, any> = {
-    account: NET_PROFIT_ACCOUNT_NAME,
-    version,
-  };
+  const params: Record<string, any> = { version };
   if (filters.year) params.year = filters.year;
   if (filters.entity) params.entity = filters.entity;
   if (filters.department) params.department = filters.department;
@@ -81,6 +92,7 @@ async function fetchNetProfitGrouped(
 
   const totals: Record<string, number> = {};
   rows.forEach((row) => {
+    if (row.account_type !== 'Revenue') return;
     const key = row[groupKey];
     if (!key) return;
     totals[key] = (totals[key] || 0) + (row.amount || 0);
@@ -107,6 +119,7 @@ export default function CFOBudgeting() {
   const [byAccount, setByAccount] = useState<any[]>([]);
   const [byDepartment, setByDepartment] = useState<any[]>([]);
   const [byEntity, setByEntity] = useState<any[]>([]);
+   const fetchingRef = useRef(false);
 
   const [gaugeData, setGaugeData] = useState({
     revenue: { actual: 0, target: 0 },
@@ -114,10 +127,10 @@ export default function CFOBudgeting() {
     opex: { actual: 0, target: 0 },
     profitMargin: { actual: 0, target: 0 },
   });
-  const [netProfitByDept, setNetProfitByDept] = useState<NetProfitRow[]>([]);
-  const [netProfitByEntity, setNetProfitByEntity] = useState<NetProfitRow[]>([]);
-
-  const fetchingRef = useRef(false);
+  // Renamed for clarity — these are Revenue comparisons now, not Net Profit
+  // (kept the NetProfitChart component itself since it's generic chart code)
+  const [revenueByDept, setRevenueByDept] = useState<NetProfitRow[]>([]);
+  const [revenueByEntity, setRevenueByEntity] = useState<NetProfitRow[]>([]);
 
   const [filters, setFilters] = useState<Record<string, string>>({
     year: 'all',
@@ -139,6 +152,9 @@ export default function CFOBudgeting() {
     { id: 'entity', label: 'Entity', options: [] },
     { id: 'department', label: 'Department', options: [] },
     { id: 'account', label: 'Account', options: [] },
+    // Restored — your filters state still reads filters.scenario / filters.version
+    // in loadData, but these dropdown definitions had been dropped, which would
+    // make those filters unreachable from the UI.
     {
       id: 'scenario',
       label: 'Scenario',
@@ -188,8 +204,7 @@ export default function CFOBudgeting() {
         getBudgetByEntity(aggParams),
       ]);
 
-      // ---- NEW: gauge source data, filtered raw rows classified client-side ----
-      // (entity/department/scenario actually apply here, unlike by-account)
+      // ---- gauge source data: filtered raw rows, classified client-side by account_type ----
       const gaugeBaseParams: Record<string, any> = {};
       if (npYear) gaugeBaseParams.year = npYear;
       if (npEntity) gaugeBaseParams.entity = npEntity;
@@ -201,12 +216,23 @@ export default function CFOBudgeting() {
         fetchBudgetRows({ ...gaugeBaseParams, version: 'Budget' }),
       ]);
 
-      // ---- NEW: Net Profit actual vs budget, by department / entity ----
+      // DEBUG — run once, check console, then tell me the actual Expense
+      // account naming convention so I can replace the COGS/OpEx heuristic
+      // with an exact mapping instead of a keyword guess.
+      const expenseAccountNames = [...new Set(
+        acctActualRows.filter((r) => r.account_type === 'Expense').map((r) => r.account)
+      )];
+      console.log('Unique Expense account names:', expenseAccountNames);
+      console.log('Unique Revenue account names:', [...new Set(
+        acctActualRows.filter((r) => r.account_type === 'Revenue').map((r) => r.account)
+      )]);
+
+      // ---- Revenue actual vs budget, by department / entity ----
       const [deptActual, deptBudget, entActual, entBudget] = await Promise.all([
-        fetchNetProfitGrouped('department', 'Actual', { year: npYear, scenario: npScenario, entity: npEntity }),
-        fetchNetProfitGrouped('department', 'Budget', { year: npYear, scenario: npScenario, entity: npEntity }),
-        fetchNetProfitGrouped('entity', 'Actual', { year: npYear, scenario: npScenario, department: npDepartment }),
-        fetchNetProfitGrouped('entity', 'Budget', { year: npYear, scenario: npScenario, department: npDepartment }),
+        fetchRevenueGrouped('department', 'Actual', { year: npYear, scenario: npScenario, entity: npEntity }),
+        fetchRevenueGrouped('department', 'Budget', { year: npYear, scenario: npScenario, entity: npEntity }),
+        fetchRevenueGrouped('entity', 'Actual', { year: npYear, scenario: npScenario, department: npDepartment }),
+        fetchRevenueGrouped('entity', 'Budget', { year: npYear, scenario: npScenario, department: npDepartment }),
       ]);
 
       // ---- existing table/KPI logic (unchanged) ----
@@ -301,9 +327,9 @@ export default function CFOBudgeting() {
         profitMargin: { actual: profitMarginActual, target: profitMarginBudget },
       });
 
-      // ---- Net Profit actual vs budget, by department / entity ----
-      setNetProfitByDept(mergeGroupedTotals(deptActual, deptBudget));
-      setNetProfitByEntity(mergeGroupedTotals(entActual, entBudget));
+      // ---- Revenue actual vs budget, by department / entity ----
+      setRevenueByDept(mergeGroupedTotals(deptActual, deptBudget));
+      setRevenueByEntity(mergeGroupedTotals(entActual, entBudget));
     } catch (err: any) {
       console.error('Error loading budget data:', err);
       setError(err.message || 'Failed to load budget data');
@@ -369,7 +395,7 @@ export default function CFOBudgeting() {
     return (
       <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
         <p className="text-red-800 dark:text-red-200">Error: {error}</p>
-        <button onClick={loadData} className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
+        <button onClick={() => loadData()} className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
           Retry
         </button>
       </div>
@@ -440,20 +466,13 @@ export default function CFOBudgeting() {
         onReset={handleResetFilters}
       />
 
-      {/* Net Profit actual vs budget, by department / entity, side by side */}
+      {/* Revenue actual vs budget, by department / entity, side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <NetProfitChart title="Net Profit: Actual vs Budget by Department" data={netProfitByDept} />
-        <NetProfitChart title="Net Profit: Actual vs Budget by Entity" data={netProfitByEntity} />
+        <NetProfitChart title="Revenue: Actual vs Budget by Department" data={revenueByDept} />
+        <NetProfitChart title="Revenue: Actual vs Budget by Entity" data={revenueByEntity} />
       </div>
 
       <AnnotationPanel pageKey="cfo-budgeting" period={`${filters.year}:${filters.entity}`} />
-
-      <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4">
-        <p className="text-sm text-indigo-800 dark:text-indigo-200">
-          <strong>Budget Planning:</strong> Manage and analyze budget allocations across accounts, departments, and entities.
-          Use filters to drill down by time period and scenario. Export to Excel for detailed planning.
-        </p>
-      </div>
     </div>
   );
 }

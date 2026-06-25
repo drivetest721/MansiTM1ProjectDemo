@@ -41,8 +41,8 @@ const filterOptions: FilterOption[] = [
     ],
   },
   {
-    id: 'version',
-    label: 'Version',
+    id: 'scenario',
+    label: 'Scenario',
     options: [
       { value: 'actual', label: 'Actual' },
       { value: 'budget', label: 'Budget' },
@@ -141,7 +141,7 @@ export default function FinancialConsolidation() {
       {/* Page Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Financial Consolidation</h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-1">Entity consolidation across regions - ✅ Real data from database</p>
+        <p className="text-gray-600 dark:text-gray-400 mt-1">Entity consolidation across regions </p>
       </div>
 
       {/* Global Filters */}
@@ -193,13 +193,7 @@ export default function FinancialConsolidation() {
           </div>
 
           {/* FX Conversion Note */}
-          <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4">
-            <p className="text-sm text-indigo-800 dark:text-indigo-200">
-              <strong>Real Data Source:</strong> Financial data aggregated from Finance.vw_PL_Statement and Finance.vw_BalanceSheet views. 
-              Entity hierarchy from TM1.vw_Dim_Entity. Data rolled up hierarchically: Global → Americas/APAC/EMEA → Individual Entities.
-              All amounts in {filters.currency.toUpperCase()}.
-            </p>
-          </div>
+         
         </>
       )}
     </div>

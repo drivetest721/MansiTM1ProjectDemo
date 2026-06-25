@@ -318,7 +318,7 @@ const transformDrillData = (data: any): { label: string; value: number }[] => {
 
   const summaryTableData: FinancialRow[] = [
     { id: 'revenue', label: 'Revenue', actual: 142500000, budget: 138200000, forecast: 145800000, variance: 4300000, variancePercent: 3.1 },
-    { id: 'cost', label: 'Cost', actual: 98700000, budget: 95100000, forecast: 99200000, variance: 3600000, variancePercent: 3.8 },
+    { id: 'COGS', label: 'COGS', actual: 98700000, budget: 95100000, forecast: 99200000, variance: 3600000, variancePercent: 3.8 },
     { id: 'gross-margin', label: 'Gross Margin', actual: 43800000, budget: 43100000, forecast: 46600000, variance: 700000, variancePercent: 1.6, isSubtotal: true },
     { id: 'payroll', label: 'Payroll', actual: 52300000, budget: 49800000, forecast: 53100000, variance: 2500000, variancePercent: 5.0 },
     { id: 'opex', label: 'Operating Expenses', actual: 28400000, budget: 27200000, forecast: 29000000, variance: 1200000, variancePercent: 4.4 },
@@ -381,7 +381,8 @@ const transformDrillData = (data: any): { label: string; value: number }[] => {
           <span className="font-semibold text-gray-700 dark:text-gray-200">Financial KPIs</span>
           <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${openSections.financial ? 'rotate-180' : 'rotate-0'}`} />
         </button>
-        <div className={openSections.financial ? 'block' : 'hidden'}>
+      
+        <div className={`transition-all duration-200 overflow-hidden ${openSections.financial ? 'max-h-screen' : 'max-h-0'}`}>
           <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {kpiData.slice(0, 4).map((kpi, index) => (
               <MetricCard key={index} title={kpi.title} value={kpi.value} change={kpi.change} icon={kpi.icon} iconColor={kpi.iconColor} />
@@ -393,10 +394,10 @@ const transformDrillData = (data: any): { label: string; value: number }[] => {
       {/* Static KPIs */}
       <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
         <button type="button" onClick={() => toggleSection('static')} className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-          <span className="font-semibold text-gray-700 dark:text-gray-200">Static KPIs</span>
+          <span className="font-semibold text-gray-700 dark:text-gray-200">Statistical KPIs</span>
           <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${openSections.static ? 'rotate-180' : 'rotate-0'}`} />
         </button>
-        <div className={openSections.static ? 'block' : 'hidden'}>
+        <div className={`transition-all duration-200 overflow-hidden ${openSections.static ? 'max-h-screen' : 'max-h-0'}`}>
           <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {kpiData.slice(4).map((kpi, index) => (
               <MetricCard key={index} title={kpi.title} value={kpi.value} change={kpi.change} icon={kpi.icon} iconColor={kpi.iconColor} />
@@ -405,14 +406,7 @@ const transformDrillData = (data: any): { label: string; value: number }[] => {
         </div>
       </div>
 
-      {/* Status Header */}
-      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-        <p className="text-sm text-blue-800 dark:text-blue-200">
-          <strong>Status:</strong> Dashboard data loaded from TM1EnterpriseDB. Last updated: {new Date().toLocaleDateString()}.
-          {kpiData.length > 0 && ` Showing ${kpiData.length} KPIs and ${revenueByYear.length} years of revenue data.`}
-        </p>
-      </div>
-
+    
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Revenue Year -> Quarter -> Month drill-down */}
@@ -465,9 +459,9 @@ const transformDrillData = (data: any): { label: string; value: number }[] => {
             </div>
           )}
 
-          <div className={drillLoading ? 'opacity-30 transition-opacity pointer-events-none' : 'transition-opacity'}>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={currentBarData}>
+          <div className={drillLoading ? 'opacity-30 transition-opacity pointer-events-none' : ' transition-opacity'}>
+            <ResponsiveContainer width="100%" height={300} className="px-4">
+              <BarChart data={currentBarData}  margin={{ top: 20, right: 0, left: 30, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
                 <XAxis dataKey="label" stroke="#6b7280" />
                 <YAxis tickFormatter={formatCurrency2dp} stroke="#6b7280" />
@@ -481,7 +475,7 @@ const transformDrillData = (data: any): { label: string; value: number }[] => {
                   onClick={(data: any) => {
                     if (drillLevel !== 'month' && !drillLoading) handleBarClick(data);
                   }}
-                  label={{ position: 'top', formatter: (v: any) => formatCurrency2dp(Number(v)), fontSize: 11 }}
+                  label={{ position: 'top', formatter: (v: any) => formatCurrency2dp(Number(v)), fontSize: 16 , fontWeight: 'bold', fill: '#374151' }}
                 />
               </BarChart>
             </ResponsiveContainer>
@@ -509,7 +503,9 @@ const transformDrillData = (data: any): { label: string; value: number }[] => {
                   label={(props: any) => {
                     const name = props.label || props.name;
                     const percent = props.percent;
+                    
                     return percent ? `${name} ${(percent * 100).toFixed(2)}%` : '';
+                    
                   }}
                   outerRadius={100}
                   dataKey="value"
@@ -568,14 +564,14 @@ const transformDrillData = (data: any): { label: string; value: number }[] => {
             </div>
           </div>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={budgetVsForecast}>
+            <LineChart data={budgetVsForecast} margin={{ top: 20, right: 0, left: 30, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
               <XAxis dataKey="month" stroke="#6b7280" />
               <YAxis domain={trendDomain} tickFormatter={formatCurrency2dp} stroke="#6b7280" />
               <Tooltip formatter={(value) => (value ? formatCurrency2dp(Number(value)) : '')} />
               <Legend />
               <Line type="monotone" dataKey="budget" name="Budget" stroke={SECONDARY} strokeWidth={2} dot={{ r: 3 }}
-                label={{ position: 'top', formatter: (v: any) => formatCurrency2dp(Number(v)), fontSize: 10 }} />
+                label={{ position: 'top', formatter: (v: any) => formatCurrency2dp(Number(v)), fontSize: 14 }} />
               <Line type="monotone" dataKey="forecast" name="Forecast" stroke={TERTIARY} strokeWidth={2} dot={{ r: 3 }} />
               <Line type="monotone" dataKey="actual" name="Actual" stroke={PRIMARY} strokeWidth={2} dot={{ r: 3 }} />
             </LineChart>
@@ -591,7 +587,7 @@ const transformDrillData = (data: any): { label: string; value: number }[] => {
               <XAxis type="number" tickFormatter={formatCurrency2dp} stroke="#6b7280" />
               <YAxis type="category" dataKey="label" stroke="#6b7280" width={120} tick={{ fontSize: 12 }} interval={0} />
               <Tooltip formatter={(value) => (value ? formatCurrency2dp(Number(value)) : '')} />
-              <Bar dataKey="value" name="Revenue" label={{ position: 'right', formatter: (v: any) => (v !== undefined && v !== null ? formatCurrency2dp(Number(v)) : ''), fontSize: 11 }}>
+              <Bar dataKey="value" name="Revenue" label={{ position: 'right', formatter: (v: any) => (v !== undefined && v !== null ? formatCurrency2dp(Number(v)) : ''), fontSize: 14 }}>
                 {revenueByCategory.map((_entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}

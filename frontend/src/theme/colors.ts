@@ -19,6 +19,8 @@ export const SECONDARY = THEME_COLORS[3];
 export const TERTIARY = THEME_COLORS[4];
 
 export const formatCurrency2dp = (value: number) =>
-  `$${(value / 1_000_000).toFixed(2)}M`;
-
+  `$${(value / 1_000_000).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} M`;
 export const formatPercent2dp = (value: number) => `${value.toFixed(2)}%`;

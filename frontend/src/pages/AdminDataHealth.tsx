@@ -173,7 +173,7 @@ export default function AdminDataHealth() {
       {/* System Status Cards */}
       {systemStatus && (
         <>
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
               System Status
               <span className={`ml-3 text-sm px-3 py-1 rounded-full ${
@@ -185,7 +185,7 @@ export default function AdminDataHealth() {
               </span>
             </h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 shadow-md md:grid-cols-3 gap-4">
               {systemStatus.components.map((component, idx) => {
                 const color = getStatusColor(component.status);
                 return (
@@ -195,12 +195,12 @@ export default function AdminDataHealth() {
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{component.name}</p>
-                        <p className={`text-lg font-semibold mt-1 text-${color}-600`}>
+                        <p className="text-md text-black font-medium dark:text-gray-400">{component.name}</p>
+                        <p className={`text-lg  font-bold mt-1 text-${color}-600`}>
                           {component.status}
                         </p>
                         {component.details && (
-                          <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                          <div className="mt-2 text-md text-black-500 dark:text-black-400">
                             {Object.entries(component.details).map(([key, value]: [string, any]) => (
                               <div key={key}>
                                 {key.replace(/_/g, ' ')}: {typeof value === 'number' ? value.toLocaleString() : value}
@@ -217,46 +217,7 @@ export default function AdminDataHealth() {
             </div>
           </div>
 
-          {/* Data Quality Summary */}
-          {dataQuality && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-                Data Quality
-                <span className={`ml-3 text-sm px-3 py-1 rounded-full ${
-                  dataQuality.overall_quality >= 95 
-                    ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
-                    : dataQuality.overall_quality >= 80
-                    ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'
-                    : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
-                }`}>
-                  Score: {dataQuality.overall_quality.toFixed(1)}%
-                </span>
-              </h2>
-              
-              <div className="space-y-3">
-                {dataQuality.checks.map((check, idx) => (
-                  <div key={idx} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-gray-900 dark:text-white">{check.view_name}</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {check.total_rows.toLocaleString()} rows
-                          {check.null_accounts > 0 && ` • ${check.null_accounts} null accounts`}
-                          {check.null_amounts > 0 && ` • ${check.null_amounts} null amounts`}
-                        </p>
-                      </div>
-                      <span className={`text-lg font-bold ${
-                        check.quality_score >= 95 ? 'text-green-600' :
-                        check.quality_score >= 80 ? 'text-yellow-600' : 'text-red-600'
-                      }`}>
-                        {check.quality_score.toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+         
         </>
       )}
 
@@ -390,24 +351,7 @@ export default function AdminDataHealth() {
         </div>
       )}
 
-      {/* Data Quality */}
-      {dataQuality && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Data Quality Summary</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {Object.entries(dataQuality).map(([key, val]: [string, any]) => (
-              <div key={key} className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 capitalize">
-                  {key.replace(/_/g, ' ')}
-                </p>
-                <p className="text-lg font-bold text-gray-900 dark:text-white mt-1">
-                  {typeof val === 'number' ? val.toLocaleString() : String(val)}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+     
     </div>
   );
 }

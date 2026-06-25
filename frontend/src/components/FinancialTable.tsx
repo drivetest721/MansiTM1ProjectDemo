@@ -55,13 +55,15 @@ export default function FinancialTable({
   const [loadingRows, setLoadingRows] = useState<Set<string>>(new Set());
 
   const formatCurrency = (value: number | undefined) => {
-    if (value === undefined || value === null) return '-';
-    const formatted = Math.abs(value).toLocaleString('en-US', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    });
-    return value < 0 ? `($${formatted})` : `$${formatted}`;
-  };
+  if (value === undefined || value === null) return '-';
+
+  const formatted = (Math.abs(value) / 1_000_000).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+  return value < 0 ? `($${formatted}M)` : `$${formatted}M`;
+};
 
   const formatPercent = (value: number | undefined) => {
     if (value === undefined || value === null) return '-';
@@ -175,7 +177,7 @@ export default function FinancialTable({
       {
       id: 'label',
       accessorKey: 'label',
-      header: 'Particular',
+      header: 'Particulars',
       cell: ({ row }) => {
         const indent = row.original.indent || 0;
         const hasChildren =

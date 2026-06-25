@@ -9,6 +9,9 @@ import { getScenarioSummary, getForecastTable, getEntities, getForecastMonthlyTr
 import WorkflowStatusBadge from '../components/WorkflowStatusBadge';
 import AnnotationPanel from '../components/AnnotationPanel';
 import RollingForecastPanel from '../components/RollingForecastPanel';
+import { LabelList } from 'recharts';
+
+
 
 // ---------------------------------------------------------------------------
 // Static fallback data — used when API is unavailable
@@ -18,7 +21,7 @@ import RollingForecastPanel from '../components/RollingForecastPanel';
 //       comparison chart works correctly whether using live or fallback data.
 const scenariosFallback = [
   {
-    name: 'Base Case',
+    name: 'Most Likely Case',
     revenue: 145800000,
     ebitda: -54400000,
     netIncome: -61200000,
@@ -142,7 +145,7 @@ export default function ForecastingAnalysis() {
           const scenarioData = scenarioRes.value.data.data; // { year, entity, scenarios }
           if (scenarioData?.scenarios?.length > 0) {
             const mapped = scenarioData.scenarios.map((s: any) => ({
-              name:        s.scenario_name,
+              name: s.scenario_name === 'Base Case' ? 'Most Likely Case' : s.scenario_name, 
               revenue:     s.revenue,
               ebitda:      s.ebitda ?? s.net_income * 1.1,
               netIncome:   s.net_income,
@@ -224,7 +227,7 @@ export default function ForecastingAnalysis() {
       id: 'scenario',
       label: 'Scenario',
       options: [
-        { value: 'base',  label: 'Base Case' },
+        { value: 'base',  label: 'Most Likely Case' },
         { value: 'best',  label: 'Best Case' },
         { value: 'worst', label: 'Worst Case' },
       ],
@@ -241,27 +244,42 @@ export default function ForecastingAnalysis() {
   // -------------------------------------------------------------------------
   const findScenario = (name: string) => scenarios.find((s) => s.name === name);
 
-  const scenarioComparisonData = [
-    {
-      metric: 'Revenue',
-      base:  findScenario('Base Case')?.revenue   || 0,
-      best:  findScenario('Best Case')?.revenue   || 0,
-      worst: findScenario('Worst Case')?.revenue  || 0,
-    },
-    {
-      metric: 'EBITDA',
-      base:  findScenario('Base Case')?.ebitda    || 0,
-      best:  findScenario('Best Case')?.ebitda    || 0,
-      worst: findScenario('Worst Case')?.ebitda   || 0,
-    },
-    {
-      metric: 'Net Income',
-      base:  findScenario('Base Case')?.netIncome  || 0,
-      best:  findScenario('Best Case')?.netIncome  || 0,
-      worst: findScenario('Worst Case')?.netIncome || 0,
-    },
-  ];
 
+  // Custom label renderer for bars that handles negative values
+  const renderBarLabel = (props: any) => {
+  const { x, y, width, height, value, fill } = props;
+  if (value === undefined || value === null) return null;
+
+  const numValue = Number(value);
+  const isNegative = numValue < 0;
+  const labelX = x + width / 2;
+
+  // For negative bars, y is the baseline (top, near 0) and height is the
+  // distance down to the bar's tip. Bottom of bar = y + height.
+  // For positive bars, y is the tip (top) and height extends down to 0.
+  const labelY = isNegative ? y + height + 16 : y - 8;
+
+  return (
+    <text
+      x={labelX}
+      y={labelY}
+      textAnchor="middle"
+      fontSize={14}
+      fontWeight={500}
+      fill={fill || '#374151'}
+    >
+      {formatCurrency(numValue)}
+    </text>
+  );
+};
+
+// Replace the entire scenarioComparisonData block with this:
+const scenarioComparisonData = scenarios.map((s) => ({
+  scenario: s.name,
+  Revenue:      s.revenue    || 0,
+  EBITDA:       s.ebitda     || 0,
+  'Net Income': s.netIncome  || 0,
+}));
   // -------------------------------------------------------------------------
   // Render
   // -------------------------------------------------------------------------
@@ -348,15 +366,42 @@ export default function ForecastingAnalysis() {
                 Monthly Budget vs Forecast Trend
               </h3>
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={forecastTrendData}>
+                <LineChart data={forecastTrendData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
                   <XAxis dataKey="month" stroke="#6b7280" />
                   <YAxis tickFormatter={(v) => formatCurrency(v)} stroke="#6b7280" />
                   <Tooltip formatter={(value) => (value ? formatCurrency(Number(value)) : '')} />
                   <Legend />
-                  <Line type="monotone" dataKey="budget"   name="Budget"   stroke="#10b981" strokeWidth={2} />
-                  <Line type="monotone" dataKey="forecast" name="Forecast"  stroke="#f59e0b" strokeWidth={2} strokeDasharray="5 5" />
-                  <Line type="monotone" dataKey="variance" name="Variance"  stroke="#ef4444" strokeWidth={1} strokeDasharray="2 2" />
+                  <Line type="monotone" dataKey="budget" name="Budget" stroke="#10b981" strokeWidth={2}>
+                    <LabelList
+                      dataKey="budget"
+                      position="top"
+                      offset={-25}
+                      angle={-45}
+                      formatter={(v) => (v != null ? formatCurrency(Number(v)) : '')}
+                      style={{ fontSize: 14, fill: '#10b981' }}
+                    />
+                  </Line>
+                  <Line type="monotone" dataKey="forecast" name="Forecast" stroke="#f59e0b" strokeWidth={2} strokeDasharray="5 5">
+                    <LabelList
+                      dataKey="forecast"
+                      position="bottom"
+                      offset={25}
+                      angle={45}
+                      formatter={(v) => (v != null ? formatCurrency(Number(v)) : '')}
+                      style={{ fontSize: 14, fill: '#f59e0b' }}
+                    />
+                  </Line>
+                  <Line type="monotone" dataKey="variance" name="Variance" stroke="#ef4444" strokeWidth={1} strokeDasharray="2 2">
+                    <LabelList
+                      dataKey="variance"
+                      position="top"
+                      offset={25}
+                      angle={45}
+                      formatter={(v) => (v != null ? formatCurrency(Number(v)) : '')}
+                      style={{ fontSize: 14, fill: '#ef4444' }}
+                    />
+                  </Line>
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -366,21 +411,44 @@ export default function ForecastingAnalysis() {
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 Scenario Comparison
               </h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={scenarioComparisonData}>
+             <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={scenarioComparisonData} margin={{ top: 30, right: 30, left: 20, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
-                  <XAxis dataKey="metric" stroke="#6b7280" />
+                  <XAxis dataKey="scenario" stroke="#6b7280" />
                   <YAxis tickFormatter={(v) => formatCurrency(v)} stroke="#6b7280" />
                   <Tooltip formatter={(value) => (value ? formatCurrency(Number(value)) : '')} />
                   <Legend />
-                  <Bar dataKey="worst" name="Worst Case" fill="#ef4444" />
-                  <Bar dataKey="base"  name="Base Case"  fill="#3b82f6" />
-                  <Bar dataKey="best"  name="Best Case"  fill="#10b981" />
+
+                  <Bar dataKey="Revenue" name="Revenue" fill="#3b82f6">
+                    <LabelList
+                      dataKey="Revenue"
+                      position="top"
+                      formatter={(v: any) => formatCurrency(v)}
+                      style={{ fontSize: 14, fontWeight: 500, fill: '#3b82f6' }}
+                    />
+                  </Bar>
+
+                  <Bar dataKey="EBITDA" name="EBITDA" fill="#10b981">
+                    <LabelList
+                      dataKey="EBITDA"
+                      position="bottom"
+                      formatter={(v: any) => formatCurrency(v)}
+                      style={{ fontSize: 12, fontWeight: 500, fill: '#10b981' }}
+                    />
+                  </Bar>
+
+                  <Bar dataKey="Net Income" name="Net Income" fill="#f59e0b">
+                    <LabelList
+                      dataKey="Net Income"
+                      position="bottom"
+                      formatter={(v: any) => formatCurrency(v)}
+                      style={{ fontSize: 12, fontWeight: 500, fill: '#f59e0b' }}
+                    />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
-
           {/* Workflow Status */}
           <WorkflowStatusBadge
             page="forecasting-analysis"

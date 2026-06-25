@@ -70,7 +70,7 @@ class DashboardService:
             margin_pct    = (total_margin / total_revenue * 100) if total_revenue > 0 else 0
 
             kpis.append(KPIMetric(title="Total Revenue",      value=total_revenue, format="currency"))
-            kpis.append(KPIMetric(title="Total Cogs",         value=total_cost,    format="currency"))
+            kpis.append(KPIMetric(title="Total COGS",         value=total_cost,    format="currency"))
             kpis.append(KPIMetric(title="Total Gross Margin", value=total_margin,  format="currency"))
             kpis.append(KPIMetric(title="GrossMargin %",      value=margin_pct,    format="percent"))
             kpis.append(KPIMetric(title="Total Customers",    value=float(rev.TotalCustomers if rev else 0), format="number"))

@@ -47,10 +47,12 @@ export default function NetProfitChart({ title, data }: NetProfitChartProps) {
             tick={{ fontSize: 11 }}
           />
           <Tooltip
-            formatter={(value: number, name: string) =>
-              name === 'Variance %' ? `${value.toFixed(2)}%` : formatCurrency2dp(value)
-            }
-          />
+            formatter={(value, name) => {
+                const num = typeof value === 'number' ? value : Number(value);
+                if (isNaN(num)) return '';
+                return name === 'Variance %' ? `${num.toFixed(2)}%` : formatCurrency2dp(num);
+            }}
+            />
           <Legend />
           <Bar
             yAxisId="left"
