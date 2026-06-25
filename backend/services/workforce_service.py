@@ -61,23 +61,14 @@ class WorkforceService:
                 params["version"] = version
             
             where_clause = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
-            
-            # Count total records
-            count_query = f"""
-            SELECT COUNT(*) as total
-            FROM HR.vw_WorkforceCube_Source
-            {where_clause}
-            """
-            
-            total_result = self.db.execute(text(count_query), params).fetchone()
-            total_records = total_result.total if total_result else 0
-            total_pages = (total_records + page_size - 1) // page_size
-            
-            # Get paginated data
+
+            # Single query: COUNT(*) OVER() eliminates the separate COUNT round-trip
             offset = (page - 1) * page_size
-            
+            params["offset"] = offset
+            params["page_size"] = page_size
+
             data_query = f"""
-            SELECT 
+            SELECT
                 YearNumber,
                 MonthName,
                 EntityName,
@@ -88,21 +79,22 @@ class WorkforceService:
                 JobLevel,
                 EmploymentStatus,
                 VersionName,
-                ISNULL(BaseSalary, 0) as BaseSalary,
-                ISNULL(Bonus, 0) as Bonus,
-                ISNULL(Benefits, 0) as Benefits,
-                ISNULL(TotalCompensation, 0) as TotalCompensation
+                ISNULL(BaseSalary, 0)         AS BaseSalary,
+                ISNULL(Bonus, 0)              AS Bonus,
+                ISNULL(Benefits, 0)           AS Benefits,
+                ISNULL(TotalCompensation, 0)  AS TotalCompensation,
+                COUNT(*) OVER()               AS TotalCount
             FROM HR.vw_WorkforceCube_Source
             {where_clause}
             ORDER BY YearNumber DESC, EntityName, DepartmentName, EmployeeName
             OFFSET :offset ROWS FETCH NEXT :page_size ROWS ONLY
             """
-            
-            params["offset"] = offset
-            params["page_size"] = page_size
-            
-            results = self.db.execute(text(data_query), params).fetchall()
-            
+
+            rows = self.db.execute(text(data_query), params).fetchall()
+
+            total_records = rows[0].TotalCount if rows else 0
+            total_pages   = (total_records + page_size - 1) // page_size if total_records else 0
+
             records = [
                 WorkforceRecord(
                     year=r.YearNumber,
@@ -120,9 +112,9 @@ class WorkforceService:
                     benefits=float(r.Benefits),
                     total_compensation=float(r.TotalCompensation)
                 )
-                for r in results
+                for r in rows
             ]
-            
+
             pagination = PaginationMetadata(
                 page=page,
                 page_size=page_size,

@@ -65,23 +65,14 @@ class RevenueService:
                 params["version"] = version
             
             where_clause = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
-            
-            # Count total records
-            count_query = f"""
-            SELECT COUNT(*) as total
-            FROM Sales.vw_RevenueCube_Source
-            {where_clause}
-            """
-            
-            total_result = self.db.execute(text(count_query), params).fetchone()
-            total_records = total_result.total if total_result else 0
-            total_pages = (total_records + page_size - 1) // page_size
-            
-            # Get paginated data
+
+            # Single query: COUNT(*) OVER() eliminates the separate COUNT round-trip
             offset = (page - 1) * page_size
-            
+            params["offset"] = offset
+            params["page_size"] = page_size
+
             data_query = f"""
-            SELECT 
+            SELECT
                 DateID,
                 YearNumber,
                 QuarterName,
@@ -94,22 +85,23 @@ class RevenueService:
                 ProductCategory,
                 ProductFamily,
                 VersionName,
-                ISNULL(Revenue, 0) as Revenue,
-                ISNULL(Cost, 0) as Cost,
-                ISNULL(Margin, 0) as Margin,
-                ISNULL(MarginPercent, 0) as MarginPercent,
-                ISNULL(Quantity, 0) as Quantity
+                ISNULL(Revenue, 0)      AS Revenue,
+                ISNULL(Cost, 0)         AS Cost,
+                ISNULL(Margin, 0)       AS Margin,
+                ISNULL(MarginPercent, 0) AS MarginPercent,
+                ISNULL(Quantity, 0)     AS Quantity,
+                COUNT(*) OVER()         AS TotalCount
             FROM Sales.vw_RevenueCube_Source
             {where_clause}
             ORDER BY DateID DESC, EntityName, ProductName
             OFFSET :offset ROWS FETCH NEXT :page_size ROWS ONLY
             """
-            
-            params["offset"] = offset
-            params["page_size"] = page_size
-            
-            results = self.db.execute(text(data_query), params).fetchall()
-            
+
+            rows = self.db.execute(text(data_query), params).fetchall()
+
+            total_records = rows[0].TotalCount if rows else 0
+            total_pages   = (total_records + page_size - 1) // page_size if total_records else 0
+
             records = [
                 RevenueRecord(
                     date_key=r.DateID,
@@ -130,9 +122,9 @@ class RevenueService:
                     margin_percent=float(r.MarginPercent),
                     quantity=int(r.Quantity)
                 )
-                for r in results
+                for r in rows
             ]
-            
+
             pagination = PaginationMetadata(
                 page=page,
                 page_size=page_size,

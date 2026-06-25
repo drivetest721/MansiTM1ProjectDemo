@@ -1,23 +1,64 @@
 """
 Metadata Service
-Handles all metadata queries for filter dropdowns
+Handles all metadata queries for filter dropdowns.
+
+All public getter methods are cached with a 5-minute TTL via the module-level
+`ttl_cache` decorator.  Metadata (entities, departments, versions, scenarios …)
+changes very rarely; re-querying it on every page load was unnecessary DB load.
 """
 import logging
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List, Dict, Any
 
+# cache.py lives one level up (backend/)
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from cache import ttl_cache  # noqa: F401 (imported for completeness; _cached helper below is used directly)
+
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Module-level cache store: keyed by (method_name, *args)
+# TTL = 300 s (5 minutes).  Increase if metadata is very stable.
+# ---------------------------------------------------------------------------
+_METADATA_TTL = 300
+
+
+import time as _time
+
+# ---------------------------------------------------------------------------
+# Module-level cache store — shared across all MetadataService instances.
+# Each entry: {"value": <data>, "ts": <monotonic timestamp>}
+# ---------------------------------------------------------------------------
+_cache: Dict[str, dict] = {}
+
+
+def _cached(key: str, ttl: int, fn):
+    """Return cached value if fresh, otherwise call fn() and store result."""
+    now = _time.monotonic()
+    entry = _cache.get(key)
+    if entry and now - entry["ts"] < ttl:
+        logger.debug(f"Metadata cache HIT [{key}]")
+        return entry["value"]
+    result = fn()
+    _cache[key] = {"value": result, "ts": _time.monotonic()}
+    logger.debug(f"Metadata cache MISS [{key}] — cached for {ttl}s")
+    return result
 
 
 class MetadataService:
-    """Service for metadata operations"""
-    
+    """Service for metadata operations — all lookup methods are TTL-cached."""
+
     def __init__(self, db: Session):
         self.db = db
-    
+
     def get_entities(self) -> List[Dict[str, Any]]:
-        """Get all entities"""
+        """Get all entities (cached)"""
+        return _cached("entities", _METADATA_TTL, self._fetch_entities)
+
+    def _fetch_entities(self) -> List[Dict[str, Any]]:
+        """Uncached DB fetch for entities"""
         try:
             query = """
             SELECT 
@@ -51,10 +92,13 @@ class MetadataService:
             raise
     
     def get_departments(self) -> List[Dict[str, Any]]:
-        """Get all departments"""
+        """Get all departments (cached)"""
+        return _cached("departments", _METADATA_TTL, self._fetch_departments)
+
+    def _fetch_departments(self) -> List[Dict[str, Any]]:
         try:
             query = """
-            SELECT 
+            SELECT
                 DepartmentKey,
                 DepartmentCode,
                 DepartmentName,
@@ -64,7 +108,6 @@ class MetadataService:
             ORDER BY DepartmentName
             """
             results = self.db.execute(text(query)).fetchall()
-            
             return [
                 {
                     "department_key": r.DepartmentKey,
@@ -79,10 +122,13 @@ class MetadataService:
             raise
     
     def get_products(self) -> List[Dict[str, Any]]:
-        """Get all products"""
+        """Get all products (cached)"""
+        return _cached("products", _METADATA_TTL, self._fetch_products)
+
+    def _fetch_products(self) -> List[Dict[str, Any]]:
         try:
             query = """
-            SELECT 
+            SELECT
                 ProductKey,
                 ProductCode,
                 ProductName,
@@ -94,7 +140,6 @@ class MetadataService:
             ORDER BY ProductName
             """
             results = self.db.execute(text(query)).fetchall()
-            
             return [
                 {
                     "product_key": r.ProductKey,
@@ -111,10 +156,13 @@ class MetadataService:
             raise
     
     def get_customers(self) -> List[Dict[str, Any]]:
-        """Get all customers"""
+        """Get all customers (cached)"""
+        return _cached("customers", _METADATA_TTL, self._fetch_customers)
+
+    def _fetch_customers(self) -> List[Dict[str, Any]]:
         try:
             query = """
-            SELECT 
+            SELECT
                 CustomerKey,
                 CustomerCode,
                 CustomerName,
@@ -125,7 +173,6 @@ class MetadataService:
             ORDER BY CustomerName
             """
             results = self.db.execute(text(query)).fetchall()
-            
             return [
                 {
                     "customer_key": r.CustomerKey,
@@ -141,10 +188,13 @@ class MetadataService:
             raise
     
     def get_versions(self) -> List[Dict[str, Any]]:
-        """Get all versions"""
+        """Get all versions (cached)"""
+        return _cached("versions", _METADATA_TTL, self._fetch_versions)
+
+    def _fetch_versions(self) -> List[Dict[str, Any]]:
         try:
             query = """
-            SELECT 
+            SELECT
                 VersionKey,
                 VersionCode,
                 VersionName,
@@ -153,7 +203,6 @@ class MetadataService:
             ORDER BY VersionName
             """
             results = self.db.execute(text(query)).fetchall()
-            
             return [
                 {
                     "version_key": r.VersionKey,
@@ -166,12 +215,15 @@ class MetadataService:
         except Exception as e:
             logger.error(f"Error fetching versions: {str(e)}")
             raise
-    
+
     def get_scenarios(self) -> List[Dict[str, Any]]:
-        """Get all scenarios"""
+        """Get all scenarios (cached)"""
+        return _cached("scenarios", _METADATA_TTL, self._fetch_scenarios)
+
+    def _fetch_scenarios(self) -> List[Dict[str, Any]]:
         try:
             query = """
-            SELECT 
+            SELECT
                 ScenarioKey,
                 ScenarioCode,
                 ScenarioName,
@@ -181,7 +233,6 @@ class MetadataService:
             ORDER BY ScenarioName
             """
             results = self.db.execute(text(query)).fetchall()
-            
             return [
                 {
                     "scenario_key": r.ScenarioKey,
@@ -194,31 +245,27 @@ class MetadataService:
         except Exception as e:
             logger.error(f"Error fetching scenarios: {str(e)}")
             raise
-    
+
     def get_years(self) -> List[Dict[str, Any]]:
-        """Get all available years"""
+        """Get all available years (cached)"""
+        return _cached("years", _METADATA_TTL, self._fetch_years)
+
+    def _fetch_years(self) -> List[Dict[str, Any]]:
         try:
             query = """
-            SELECT DISTINCT 
+            SELECT DISTINCT
                 YearNumber,
-                CAST(YearNumber as VARCHAR) as YearName
+                CAST(YearNumber AS VARCHAR) AS YearName
             FROM Finance.vw_PL_Statement
             UNION
-            SELECT DISTINCT 
+            SELECT DISTINCT
                 YearNumber,
-                CAST(YearNumber as VARCHAR) as YearName
-            FROM Workforce.FactWorkforcePlanning
+                CAST(YearNumber AS VARCHAR) AS YearName
+            FROM HR.vw_WorkforceCube_Source
             ORDER BY YearNumber DESC
             """
             results = self.db.execute(text(query)).fetchall()
-            
-            return [
-                {
-                    "year": r[0],
-                    "year_name": r[1]
-                }
-                for r in results
-            ]
+            return [{"year": r[0], "year_name": r[1]} for r in results]
         except Exception as e:
             logger.error(f"Error fetching years: {str(e)}")
             raise
@@ -861,10 +908,13 @@ class MetadataService:
             raise
     
     def get_accounts(self) -> List[Dict[str, Any]]:
-        """Get all accounts"""
+        """Get all accounts (cached)"""
+        return _cached("accounts", _METADATA_TTL, self._fetch_accounts)
+
+    def _fetch_accounts(self) -> List[Dict[str, Any]]:
         try:
             query = """
-            SELECT 
+            SELECT
                 AccountKey,
                 AccountCode,
                 AccountName,
@@ -875,7 +925,6 @@ class MetadataService:
             ORDER BY AccountName
             """
             results = self.db.execute(text(query)).fetchall()
-            
             return [
                 {
                     "account_key": r.AccountKey,
@@ -889,12 +938,15 @@ class MetadataService:
         except Exception as e:
             logger.error(f"Error fetching accounts: {str(e)}")
             raise
-    
+
     def get_cost_centers(self) -> List[Dict[str, Any]]:
-        """Get all cost centers"""
+        """Get all cost centers (cached)"""
+        return _cached("cost_centers", _METADATA_TTL, self._fetch_cost_centers)
+
+    def _fetch_cost_centers(self) -> List[Dict[str, Any]]:
         try:
             query = """
-            SELECT 
+            SELECT
                 CostCenterKey,
                 CostCenterCode,
                 CostCenterName,
@@ -904,7 +956,6 @@ class MetadataService:
             ORDER BY CostCenterName
             """
             results = self.db.execute(text(query)).fetchall()
-            
             return [
                 {
                     "cost_center_key": r.CostCenterKey,

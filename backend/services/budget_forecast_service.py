@@ -75,23 +75,14 @@ class BudgetForecastService:
                 params['version'] = version
             
             where_clause = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
-            
-            # Count total records
-            count_query = f"""
-                SELECT COUNT(*) as total
-                FROM Planning.vw_BudgetCube_Source
-                {where_clause}
-            """
-            count_result = self.db.execute(text(count_query), params).fetchone()
-            total_records = count_result.total if count_result else 0
-            
-            # Calculate pagination
+
+            # Single query: COUNT(*) OVER() eliminates the separate COUNT round-trip
             offset = (page - 1) * page_size
-            total_pages = (total_records + page_size - 1) // page_size
-            
-            # Get paginated data
+            params['offset'] = offset
+            params['page_size'] = page_size
+
             data_query = f"""
-                SELECT 
+                SELECT
                     YearNumber,
                     QuarterName,
                     MonthName,
@@ -102,21 +93,21 @@ class BudgetForecastService:
                     StatementType,
                     ScenarioName,
                     VersionName,
-                    BudgetAmount
+                    BudgetAmount,
+                    COUNT(*) OVER() AS TotalCount
                 FROM Planning.vw_BudgetCube_Source
                 {where_clause}
                 ORDER BY YearNumber DESC, MonthName, EntityName
                 OFFSET :offset ROWS
                 FETCH NEXT :page_size ROWS ONLY
             """
-            params['offset'] = offset
-            params['page_size'] = page_size
-            
+
             result = self.db.execute(text(data_query), params)
-            
-            # Transform to response models
+
             records = []
+            total_records = 0
             for r in result:
+                total_records = r.TotalCount
                 records.append(BudgetRecord(
                     year=r.YearNumber,
                     quarter=r.QuarterName,
@@ -130,9 +121,10 @@ class BudgetForecastService:
                     version=r.VersionName,
                     amount=float(r.BudgetAmount) if r.BudgetAmount else 0.0
                 ))
-            
+
             result.close()
-            
+
+            total_pages = (total_records + page_size - 1) // page_size if total_records else 0
             pagination = PaginationMetadata(
                 page=page,
                 page_size=page_size,
@@ -141,7 +133,7 @@ class BudgetForecastService:
                 has_next=page < total_pages,
                 has_previous=page > 1
             )
-            
+
             return BudgetListResponse(data=records, pagination=pagination)
             
         except Exception as e:
@@ -373,23 +365,14 @@ class BudgetForecastService:
                 params['version'] = version
             
             where_clause = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
-            
-            # Count total records
-            count_query = f"""
-                SELECT COUNT(*) as total
-                FROM Planning.vw_ForecastCube_Source
-                {where_clause}
-            """
-            count_result = self.db.execute(text(count_query), params).fetchone()
-            total_records = count_result.total if count_result else 0
-            
-            # Calculate pagination
+
+            # Single query: COUNT(*) OVER() eliminates the separate COUNT round-trip
             offset = (page - 1) * page_size
-            total_pages = (total_records + page_size - 1) // page_size
-            
-            # Get paginated data
+            params['offset'] = offset
+            params['page_size'] = page_size
+
             data_query = f"""
-                SELECT 
+                SELECT
                     YearNumber,
                     QuarterName,
                     MonthName,
@@ -400,21 +383,21 @@ class BudgetForecastService:
                     StatementType,
                     ScenarioName,
                     VersionName,
-                    ForecastAmount
+                    ForecastAmount,
+                    COUNT(*) OVER() AS TotalCount
                 FROM Planning.vw_ForecastCube_Source
                 {where_clause}
                 ORDER BY YearNumber DESC, MonthName, EntityName
                 OFFSET :offset ROWS
                 FETCH NEXT :page_size ROWS ONLY
             """
-            params['offset'] = offset
-            params['page_size'] = page_size
-            
+
             result = self.db.execute(text(data_query), params)
-            
-            # Transform to response models
+
             records = []
+            total_records = 0
             for r in result:
+                total_records = r.TotalCount
                 records.append(ForecastRecord(
                     year=r.YearNumber,
                     quarter=r.QuarterName,
@@ -428,9 +411,10 @@ class BudgetForecastService:
                     version=r.VersionName,
                     amount=float(r.ForecastAmount) if r.ForecastAmount else 0.0
                 ))
-            
+
             result.close()
-            
+
+            total_pages = (total_records + page_size - 1) // page_size if total_records else 0
             pagination = PaginationMetadata(
                 page=page,
                 page_size=page_size,
@@ -439,7 +423,7 @@ class BudgetForecastService:
                 has_next=page < total_pages,
                 has_previous=page > 1
             )
-            
+
             return ForecastListResponse(data=records, pagination=pagination)
             
         except Exception as e:
@@ -572,97 +556,64 @@ class BudgetForecastService:
         account: Optional[str] = None
     ) -> VarianceListResponse:
         """
-        Get budget vs forecast variance
-        
-        Calculates variance by comparing budget and forecast amounts
-        for matching dimensions.
-        
-        Args:
-            page: Page number (1-indexed)
-            page_size: Records per page
-            year: Filter by year
-            entity: Filter by entity name
-            department: Filter by department name
-            account: Filter by account name
-            
-        Returns:
-            VarianceListResponse with data and pagination metadata
+        Get budget vs forecast variance.
+
+        Uses Planning.vw_BudgetForecastVariance (pre-joined view) instead of
+        joining vw_BudgetCube_Source and vw_ForecastCube_Source at query time.
+        Also uses COUNT(*) OVER() window function to eliminate the separate COUNT query.
         """
         try:
-            # Build WHERE clause dynamically
             where_conditions = []
             params = {}
-            
+
             if year:
-                where_conditions.append("b.YearNumber = :year")
+                where_conditions.append("YearNumber = :year")
                 params['year'] = year
             if entity:
-                where_conditions.append("b.EntityName = :entity")
+                where_conditions.append("EntityName = :entity")
                 params['entity'] = entity
             if department:
-                where_conditions.append("b.DepartmentName = :department")
+                where_conditions.append("DepartmentName = :department")
                 params['department'] = department
             if account:
-                where_conditions.append("b.AccountName = :account")
+                where_conditions.append("AccountName = :account")
                 params['account'] = account
-            
+
             where_clause = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
-            
-            # Count total records
-            count_query = f"""
-                SELECT COUNT(*) as total
-                FROM Planning.vw_BudgetCube_Source b
-                INNER JOIN Planning.vw_ForecastCube_Source f
-                    ON b.YearNumber = f.YearNumber
-                    AND b.MonthName = f.MonthName
-                    AND b.EntityName = f.EntityName
-                    AND b.DepartmentName = f.DepartmentName
-                    AND b.AccountName = f.AccountName
-                {where_clause}
-            """
-            count_result = self.db.execute(text(count_query), params).fetchone()
-            total_records = count_result.total if count_result else 0
-            
-            # Calculate pagination
+
             offset = (page - 1) * page_size
-            total_pages = (total_records + page_size - 1) // page_size
-            
-            # Get paginated variance data
+            params['offset'] = offset
+            params['page_size'] = page_size
+
+            # Single query: COUNT(*) OVER() avoids a separate COUNT round-trip
+            # Uses vw_BudgetForecastVariance which has the join pre-built
             data_query = f"""
-                SELECT 
-                    b.YearNumber,
-                    b.MonthName,
-                    b.EntityName,
-                    b.DepartmentName,
-                    b.AccountName,
-                    b.AccountType,
-                    b.BudgetAmount,
-                    f.ForecastAmount,
-                    (f.ForecastAmount - b.BudgetAmount) as VarianceAmount,
-                    CASE 
-                        WHEN b.BudgetAmount = 0 THEN 0
-                        ELSE ((f.ForecastAmount - b.BudgetAmount) / b.BudgetAmount * 100)
-                    END as VariancePercent
-                FROM Planning.vw_BudgetCube_Source b
-                INNER JOIN Planning.vw_ForecastCube_Source f
-                    ON b.YearNumber = f.YearNumber
-                    AND b.MonthName = f.MonthName
-                    AND b.EntityName = f.EntityName
-                    AND b.DepartmentName = f.DepartmentName
-                    AND b.AccountName = f.AccountName
+                SELECT
+                    YearNumber,
+                    MonthName,
+                    EntityName,
+                    DepartmentName,
+                    AccountName,
+                    AccountType,
+                    BudgetAmount,
+                    ForecastAmount,
+                    VarianceAmount,
+                    VariancePercent,
+                    COUNT(*) OVER() AS TotalCount
+                FROM Planning.vw_BudgetForecastVariance
                 {where_clause}
-                ORDER BY b.YearNumber DESC, b.MonthName, b.EntityName
+                ORDER BY YearNumber DESC, MonthName, EntityName
                 OFFSET :offset ROWS
                 FETCH NEXT :page_size ROWS ONLY
             """
-            params['offset'] = offset
-            params['page_size'] = page_size
-            
+
             result = self.db.execute(text(data_query), params)
             
-            # Transform to response models
+            # Transform to response models; pick up TotalCount from window function
             records = []
+            total_records = 0
             for r in result:
+                total_records = r.TotalCount  # same value on every row
                 records.append(VarianceRecord(
                     year=r.YearNumber,
                     month=r.MonthName,
@@ -675,9 +626,10 @@ class BudgetForecastService:
                     variance_amount=float(r.VarianceAmount) if r.VarianceAmount else 0.0,
                     variance_percent=float(r.VariancePercent) if r.VariancePercent else 0.0
                 ))
-            
+
             result.close()
-            
+
+            total_pages = (total_records + page_size - 1) // page_size if total_records else 0
             pagination = PaginationMetadata(
                 page=page,
                 page_size=page_size,
@@ -686,9 +638,9 @@ class BudgetForecastService:
                 has_next=page < total_pages,
                 has_previous=page > 1
             )
-            
+
             return VarianceListResponse(data=records, pagination=pagination)
-            
+
         except Exception as e:
             logger.error(f"Error in get_variance_data: {str(e)}")
             raise

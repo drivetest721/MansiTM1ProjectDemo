@@ -6,9 +6,12 @@ from config import settings
 # Create database engine
 engine = create_engine(
     settings.DATABASE_URL,
-    echo=True,
-    pool_pre_ping=True,
-    pool_recycle=3600
+    echo=False,          # Never log SQL in production – was True, caused overhead on every query
+    pool_pre_ping=True,  # Verify connection health before use
+    pool_recycle=3600,   # Recycle connections every hour
+    pool_size=10,        # Keep 10 persistent connections
+    max_overflow=20,     # Allow 20 extra burst connections
+    pool_timeout=30,     # Wait max 30s for an available connection
 )
 
 # Create SessionLocal class

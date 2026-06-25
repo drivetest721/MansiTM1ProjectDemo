@@ -20,81 +20,42 @@ class DashboardService:
         self.db = db
     
     def get_dashboard_kpis(self) -> List[KPIMetric]:
-        """Get all dashboard KPIs using validated views"""
+        """Get all dashboard KPIs — single query per source instead of 7 round trips"""
         try:
             kpis = []
-            
-            # Total Revenue from Revenue Cube
-            query = "SELECT ISNULL(SUM(Revenue), 0) as total FROM Sales.vw_RevenueCube_Source"
-            result = self.db.execute(text(query)).fetchone()
-            kpis.append(KPIMetric(
-                title="Total Revenue",
-                value=float(result.total) if result else 0,
-                format="currency"
-            ))
-            
-            # Total Cost from Revenue Cube
-            query = "SELECT ISNULL(SUM(Cost), 0) as total FROM Sales.vw_RevenueCube_Source"
-            result = self.db.execute(text(query)).fetchone()
-            kpis.append(KPIMetric(
-                title="Total Cost",
-                value=float(result.total) if result else 0,
-                format="currency"
-            ))
-            
-            # Total Margin from Revenue Cube
-            query = "SELECT ISNULL(SUM(Margin), 0) as total FROM Sales.vw_RevenueCube_Source"
-            result = self.db.execute(text(query)).fetchone()
-            total_margin = float(result.total) if result else 0
-            kpis.append(KPIMetric(
-                title="Total Gross Margin",
-                value=total_margin,
-                format="currency"
-            ))
-            
-            # Margin Percent
-            total_revenue_query = "SELECT ISNULL(SUM(Revenue), 0) as total FROM Sales.vw_RevenueCube_Source"
-            revenue_result = self.db.execute(text(total_revenue_query)).fetchone()
-            total_revenue = float(revenue_result.total) if revenue_result and revenue_result.total else 1
-            margin_percent = (total_margin / total_revenue * 100) if total_revenue > 0 else 0
-            kpis.append(KPIMetric(
-                title="GrossMargin %",
-                value=margin_percent,
-                format="percent"
-            ))
-            
-            # Total Employees from Workforce Cube
-            query = "SELECT COUNT(DISTINCT EmployeeID) as total FROM HR.vw_WorkforceCube_Source"
-            result = self.db.execute(text(query)).fetchone()
-            kpis.append(KPIMetric(
-                title="Total Employees",
-                value=float(result.total) if result else 0,
-                format="number"
-            ))
-            
-            # Total Customers from Revenue Cube
-            query = "SELECT COUNT(DISTINCT CustomerID) as total FROM Sales.vw_RevenueCube_Source"
-            result = self.db.execute(text(query)).fetchone()
-            kpis.append(KPIMetric(
-                title="Total Customers",
-                value=float(result.total) if result else 0,
-                format="number"
-            ))
-            
-            # Total Products from Revenue Cube
-            query = "SELECT COUNT(DISTINCT ProductID) as total FROM Sales.vw_RevenueCube_Source"
-            result = self.db.execute(text(query)).fetchone()
-            kpis.append(KPIMetric(
-                title="Total Products",
-                value=float(result.total) if result else 0,
-                format="number"
-            ))
-            
-          
-            
-            logger.info(f"Retrieved {len(kpis)} dashboard KPIs")
+
+            # --- Single query for all revenue-based KPIs (was 4 separate queries) ---
+            revenue_query = """
+            SELECT
+                ISNULL(SUM(Revenue), 0)            AS TotalRevenue,
+                ISNULL(SUM(Cost), 0)               AS TotalCost,
+                ISNULL(SUM(Margin), 0)             AS TotalMargin,
+                COUNT(DISTINCT CustomerID)         AS TotalCustomers,
+                COUNT(DISTINCT ProductID)          AS TotalProducts
+            FROM Sales.vw_RevenueCube_Source
+            """
+            rev = self.db.execute(text(revenue_query)).fetchone()
+
+            total_revenue = float(rev.TotalRevenue) if rev else 0
+            total_cost    = float(rev.TotalCost)    if rev else 0
+            total_margin  = float(rev.TotalMargin)  if rev else 0
+            margin_pct    = (total_margin / total_revenue * 100) if total_revenue > 0 else 0
+
+            kpis.append(KPIMetric(title="Total Revenue",      value=total_revenue, format="currency"))
+            kpis.append(KPIMetric(title="Total Cost",         value=total_cost,    format="currency"))
+            kpis.append(KPIMetric(title="Total Gross Margin", value=total_margin,  format="currency"))
+            kpis.append(KPIMetric(title="GrossMargin %",      value=margin_pct,    format="percent"))
+            kpis.append(KPIMetric(title="Total Customers",    value=float(rev.TotalCustomers if rev else 0), format="number"))
+            kpis.append(KPIMetric(title="Total Products",     value=float(rev.TotalProducts  if rev else 0), format="number"))
+
+            # --- Single query for workforce KPI (separate source, still one query) ---
+            wf_query = "SELECT COUNT(DISTINCT EmployeeID) AS TotalEmployees FROM HR.vw_WorkforceCube_Source"
+            wf = self.db.execute(text(wf_query)).fetchone()
+            kpis.append(KPIMetric(title="Total Employees", value=float(wf.TotalEmployees if wf else 0), format="number"))
+
+            logger.info(f"Retrieved {len(kpis)} dashboard KPIs (2 DB queries instead of 7)")
             return kpis
-            
+
         except Exception as e:
             logger.error(f"Error fetching dashboard KPIs: {str(e)}")
             raise
