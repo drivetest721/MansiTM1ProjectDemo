@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, Loader2 } from 'lucide-react';
-import { getSystemStatus, getTableHealth, getCubeHealth, getDataQuality, getDataFreshness, getIndexHealth } from '../services/api';
+import { getSystemStatus, getTableHealth, getCubeHealth, getDataQuality } from '../services/api';
 
 interface SystemComponent {
   name: string;
@@ -56,8 +56,6 @@ export default function AdminDataHealth() {
   const [tableHealth, setTableHealth] = useState<TableHealthItem[]>([]);
   const [cubeHealth, setCubeHealth] = useState<CubeHealthItem[]>([]);
   const [dataQuality, setDataQuality] = useState<DataQuality | null>(null);
-  const [dataFreshness, setDataFreshness] = useState<any | null>(null);
-  const [indexHealth, setIndexHealth] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,14 +72,12 @@ export default function AdminDataHealth() {
       setError(null);
 
       // Load all data in parallel — use allSettled so one failure doesn't block the rest
-      const [statusRes, tablesRes, cubesRes, qualityRes, freshnessRes, indexRes] =
+      const [statusRes, tablesRes, cubesRes, qualityRes] =
         await Promise.allSettled([
           getSystemStatus(),
           getTableHealth(),
           getCubeHealth(),
           getDataQuality(),
-          getDataFreshness(),
-          getIndexHealth(),
         ]);
 
       if (statusRes.status === 'fulfilled' && statusRes.value.data.success)
@@ -95,12 +91,6 @@ export default function AdminDataHealth() {
 
       if (qualityRes.status === 'fulfilled' && qualityRes.value.data.success)
         setDataQuality(qualityRes.value.data.data);
-
-      if (freshnessRes.status === 'fulfilled' && freshnessRes.value.data.success)
-        setDataFreshness(freshnessRes.value.data.data);
-
-      if (indexRes.status === 'fulfilled' && indexRes.value.data.success)
-        setIndexHealth(indexRes.value.data.data);
     } catch (err: any) {
       console.error('Failed to load admin data:', err);
       setError('Failed to connect to backend. Please ensure the server is running.');
