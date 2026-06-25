@@ -176,3 +176,158 @@ async def get_cost_centers(db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Error in get_cost_centers: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error fetching cost centers: {str(e)}")
+
+
+# ========================================================================
+# CUBE EXPLORER ENDPOINTS
+# ========================================================================
+
+@router.get("/cubes", summary="Get All Cubes")
+async def get_cubes(db: Session = Depends(get_db)):
+    """
+    Get list of all available TM1 cubes
+    
+    Returns cube information including:
+    - Cube ID and name
+    - Description
+    - Dimension count
+    - Status and last update
+    """
+    try:
+        service = MetadataService(db)
+        data = service.get_cubes()
+        return {"success": True, "data": data, "count": len(data)}
+    except Exception as e:
+        logger.error(f"Error in get_cubes: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching cubes: {str(e)}")
+
+
+@router.get("/cubes/{cube_id}", summary="Get Cube Details")
+async def get_cube_details(cube_id: str, db: Session = Depends(get_db)):
+    """
+    Get detailed information about a specific cube
+    
+    Args:
+        cube_id: Cube identifier
+    
+    Returns detailed cube metadata including dimensions, measures, and cell count
+    """
+    try:
+        service = MetadataService(db)
+        data = service.get_cube_details(cube_id)
+        return {"success": True, "data": data}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error in get_cube_details: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching cube details: {str(e)}")
+
+
+@router.get("/cubes/{cube_id}/sample", summary="Get Cube Sample Data")
+async def get_cube_sample_data(cube_id: str, limit: int = 10, db: Session = Depends(get_db)):
+    """
+    Get sample data from a cube
+    
+    Args:
+        cube_id: Cube identifier
+        limit: Maximum number of rows to return (default: 10)
+    
+    Returns sample data rows from the cube
+    """
+    try:
+        service = MetadataService(db)
+        data = service.get_cube_sample_data(cube_id, limit=limit)
+        return {"success": True, "data": data, "count": len(data)}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error in get_cube_sample_data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching cube sample data: {str(e)}")
+
+
+# ========================================================================
+# DIMENSION EXPLORER ENDPOINTS
+# ========================================================================
+
+@router.get("/dimensions", summary="Get All Dimensions")
+async def get_dimensions(db: Session = Depends(get_db)):
+    """
+    Get list of all dimensions
+    
+    Returns dimension information including:
+    - Dimension ID and name
+    - Description
+    - Element count
+    - Hierarchy information
+    """
+    try:
+        service = MetadataService(db)
+        data = service.get_dimensions()
+        return {"success": True, "data": data, "count": len(data)}
+    except Exception as e:
+        logger.error(f"Error in get_dimensions: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching dimensions: {str(e)}")
+
+
+@router.get("/dimensions/{dimension_id}", summary="Get Dimension Details")
+async def get_dimension_details(dimension_id: str, db: Session = Depends(get_db)):
+    """
+    Get detailed information about a specific dimension
+    
+    Args:
+        dimension_id: Dimension identifier
+    
+    Returns detailed dimension metadata including hierarchy levels and attributes
+    """
+    try:
+        service = MetadataService(db)
+        data = service.get_dimension_details(dimension_id)
+        return {"success": True, "data": data}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error in get_dimension_details: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching dimension details: {str(e)}")
+
+
+@router.get("/dimensions/{dimension_id}/hierarchy", summary="Get Dimension Hierarchy")
+async def get_dimension_hierarchy(dimension_id: str, db: Session = Depends(get_db)):
+    """
+    Get hierarchy structure for a dimension
+    
+    Args:
+        dimension_id: Dimension identifier
+    
+    Returns hierarchical tree structure of dimension elements
+    """
+    try:
+        service = MetadataService(db)
+        data = service.get_dimension_hierarchy(dimension_id)
+        return {"success": True, "data": data}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error in get_dimension_hierarchy: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching dimension hierarchy: {str(e)}")
+
+
+@router.get("/dimensions/{dimension_id}/elements", summary="Get Dimension Elements")
+async def get_dimension_elements(dimension_id: str, limit: int = 50, db: Session = Depends(get_db)):
+    """
+    Get list of elements in a dimension
+    
+    Args:
+        dimension_id: Dimension identifier
+        limit: Maximum number of elements to return (default: 50)
+    
+    Returns list of dimension elements with their attributes
+    """
+    try:
+        service = MetadataService(db)
+        data = service.get_dimension_elements(dimension_id, limit=limit)
+        return {"success": True, "data": data, "count": len(data)}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error in get_dimension_elements: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching dimension elements: {str(e)}")

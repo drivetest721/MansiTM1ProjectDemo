@@ -212,6 +212,148 @@ export const getBudgetDrillDown = (params: Omit<DrillDownParams, 'region'>) =>
   api.get('/api/budget-forecast/budget/drill-down', { params });
 
 // ==========================================
+// ENHANCED FINANCIAL STATEMENTS APIs (HIGH PRIORITY)
+// ==========================================
+
+// P&L Statement (Enhanced)
+export const getPLStatementEnhanced = (params: PLParams) => 
+  api.get('/api/finance-enhanced/pl-statement', { params });
+
+export const getPLDrillDown = (params: PLParams & { account_type: string }) => 
+  api.get('/api/finance-enhanced/pl-statement/drill-down', { params });
+
+// Balance Sheet (Enhanced)
+export const getBalanceSheetEnhanced = (params: BalanceSheetParams) => 
+  api.get('/api/finance-enhanced/balance-sheet', { params });
+
+export const getBalanceSheetDrillDown = (params: BalanceSheetParams & { account_type: string }) => 
+  api.get('/api/finance-enhanced/balance-sheet/drill-down', { params });
+
+// Financial Ratios
+export const getFinancialRatios = (params: { year: number; entity?: string }) => 
+  api.get('/api/finance-enhanced/ratios', { params });
+
+// ==========================================
+// MAPPED FINANCIAL STATEMENTS (REAL DATA WITH FRONTEND LABELS)
+// ==========================================
+
+// P&L Statement (Mapped - Real Data)
+export const getPLStatementMapped = (params: PLParams) => 
+  api.get('/api/finance-mapped/pl-statement-mapped', { params });
+
+// Balance Sheet (Mapped - Real Data)
+export const getBalanceSheetMapped = (params: BalanceSheetParams) => 
+  api.get('/api/finance-mapped/balance-sheet-mapped', { params });
+
+// ==========================================
+// FORECASTING & SCENARIOS APIs (HIGH PRIORITY)
+// ==========================================
+
+// Scenarios
+export const getForecastScenarios = () => 
+  api.get('/api/forecast/scenarios');
+
+export const getScenarioSummary = (params: { year: number; entity?: string }) => 
+  api.get('/api/forecast/scenarios/summary', { params });
+
+export const getScenarioData = (scenarioId: number, params: { year: number; entity?: string }) => 
+  api.get(`/api/forecast/scenarios/${scenarioId}`, { params });
+
+// Forecast Table
+export const getForecastTable = (params: { year: number; entity?: string }) => 
+  api.get('/api/forecast/table', { params });
+
+// Scenario Comparison
+export interface CompareScenarioParams {
+  year: number;
+  scenario_ids: number[];
+  entity?: string;
+}
+
+export const compareForecastScenarios = (params: CompareScenarioParams) => 
+  api.post('/api/forecast/comparison', null, { params });
+
+// Forecast Assumptions
+export const getScenarioAssumptions = (scenarioId: number, params: { year: number }) => 
+  api.get(`/api/forecast/assumptions/${scenarioId}`, { params });
+
+// ==========================================
+// CONSOLIDATION APIs (MEDIUM PRIORITY)
+// ==========================================
+
+// Entity Hierarchy
+export const getEntityHierarchy = () => 
+  api.get('/api/consolidation/hierarchy');
+
+// Consolidated Financial Data
+export const getConsolidatedFinancialData = (params: { year: number }) => 
+  api.get('/api/consolidation/financial-data', { params });
+
+// Consolidated Cube Data
+export const getConsolidatedCubeData = (params: { year: number }) => 
+  api.get('/api/consolidation/cube-data', { params });
+
+// ==========================================
+// ADMIN & HEALTH MONITORING APIs (MEDIUM PRIORITY)
+// ==========================================
+
+// System Health
+export const getSystemStatus = () => 
+  api.get('/api/admin/system-status');
+
+// Table Health
+export const getTableHealth = () => 
+  api.get('/api/admin/table-health');
+
+// Cube Health
+export const getCubeHealth = () => 
+  api.get('/api/admin/cube-health');
+
+// Refresh History
+export const getRefreshHistory = (days: number = 30) => 
+  api.get('/api/admin/refresh-history', { params: { days } });
+
+// Data Quality
+export const getDataQuality = () => 
+  api.get('/api/admin/data-quality');
+
+// ==========================================
+// CUBE EXPLORER APIs (LOW PRIORITY)
+// ==========================================
+
+// Get all cubes
+export const getCubes = () => 
+  api.get('/api/metadata/cubes');
+
+// Get cube details
+export const getCubeDetails = (cubeId: string) => 
+  api.get(`/api/metadata/cubes/${cubeId}`);
+
+// Get cube sample data
+export const getCubeSampleData = (cubeId: string, limit: number = 10) => 
+  api.get(`/api/metadata/cubes/${cubeId}/sample`, { params: { limit } });
+
+// ==========================================
+// DIMENSION EXPLORER APIs (LOW PRIORITY)
+// ==========================================
+
+// Get all dimensions
+export const getDimensions = () => 
+  api.get('/api/metadata/dimensions');
+
+// Get dimension details
+export const getDimensionDetails = (dimensionId: string) => 
+  api.get(`/api/metadata/dimensions/${dimensionId}`);
+
+// Get dimension hierarchy
+export const getDimensionHierarchy = (dimensionId: string) => 
+  api.get(`/api/metadata/dimensions/${dimensionId}/hierarchy`);
+
+// Get dimension elements
+export const getDimensionElements = (dimensionId: string, limit: number = 50) => 
+  api.get(`/api/metadata/dimensions/${dimensionId}/elements`, { params: { limit } });
+
+// ==========================================
 // LEGACY COMPATIBILITY (deprecated, use specific endpoints above)
 // ==========================================
 export const getRevenueCubeFilters = getEntities; // Use getEntities, getDepartments, etc. instead

@@ -1,178 +1,220 @@
-import { useState } from 'react';
-import CubeGrid from '../components/CubeGrid';
-import type { CubeRow } from '../components/CubeGrid';
+import { useEffect, useState } from 'react';
+import { Loader2, Database } from 'lucide-react';
+import { getCubes, getCubeDetails, getCubeSampleData } from '../services/api';
 
-// Mock cube metadata
-const availableCubes = [
-  { id: 'revenue', name: 'Revenue Cube', dimensions: ['Time', 'Customer', 'Product', 'Region', 'Entity', 'Version', 'Measure'] },
-  { id: 'workforce', name: 'Workforce Cube', dimensions: ['Time', 'Employee', 'Department', 'Cost Center', 'Entity', 'Version', 'Measure'] },
-  { id: 'budget', name: 'Budget Cube', dimensions: ['Time', 'Account', 'Department', 'Entity', 'Scenario', 'Version', 'Measure'] },
-  { id: 'forecast', name: 'Forecast Cube', dimensions: ['Time', 'Account', 'Department', 'Entity', 'Scenario', 'Version', 'Measure'] },
-  { id: 'pl', name: 'P&L Cube', dimensions: ['Time', 'Account', 'Department', 'Entity', 'Version', 'Measure'] },
-  { id: 'balance-sheet', name: 'Balance Sheet Cube', dimensions: ['Time', 'Account', 'Entity', 'Version', 'Measure'] },
-];
+interface Cube {
+  cube_id: string;
+  cube_name: string;
+  description: string;
+  dimensions: string[];
+  measures: string[];
+  dimension_count: number;
+  measure_count: number;
+}
 
-// Sample cube data (Revenue Cube)
-const revenueCubeSampleData: CubeRow[] = [
-  {
-    id: 'software',
-    rowLabel: 'Software',
-    indent: 0,
-    hasChildren: true,
-    Revenue: 58400000,
-    Cost: 36200000,
-    Margin: 22200000,
-    Quantity: 12450,
-  },
-  {
-    id: 'services',
-    rowLabel: 'Services',
-    indent: 0,
-    hasChildren: true,
-    Revenue: 42300000,
-    Cost: 28100000,
-    Margin: 14200000,
-    Quantity: 8900,
-  },
-  {
-    id: 'hardware',
-    rowLabel: 'Hardware',
-    indent: 0,
-    hasChildren: false,
-    Revenue: 24100000,
-    Cost: 18900000,
-    Margin: 5200000,
-    Quantity: 5600,
-  },
-  {
-    id: 'training',
-    rowLabel: 'Training',
-    indent: 0,
-    hasChildren: false,
-    Revenue: 17700000,
-    Cost: 13200000,
-    Margin: 4500000,
-    Quantity: 4300,
-  },
-  {
-    id: 'total',
-    rowLabel: 'Total',
-    indent: 0,
-    isTotal: true,
-    Revenue: 142500000,
-    Cost: 96400000,
-    Margin: 46100000,
-    Quantity: 31250,
-  },
-];
+interface CubeDetails {
+  cube_id: string;
+  cube_name: string;
+  description: string;
+  dimensions: Array<{ name: string; type: string; count: number }>;
+  measures: string[];
+  cell_count: number;
+  last_update: string;
+}
 
 export default function CubeExplorer() {
-  const [selectedCube, setSelectedCube] = useState(availableCubes[0]);
-  const [rowDimension, setRowDimension] = useState('Product');
-  const [columnMeasures] = useState(['Revenue', 'Cost', 'Margin', 'Quantity']);
+  const [cubes, setCubes] = useState<Cube[]>([]);
+  const [selectedCube, setSelectedCube] = useState<string | null>(null);
+  const [cubeDetails, setCubeDetails] = useState<CubeDetails | null>(null);
+  const [sampleData, setSampleData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadCubes();
+  }, []);
+
+  useEffect(() => {
+    if (selectedCube) {
+      loadCubeDetails(selectedCube);
+      loadSampleData(selectedCube);
+    }
+  }, [selectedCube]);
+
+  const loadCubes = async () => {
+    try {
+      setLoading(true);
+      const res = await getCubes();
+      if (res.data.success) {
+        setCubes(res.data.data.cubes || []);
+        if (res.data.data.cubes && res.data.data.cubes.length > 0) {
+          setSelectedCube(res.data.data.cubes[0].cube_id);
+        }
+      }
+    } catch (err: any) {
+      console.error('Failed to load cubes:', err);
+      setError('Failed to load cubes from backend');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadCubeDetails = async (cubeId: string) => {
+    try {
+      const res = await getCubeDetails(cubeId);
+      if (res.data.success) {
+        setCubeDetails(res.data.data);
+      }
+    } catch (err: any) {
+      console.error('Failed to load cube details:', err);
+    }
+  };
+
+  const loadSampleData = async (cubeId: string) => {
+    try {
+      const res = await getCubeSampleData(cubeId, 20);
+      if (res.data.success) {
+        setSampleData(res.data.data.sample_data || []);
+      }
+    } catch (err: any) {
+      console.error('Failed to load sample data:', err);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <span className="ml-2 text-gray-600 dark:text-gray-400">Loading cubes...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Cube Explorer</h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-1">TM1-style cube viewer with pivot capabilities</p>
+        <p className="text-gray-600 dark:text-gray-400 mt-1">✅ Explore TM1 cubes with real metadata from SQL Server</p>
       </div>
 
-      {/* Cube Selector */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Select Cube</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {availableCubes.map((cube) => (
-            <button
-              key={cube.id}
-              onClick={() => setSelectedCube(cube)}
-              className={`p-4 rounded-lg border-2 transition-all text-left ${
-                selectedCube.id === cube.id
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                  : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700'
-              }`}
-            >
-              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">{cube.name}</h4>
-              <p className="text-xs text-gray-600 dark:text-gray-400">{cube.dimensions.length} dimensions</p>
-            </button>
-          ))}
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
         </div>
-      </div>
+      )}
 
-      {/* Cube Configuration */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Cube Configuration</h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Dimensions */}
-          <div>
-            <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-3">Dimensions</h4>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Cube List */}
+        <div className="lg:col-span-1">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Available Cubes</h2>
             <div className="space-y-2">
-              {selectedCube.dimensions.map((dim) => (
-                <div key={dim} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-900 rounded">
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{dim}</span>
-                  <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded">
-                    {dim === 'Measure' ? 'Column' : 'Filter'}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Measures */}
-          <div>
-            <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-3">Measures</h4>
-            <div className="space-y-2">
-              {columnMeasures.map((measure) => (
-                <div key={measure} className="p-2 bg-green-50 dark:bg-green-900/20 rounded">
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{measure}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Pivot Options */}
-          <div>
-            <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-3">Pivot Options</h4>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">Row Dimension</label>
-                <select
-                  value={rowDimension}
-                  onChange={(e) => setRowDimension(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-sm"
+              {cubes.map((cube) => (
+                <button
+                  key={cube.cube_id}
+                  onClick={() => setSelectedCube(cube.cube_id)}
+                  className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${
+                    selectedCube === cube.cube_id
+                      ? 'bg-blue-50 dark:bg-blue-900/30 border-2 border-blue-500'
+                      : 'bg-gray-50 dark:bg-gray-700 border-2 border-transparent hover:bg-gray-100 dark:hover:bg-gray-600'
+                  }`}
                 >
-                  {selectedCube.dimensions.filter(d => d !== 'Measure').map((dim) => (
-                    <option key={dim} value={dim}>{dim}</option>
-                  ))}
-                </select>
-              </div>
-              <button className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm">
-                Apply Pivot
-              </button>
+                  <div className="flex items-center">
+                    <Database className="w-4 h-4 mr-2 text-blue-600" />
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{cube.cube_name}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{cube.dimension_count}D</p>
+                    </div>
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Cube Data Grid */}
-      <CubeGrid
-        data={revenueCubeSampleData}
-        measures={columnMeasures}
-        title={`${selectedCube.name} - ${rowDimension} View`}
-        showExport={true}
-        onExport={() => console.log('Export cube')}
-      />
+        {/* Cube Details */}
+        <div className="lg:col-span-3">
+          {cubeDetails && (
+            <div className="space-y-6">
+              {/* Metadata Card */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{cubeDetails.cube_name}</h2>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">{cubeDetails.description}</p>
+                
+                <div className="grid grid-cols-3 gap-4 mb-6">
+                  <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Dimensions</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{cubeDetails.dimensions.length}</p>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Measures</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{cubeDetails.measures.length}</p>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Cell Count</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{cubeDetails.cell_count.toLocaleString()}</p>
+                  </div>
+                </div>
 
-      {/* Cube Info */}
-      <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
-        <p className="text-sm text-purple-800 dark:text-purple-200">
-          <strong>Cube Viewer:</strong> Select a cube to explore its data. 
-          Choose dimensions for rows and columns to create custom views. 
-          Apply filters to slice data by specific dimension elements. 
-          Export views to Excel for further analysis.
-        </p>
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Dimensions</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    {cubeDetails.dimensions.map((dim, idx) => (
+                      <div key={idx} className="bg-gray-50 dark:bg-gray-700 rounded p-3">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">{dim.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{dim.count} elements</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Measures</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {cubeDetails.measures.map((measure, idx) => (
+                      <span key={idx} className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-full text-sm">
+                        {measure}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Sample Data */}
+              {sampleData.length > 0 && (
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+                  <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Sample Data (First 20 rows)</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                      <thead className="bg-gray-50 dark:bg-gray-900">
+                        <tr>
+                          {Object.keys(sampleData[0]).map((key, idx) => (
+                            <th key={idx} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                              {key}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        {sampleData.map((row, idx) => (
+                          <tr key={idx}>
+                            {Object.values(row).map((value: any, vidx) => (
+                              <td key={vidx} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                {typeof value === 'number' ? value.toLocaleString() : value}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

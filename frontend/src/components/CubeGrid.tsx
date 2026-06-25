@@ -297,7 +297,13 @@ export default function CubeGrid({
                       : row.original.isSubtotal
                       ? 'bg-gray-100 dark:bg-gray-800/50'
                       : ''
-                  }`}
+                  } ${row.original.hasChildren ? 'cursor-pointer' : ''}`}
+                  onDoubleClick={() => {
+                    if (row.original.hasChildren) {
+                      console.log('🖱️ Double-click detected on row:', row.original.rowLabel);
+                      toggleExpand(row.original);
+                    }
+                  }}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <td

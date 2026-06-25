@@ -361,7 +361,21 @@ export default function FinancialTable({
                       : row.original.isSubtotal
                       ? 'bg-gray-100 dark:bg-gray-800/50'
                       : ''
-                  }`}
+                  } ${((row.original.children && row.original.children.length > 0) || 
+                      row.original.expandable || 
+                      childrenData[row.original.id]?.length > 0 || 
+                      Boolean(row.original.level)) ? 'cursor-pointer' : ''}`}
+                  onDoubleClick={() => {
+                    const hasChildren = 
+                      (row.original.children && row.original.children.length > 0) ||
+                      row.original.expandable ||
+                      childrenData[row.original.id]?.length > 0 ||
+                      Boolean(row.original.level);
+                    if (hasChildren) {
+                      console.log('🖱️ Double-click detected on row:', row.original.label);
+                      toggleExpand(row.original);
+                    }
+                  }}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <td
