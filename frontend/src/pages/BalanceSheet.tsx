@@ -1,4 +1,4 @@
-/**
+﻿/**
  * BalanceSheet — monthly column view
  * Mirrors PLStatement layout: MonthTreeFilter + Entity/Scenario dropdowns + monthly table.
  * No variance columns. Balance validation banner kept at top.
@@ -184,11 +184,7 @@ export default function BalanceSheet() {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Balance Sheet</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">Statement of financial position</p>
         </div>
-        <div className="text-right text-sm text-gray-500 dark:text-gray-400 space-y-0.5">
-          <p>Year: FY {selectedYear}</p>
-          <p>Entity: {entity !== 'all' ? entity : 'All Entities'}</p>
-          <p>Scenario: {scenarioLabel}</p>
-        </div>
+       
       </div>
 
       {/* Two-column layout */}

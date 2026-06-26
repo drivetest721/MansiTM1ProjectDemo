@@ -1,4 +1,4 @@
-/**
+﻿/**
  * PLStatement — monthly column view
  *
  * Layout:
@@ -195,11 +195,7 @@ export default function PLStatement() {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Profit & Loss Statement</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">Comprehensive income statement</p>
         </div>
-        <div className="text-right text-sm text-gray-500 dark:text-gray-400 space-y-0.5">
-          <p>Year: FY {selectedYear}</p>
-          <p>Entity: {entity !== 'all' ? entity : 'All Entities'}</p>
-          <p>Scenario: {scenarioLabel}</p>
-        </div>
+       
       </div>
 
       {/* Two-column filter layout */}

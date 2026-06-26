@@ -405,10 +405,7 @@ export default function ExecutiveOverview() {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Executive Overview</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">CFO-level financial performance dashboard</p>
         </div>
-        <div className="text-right text-sm text-black font-bold dark:text-gray-400">
-          <div>Period: FY 2025</div>
-          <div>Last Updated: {new Date().toLocaleDateString()}</div>
-        </div>
+        
       </div>
 
       {/* Financial KPIs */}

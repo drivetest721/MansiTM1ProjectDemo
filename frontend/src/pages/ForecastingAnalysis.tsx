@@ -42,6 +42,76 @@ const colorClasses: Record<string, string> = {
   gray:  'bg-gray-50  dark:bg-gray-900/20  border-gray-200  dark:border-gray-800',
 };
 
+
+// ---------------------------------------------------------------------------
+// Dummy account-wise forecast data generator (100 rows)
+// Matches pattern: "<Account Type> <N>" with actual blank, forecast populated
+// ---------------------------------------------------------------------------
+const forecastTableFallback: FinancialRow[] = [
+  { id: "acct-0", label: "Insurance Expense 164", actual: 644660, budget: undefined, forecast: 615878, variance: 28782, variancePercent: 4.7, forecastVariance: 28782, forecastVariancePercent: 4.7 },
+  { id: "acct-1", label: "Rent Expense 141", actual: -433921, budget: undefined, forecast: -568206, variance: 134285, variancePercent: 23.6, forecastVariance: 134285, forecastVariancePercent: 23.6 },
+  { id: "acct-3", label: "Current Year Profit 167", actual: -56259, budget: undefined, forecast: 0, variance: -56259, variancePercent: 0, forecastVariance: -56259, forecastVariancePercent: 0 },
+  { id: "acct-4", label: "Marketing Expense 135", actual: 77467, budget: undefined, forecast: 0, variance: 77467, variancePercent: 0, forecastVariance: 77467, forecastVariancePercent: 0 },
+  { id: "acct-5", label: "License Revenue 147", actual: -7404, budget: undefined, forecast: 0, variance: -7404, variancePercent: 0, forecastVariance: -7404, forecastVariancePercent: 0 },
+  { id: "acct-7", label: "Consulting Revenue 57", actual: -94475, budget: undefined, forecast: 0, variance: -94475, variancePercent: 0, forecastVariance: -94475, forecastVariancePercent: 0 },
+  { id: "acct-8", label: "Current Year Profit 189", actual: -128265, budget: undefined, forecast: 0, variance: -128265, variancePercent: 0, forecastVariance: -128265, forecastVariancePercent: 0 },
+  { id: "acct-9", label: "Rent Expense 84", actual: -802835, budget: undefined, forecast: -699208, variance: -103627, variancePercent: -14.8, forecastVariance: -103627, forecastVariancePercent: -14.8 },
+  { id: "acct-10", label: "Interest Income 123", actual: 19065, budget: undefined, forecast: 0, variance: 19065, variancePercent: 0, forecastVariance: 19065, forecastVariancePercent: 0 },
+  { id: "acct-11", label: "Consulting Revenue 114", actual: -843138, budget: undefined, forecast: -785916, variance: -57222, variancePercent: -7.3, forecastVariance: -57222, forecastVariancePercent: -7.3 },
+  { id: "acct-12", label: "Current Year Profit 115", actual: -144716, budget: undefined, forecast: 0, variance: -144716, variancePercent: 0, forecastVariance: -144716, forecastVariancePercent: 0 },
+  { id: "acct-16", label: "Marketing Expense 153", actual: 7636, budget: undefined, forecast: 0, variance: 7636, variancePercent: 0, forecastVariance: 7636, forecastVariancePercent: 0 },
+  { id: "acct-19", label: "Subscription Revenue 167", actual: 92609, budget: undefined, forecast: 0, variance: 92609, variancePercent: 0, forecastVariance: 92609, forecastVariancePercent: 0 },
+  { id: "acct-20", label: "Insurance Expense 115", actual: 17693, budget: undefined, forecast: 0, variance: 17693, variancePercent: 0, forecastVariance: 17693, forecastVariancePercent: 0 },
+  { id: "acct-26", label: "Service Revenue 43", actual: -652348, budget: undefined, forecast: -698059, variance: 45711, variancePercent: 6.5, forecastVariance: 45711, forecastVariancePercent: 6.5 },
+  { id: "acct-30", label: "Retained Earnings 90", actual: 97173, budget: undefined, forecast: 0, variance: 97173, variancePercent: 0, forecastVariance: 97173, forecastVariancePercent: 0 },
+  { id: "acct-31", label: "License Revenue 43", actual: 703027, budget: undefined, forecast: 757990, variance: -54963, variancePercent: -7.3, forecastVariance: -54963, forecastVariancePercent: -7.3 },
+  { id: "acct-33", label: "Rent Expense 33", actual: -235743, budget: undefined, forecast: -265195, variance: 29452, variancePercent: 11.1, forecastVariance: 29452, forecastVariancePercent: 11.1 },
+  { id: "acct-34", label: "Office Supplies Expense 43", actual: -54801, budget: undefined, forecast: 0, variance: -54801, variancePercent: 0, forecastVariance: -54801, forecastVariancePercent: 0 },
+  { id: "acct-37", label: "Interest Income 77", actual: -586743, budget: undefined, forecast: -609757, variance: 23014, variancePercent: 3.8, forecastVariance: 23014, forecastVariancePercent: 3.8 },
+  { id: "acct-38", label: "Travel Expense 130", actual: -385806, budget: undefined, forecast: -258999, variance: -126807, variancePercent: -49, forecastVariance: -126807, forecastVariancePercent: -49 },
+  { id: "acct-40", label: "Subscription Revenue 123", actual: -50435, budget: undefined, forecast: 0, variance: -50435, variancePercent: 0, forecastVariance: -50435, forecastVariancePercent: 0 },
+  { id: "acct-42", label: "Insurance Expense 155", actual: -906535, budget: undefined, forecast: -763278, variance: -143257, variancePercent: -18.8, forecastVariance: -143257, forecastVariancePercent: -18.8 },  
+ 
+   { id: "acct-46", label: "Insurance Expense 152", actual: -58789, budget: undefined, forecast: 0, variance: -58789, variancePercent: 0, forecastVariance: -58789, forecastVariancePercent: 0 },
+  { id: "acct-47", label: "Subscription Revenue 88", actual: -4153, budget: undefined, forecast: 0, variance: -4153, variancePercent: 0, forecastVariance: -4153, forecastVariancePercent: 0 },
+  { id: "acct-48", label: "Interest Income 12", actual: 114295, budget: undefined, forecast: 0, variance: 114295, variancePercent: 0, forecastVariance: 114295, forecastVariancePercent: 0 },
+  { id: "acct-49", label: "Travel Expense 103", actual: -102519, budget: undefined, forecast: 0, variance: -102519, variancePercent: 0, forecastVariance: -102519, forecastVariancePercent: 0 },
+  { id: "acct-50", label: "Retained Earnings 66", actual: -64781, budget: undefined, forecast: 0, variance: -64781, variancePercent: 0, forecastVariance: -64781, forecastVariancePercent: 0 },
+  { id: "acct-51", label: "Retained Earnings 20", actual: 139546, budget: undefined, forecast: 0, variance: 139546, variancePercent: 0, forecastVariance: 139546, forecastVariancePercent: 0 },
+  { id: "acct-52", label: "Subscription Revenue 120", actual: 665571, budget: undefined, forecast: 641355, variance: 24216, variancePercent: 3.8, forecastVariance: 24216, forecastVariancePercent: 3.8 },
+  { id: "acct-54", label: "Travel Expense 104", actual: -12023, budget: undefined, forecast: 80041, variance: -92064, variancePercent: -115, forecastVariance: -92064, forecastVariancePercent: -115 },
+  { id: "acct-55", label: "License Revenue 55", actual: -682872, budget: undefined, forecast: -659119, variance: -23753, variancePercent: -3.6, forecastVariance: -23753, forecastVariancePercent: -3.6 },
+  { id: "acct-56", label: "Retained Earnings 192", actual: -437335, budget: undefined, forecast: -583669, variance: 146334, variancePercent: 25.1, forecastVariance: 146334, forecastVariancePercent: 25.1 },
+  { id: "acct-57", label: "Deferred Revenue 107", actual: -131052, budget: undefined, forecast: 0, variance: -131052, variancePercent: 0, forecastVariance: -131052, forecastVariancePercent: 0 },
+ 
+  { id: "acct-61", label: "Subscription Revenue 125", actual: 924240, budget: undefined, forecast: 798333, variance: 125907, variancePercent: 15.8, forecastVariance: 125907, forecastVariancePercent: 15.8 },
+  { id: "acct-63", label: "Office Supplies Expense 118", actual: -98665, budget: undefined, forecast: 0, variance: -98665, variancePercent: 0, forecastVariance: -98665, forecastVariancePercent: 0 },
+  { id: "acct-67", label: "Travel Expense 75", actual: -219482, budget: undefined, forecast: -289177, variance: 69695, variancePercent: 24.1, forecastVariance: 69695, forecastVariancePercent: 24.1 },
+  { id: "acct-68", label: "Marketing Expense 67", actual: -343211, budget: undefined, forecast: -408995, variance: 65784, variancePercent: 16.1, forecastVariance: 65784, forecastVariancePercent: 16.1 },
+  { id: "acct-69", label: "Travel Expense 67", actual: 74433, budget: undefined, forecast: 0, variance: 74433, variancePercent: 0, forecastVariance: 74433, forecastVariancePercent: 0 },
+  { id: "acct-70", label: "Service Revenue 165", actual: -67922, budget: undefined, forecast: 0, variance: -67922, variancePercent: 0, forecastVariance: -67922, forecastVariancePercent: 0 },
+  { id: "acct-71", label: "Insurance Expense 162", actual: -82576, budget: undefined, forecast: 0, variance: -82576, variancePercent: 0, forecastVariance: -82576, forecastVariancePercent: 0 },
+  { id: "acct-73", label: "Utility Expense 112", actual: -164229, budget: undefined, forecast: -161883, variance: -2346, variancePercent: -1.4, forecastVariance: -2346, forecastVariancePercent: -1.4 },
+  { id: "acct-75", label: "Service Revenue 30", actual: -717570, budget: undefined, forecast: -634266, variance: -83304, variancePercent: -13.1, forecastVariance: -83304, forecastVariancePercent: -13.1 },
+  { id: "acct-76", label: "Rent Expense 99", actual: -108374, budget: undefined, forecast: 0, variance: -108374, variancePercent: 0, forecastVariance: -108374, forecastVariancePercent: 0 },
+  { id: "acct-77", label: "Consulting Revenue 87", actual: -146485, budget: undefined, forecast: 0, variance: -146485, variancePercent: 0, forecastVariance: -146485, forecastVariancePercent: 0 },
+  { id: "acct-78", label: "Salary Expense 51", actual: 266840, budget: undefined, forecast: 321403, variance: -54563, variancePercent: -17, forecastVariance: -54563, forecastVariancePercent: -17 },
+  { id: "acct-80", label: "Office Supplies Expense 179", actual: -100192, budget: undefined, forecast: -231646, variance: 131454, variancePercent: 56.7, forecastVariance: 131454, forecastVariancePercent: 56.7 },
+  { id: "acct-81", label: "Travel Expense 12", actual: 138174, budget: undefined, forecast: 0, variance: 138174, variancePercent: 0, forecastVariance: 138174, forecastVariancePercent: 0 },
+  { id: "acct-84", label: "License Revenue 145", actual: 96131, budget: undefined, forecast: 172503, variance: -76372, variancePercent: -44.3, forecastVariance: -76372, forecastVariancePercent: -44.3 },
+  { id: "acct-85", label: "Insurance Expense 9", actual: -562986, budget: undefined, forecast: -445820, variance: -117166, variancePercent: -26.3, forecastVariance: -117166, forecastVariancePercent: -26.3 },
+  { id: "acct-86", label: "Salary Expense 31", actual: -590547, budget: undefined, forecast: -602881, variance: 12334, variancePercent: 2, forecastVariance: 12334, forecastVariancePercent: 2 },
+  { id: "acct-87", label: "Subscription Revenue 84", actual: 333900, budget: undefined, forecast: 433810, variance: -99910, variancePercent: -23, forecastVariance: -99910, forecastVariancePercent: -23 },
+  { id: "acct-88", label: "Salary Expense 78", actual: -82928, budget: undefined, forecast: 0, variance: -82928, variancePercent: 0, forecastVariance: -82928, forecastVariancePercent: 0 },
+  { id: "acct-90", label: "License Revenue 44", actual: -753713, budget: undefined, forecast: -779873, variance: 26160, variancePercent: 3.4, forecastVariance: 26160, forecastVariancePercent: 3.4 },
+  { id: "acct-91", label: "Consulting Revenue 57", actual: 122995, budget: undefined, forecast: 219650, variance: -96655, variancePercent: -44, forecastVariance: -96655, forecastVariancePercent: -44 },
+  { id: "acct-92", label: "Subscription Revenue 16", actual: -103768, budget: undefined, forecast: -148110, variance: 44342, variancePercent: 29.9, forecastVariance: 44342, forecastVariancePercent: 29.9 },
+  { id: "acct-94", label: "Salary Expense 16", actual: -135382, budget: undefined, forecast: 0, variance: -135382, variancePercent: 0, forecastVariance: -135382, forecastVariancePercent: 0 },
+  { id: "acct-95", label: "License Revenue 99", actual: 100041, budget: undefined, forecast: 0, variance: 100041, variancePercent: 0, forecastVariance: 100041, forecastVariancePercent: 0 },
+  { id: "acct-96", label: "Retained Earnings 59", actual: 253924, budget: undefined, forecast: 362346, variance: -108422, variancePercent: -29.9, forecastVariance: -108422, forecastVariancePercent: -29.9 },
+  { id: "acct-97", label: "Travel Expense 101", actual: -513633, budget: undefined, forecast: -566115, variance: 52482, variancePercent: 9.3, forecastVariance: 52482, forecastVariancePercent: 9.3 },
+  { id: "acct-98", label: "Office Supplies Expense 137", actual: 215703, budget: undefined, forecast: 322764, variance: -107061, variancePercent: -33.2, forecastVariance: -107061, forecastVariancePercent: -33.2 }
+];
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -53,7 +123,7 @@ export default function ForecastingAnalysis() {
   });
 
   const [scenarios, setScenarios]               = useState<any[]>(scenariosFallback);
-  const [forecastTableData, setForecastTableData] = useState<FinancialRow[]>([]);
+ const [forecastTableData, setForecastTableData] = useState<FinancialRow[]>(forecastTableFallback);
   const [forecastTrendData, setForecastTrendData] = useState<any[]>(forecastTrendFallback);
   const [loading, setLoading]                   = useState(true);
   const [error, setError]                       = useState<string | null>(null);
@@ -61,6 +131,7 @@ export default function ForecastingAnalysis() {
   // Dynamic filter options — same pattern as CFOBudgeting / WorkforcePlanning
   const [entityOptions, setEntityOptions]       = useState<{ value: string; label: string }[] | undefined>(undefined);
   const [filtersLoading, setFiltersLoading]     = useState(true);
+  
 
   // -------------------------------------------------------------------------
   // Load entity options on mount — Promise.allSettled so a failure here
@@ -129,11 +200,11 @@ export default function ForecastingAnalysis() {
         }
 
         // Forecast table
-        if (tableRes.status === 'fulfilled') {
-          setForecastTableData(tableRes.value.data.data || []);
-        } else {
-          console.error('Forecast table failed:', tableRes.reason);
-        }
+        // if (tableRes.status === 'fulfilled') {
+        //   setForecastTableData(tableRes.value.data.data || []);
+        // } else {
+        //   console.error('Forecast table failed:', tableRes.reason);
+        // }
 
         // Monthly trend
         if (trendRes.status === 'fulfilled') {
@@ -301,9 +372,9 @@ const formatChartCurrency = (value: number | undefined) => {
 
           
           {/* Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
             {/* Monthly Budget vs Forecast Trend */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+            {/* <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 Monthly Budget vs Forecast Trend
               </h3>
@@ -346,7 +417,7 @@ const formatChartCurrency = (value: number | undefined) => {
                   </Line>
                 </LineChart>
               </ResponsiveContainer>
-            </div>
+            </div> */}
 
             {/* Scenario Comparison */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
