@@ -23,4 +23,9 @@ export const formatCurrency2dp = (value: number) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })} M`;
+export const formatCurrency2dpGraph = (value: number) =>
+  `$${(value / 1_000_000).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}M`;
 export const formatPercent2dp = (value: number) => `${value.toFixed(2)}%`;

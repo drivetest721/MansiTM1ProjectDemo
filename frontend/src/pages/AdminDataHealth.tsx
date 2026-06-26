@@ -63,10 +63,8 @@ export default function AdminDataHealth() {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    loadAllData();
-    const interval = setInterval(loadAllData, 30000);
-    return () => clearInterval(interval);
-  }, []);
+  loadAllData();
+}, []);
 
   const loadAllData = async () => {
     try {

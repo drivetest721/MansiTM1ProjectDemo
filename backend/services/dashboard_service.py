@@ -229,9 +229,12 @@ class DashboardService:
         """
         cache_key = f"dash:drill:{level}:{year}:{quarter}"
         return _agg_cached(cache_key, lambda: self._fetch_revenue_drilldown(level, year, quarter))
-
+    
+    import time
     def _fetch_revenue_drilldown(self, level: str, year: int = None, quarter: str = None) -> ChartData:
         try:
+            t0 = _time.monotonic()
+            logger.info("Fetching drill-down: level=%s, year=%s, quarter=%s", level, year, quarter)
             logger.info("Fetching drill-down: level=%s, year=%s, quarter=%s", level, year, quarter)
 
             if level == "quarter":
@@ -244,8 +247,12 @@ class DashboardService:
                 GROUP BY QuarterName
                 ORDER BY QuarterName
                 """
+                t1 = _time.monotonic()
+                logger.info("⏱ Pre-query setup took %.3fs", t1 - t0)
                 results = self.db.execute(text(query), {"year": year}).fetchall()
-                logger.info("Quarter query returned %d rows", len(results))
+                t2 = _time.monotonic()
+                logger.info("⏱ Query execution took %.3fs", t2 - t1)
+
 
                 labels = [r.QuarterName for r in results]
                 data = [float(r.Revenue) for r in results]
@@ -277,6 +284,8 @@ class DashboardService:
                 labels=labels,
                 datasets=[ChartDataset(label="Revenue", data=data)]
             )
+            t_end = _time.monotonic()
+            logger.info("⏱ TOTAL drilldown method took %.3fs", t_end - t0)
             logger.info("Returning ChartData with %d labels and %d values", len(labels), len(data))
             return result
 

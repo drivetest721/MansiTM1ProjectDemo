@@ -328,13 +328,7 @@ export default function WorkforcePlanning() {
         </div>
       </div>
 
-      {/* KPI Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
-        {kpiData.map((kpi, index) => (
-          <MetricCard key={index} title={kpi.title} value={kpi.value} icon={kpi.icon} iconColor={kpi.color} />
-        ))}
-      </div>
-
+    
       {/* Global Filters — dynamic filters appear only after options have loaded from the backend.
           Filters with no data returned are hidden rather than shown as empty dropdowns. */}
       <div className="relative">
@@ -352,6 +346,7 @@ export default function WorkforcePlanning() {
         />
       </div>
 
+
       {/* Action Buttons */}
       <div className="flex items-center justify-end gap-3 mb-4">
         <button
@@ -363,17 +358,14 @@ export default function WorkforcePlanning() {
         </button>
       </div>
 
-      {/* Main Cube Grid */}
-      <CubeGrid
-        data={cubeData}
-        measures={pivotConfig.measures}
-        title="Workforce Cube View"
-        showExport={true}
-        onExport={handleExport}
-        onDrillDown={handleDrillDown}
-      />
+        {/* KPI Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+        {kpiData.map((kpi, index) => (
+          <MetricCard key={index} title={kpi.title} value={kpi.value} icon={kpi.icon} iconColor={kpi.color} />
+        ))}
+      </div>
 
-      {/* Supporting Charts */}
+        {/* Supporting Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Headcount by Department */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
@@ -422,6 +414,17 @@ export default function WorkforcePlanning() {
       
        
       </div>
+      {/* Main Cube Grid */}
+      <CubeGrid
+        data={cubeData}
+        measures={pivotConfig.measures}
+        title="Workforce Cube View"
+        showExport={true}
+        onExport={handleExport}
+        onDrillDown={handleDrillDown}
+      />
+
+    
 
       {/* Pivot Dialog */}
       <PivotDialog

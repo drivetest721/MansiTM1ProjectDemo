@@ -101,18 +101,21 @@ async def get_revenue_by_segment(db: Session = Depends(get_db)):
         logger.error(f"Error in get_revenue_by_segment: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error fetching revenue by segment: {str(e)}")
 
-
+import time as time
 @router.get("/revenue-drilldown", response_model=ChartData, summary="Revenue Drill-down Year→Quarter→Month")
-def get_revenue_drilldown(
+async def get_revenue_drilldown(
     level: str = Query(..., regex="^(quarter|month)$"),
     year: int = Query(None),
     quarter: str = Query(None),
     db: Session = Depends(get_db)
 ):
+    t0 = time.monotonic()
     try:
         logger.info("Drilldown request: level=%s, year=%s, quarter=%s", level, year, quarter)
         service = DashboardService(db)
         result = service.get_revenue_drilldown(level=level, year=year, quarter=quarter)
+        logger.info("⏱ Route total time: %.3fs", time.monotonic() - t0)
+
         logger.info("Drilldown response: %d labels, %d datasets", len(result.labels), len(result.datasets))
         logger.debug("Drilldown labels: %s", result.labels)
         logger.debug("Drilldown data: %s", result.datasets[0].data if result.datasets else "no datasets")

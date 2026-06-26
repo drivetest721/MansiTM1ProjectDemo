@@ -43,7 +43,7 @@ app = FastAPI(
 )
 
 # GZip compression — shrinks large JSON responses ~10x
-app.add_middleware(GZipMiddleware, minimum_size=1000)
+# app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # CORS Configuration
 app.add_middleware(

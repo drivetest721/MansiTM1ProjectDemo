@@ -45,7 +45,7 @@ export default function RevenuePlanning() {
   const [pivotConfig, setPivotConfig] = useState<PivotConfig>({
     rowDimensions: ['Product'],
     columnDimensions: ['Time'],
-    measures: ['Revenue', 'Cost', 'Quantity', 'Gross Margin', 'Gross Margin %', 'Avg Selling Price'],
+    measures: ['Revenue', 'Cost', 'Quantity', 'Gross Margin', 'Gross Margin %'],
   });
 
   // Load filter options from backend on mount.
@@ -147,7 +147,7 @@ export default function RevenuePlanning() {
           Quantity: quantity,
           'Gross Margin': category.margin,
           'Gross Margin %': category.margin_percent,
-          'Avg Selling Price': quantity ? category.revenue / quantity : undefined,
+         
         };
       });
 
@@ -168,7 +168,7 @@ export default function RevenuePlanning() {
         Quantity: totalQuantity > 0 ? totalQuantity : undefined,
         'Gross Margin': totalMargin,
         'Gross Margin %': totalRevenue > 0 ? (totalMargin / totalRevenue) * 100 : 0,
-        'Avg Selling Price': totalQuantity > 0 ? totalRevenue / totalQuantity : undefined,
+       
       });
 
       setCubeData(gridData);
@@ -227,7 +227,7 @@ export default function RevenuePlanning() {
     try {
       exportCubeToExcel(
         cubeData,
-        ['Revenue', 'Cost', 'Quantity', 'Gross Margin', 'Gross Margin %', 'Avg Selling Price'],
+        ['Revenue', 'Cost', 'Quantity', 'Gross Margin', 'Gross Margin %'],
         'Revenue_Planning_Cube'
       );
     } catch (error) {
@@ -283,7 +283,6 @@ export default function RevenuePlanning() {
         Quantity: item.quantity || 0,
         'Gross Margin': item.margin || 0,
         'Gross Margin %': item.margin_percent || 0,
-        'Avg Selling Price': (item.revenue || 0) / (item.quantity || 1),
       }));
     } catch (error: any) {
       if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') {
@@ -369,18 +368,8 @@ export default function RevenuePlanning() {
           Pivot Options
         </button>
       </div>
-
-      {/* Main Cube Grid */}
-      <CubeGrid
-        data={cubeData}
-        measures={pivotConfig.measures}
-        title="Revenue Cube View"
-        showExport={true}
-        onExport={handleExport}
-        onDrillDown={handleDrillDown}
-      />
-
-      {/* Supporting Charts */}
+       
+       {/* Supporting Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Revenue by Product Category */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
@@ -442,6 +431,18 @@ export default function RevenuePlanning() {
           </ResponsiveContainer>
         </div>
       </div>
+
+      {/* Main Cube Grid */}
+      <CubeGrid
+        data={cubeData}
+        measures={pivotConfig.measures}
+        title="Revenue Cube View"
+        showExport={true}
+        onExport={handleExport}
+        onDrillDown={handleDrillDown}
+      />
+
+     
 
       {/* Pivot Dialog */}
       <PivotDialog
