@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import FinancialTable from '../components/FinancialTable';
 import type { FinancialRow } from '../components/FinancialTable';
 import GlobalFilters from '../components/GlobalFilters';
@@ -52,7 +52,6 @@ export default function ForecastingAnalysis() {
     entity: 'all',
   });
 
-  const fetchingRef = useRef(false);
   const [scenarios, setScenarios]               = useState<any[]>(scenariosFallback);
   const [forecastTableData, setForecastTableData] = useState<FinancialRow[]>([]);
   const [forecastTrendData, setForecastTrendData] = useState<any[]>(forecastTrendFallback);
@@ -87,24 +86,27 @@ export default function ForecastingAnalysis() {
   }, []);
 
   // -------------------------------------------------------------------------
-  // Load scenario summary, forecast table, and monthly trend
+  // Load scenario summary, forecast table, and monthly trend.
+  // Uses a `cancelled` closure flag — no race condition from rapid filter
+  // changes. Previous data stays visible while the new fetch is in flight.
   // -------------------------------------------------------------------------
   useEffect(() => {
-    const loadForecastData = async () => {
-      if (fetchingRef.current) return;
-      fetchingRef.current = true;
-      setLoading(true);
-      setError(null);
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
 
-      const params: { year: number; entity?: string } = { year: parseInt(filters.year) };
-      if (filters.entity !== 'all') params.entity = filters.entity;
+    const params: { year: number; entity?: string } = { year: parseInt(filters.year) };
+    if (filters.entity !== 'all') params.entity = filters.entity;
 
+    (async () => {
       try {
         const [scenarioRes, tableRes, trendRes] = await Promise.allSettled([
           getScenarioSummary(params),
           getForecastTable(params),
           getForecastMonthlyTrend(params),
         ]);
+
+        if (cancelled) return;
 
         // Scenarios
         if (scenarioRes.status === 'fulfilled') {
@@ -143,25 +145,23 @@ export default function ForecastingAnalysis() {
 
         if (
           scenarioRes.status === 'rejected' &&
-          tableRes.status  === 'rejected' &&
-          trendRes.status  === 'rejected'
+          tableRes.status    === 'rejected' &&
+          trendRes.status    === 'rejected'
         ) {
           setError('Could not reach the backend. Showing sample data.');
         }
 
       } catch (err: any) {
+        if (cancelled) return;
         console.error('Unexpected error loading forecast data:', err);
         setError(err.message || 'Failed to load forecasting data');
         setScenarios(scenariosFallback);
       } finally {
-        setLoading(false);
-        fetchingRef.current = false;
+        if (!cancelled) setLoading(false);
       }
-    };
+    })();
 
-    const controller = new AbortController();
-    loadForecastData();
-    return () => { controller.abort(); fetchingRef.current = false; };
+    return () => { cancelled = true; };
   }, [filters.year, filters.entity]);
 
   // -------------------------------------------------------------------------

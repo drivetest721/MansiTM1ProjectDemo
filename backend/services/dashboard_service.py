@@ -232,8 +232,8 @@ class DashboardService:
 
     def _fetch_revenue_drilldown(self, level: str, year: int = None, quarter: str = None) -> ChartData:
         try:
-            logger.info(f"🔍 Fetching drill-down: level={level}, year={year}, quarter={quarter}")
-            
+            logger.info("Fetching drill-down: level=%s, year=%s, quarter=%s", level, year, quarter)
+
             if level == "quarter":
                 if year is None:
                     raise ValueError("year is required for quarter-level drill-down")
@@ -245,12 +245,12 @@ class DashboardService:
                 ORDER BY QuarterName
                 """
                 results = self.db.execute(text(query), {"year": year}).fetchall()
-                logger.info(f"✅ Quarter query returned {len(results)} rows")
-                
+                logger.info("Quarter query returned %d rows", len(results))
+
                 labels = [r.QuarterName for r in results]
                 data = [float(r.Revenue) for r in results]
-                logger.info(f"📊 Quarter labels: {labels}")
-                logger.info(f"📊 Quarter values: {data}")
+                logger.debug("Quarter labels: %s", labels)
+                logger.debug("Quarter values: %s", data)
 
             elif level == "month":
                 if year is None or quarter is None:
@@ -263,12 +263,12 @@ class DashboardService:
                 ORDER BY DATEPART(MONTH, CONVERT(date, CAST(DateID AS varchar(8)), 112))
                 """
                 results = self.db.execute(text(query), {"year": year, "quarter": quarter}).fetchall()
-                logger.info(f"✅ Month query returned {len(results)} rows")
-                
+                logger.info("Month query returned %d rows", len(results))
+
                 labels = [r.MonthName for r in results]
                 data = [float(r.Revenue) for r in results]
-                logger.info(f"📊 Month labels: {labels}")
-                logger.info(f"📊 Month values: {data}")
+                logger.debug("Month labels: %s", labels)
+                logger.debug("Month values: %s", data)
 
             else:
                 raise ValueError(f"Unsupported drill-down level: {level}")
@@ -277,10 +277,10 @@ class DashboardService:
                 labels=labels,
                 datasets=[ChartDataset(label="Revenue", data=data)]
             )
-            logger.info(f"✅ Returning ChartData with {len(labels)} labels and {len(data)} values")
+            logger.info("Returning ChartData with %d labels and %d values", len(labels), len(data))
             return result
-            
+
         except Exception as e:
-            logger.error(f"❌ Error fetching revenue drill-down ({level}): {str(e)}")
-            logger.exception(e)  # This will log the full stack trace
+            logger.error("Error fetching revenue drill-down (%s): %s", level, str(e))
+            logger.exception(e)
             raise

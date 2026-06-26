@@ -7,7 +7,8 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, L
 import { getDashboard, getRevenueDrilldown } from '../services/api';
 import { exportFinancialTableToExcel } from '../utils/exportToExcel';
 import { THEME_COLORS, formatCurrency2dp, formatPercent2dp } from '../theme/colors';
-import AnnotationPanel from '../components/AnnotationPanel';
+import AnnotationPanelRaw from '../components/AnnotationPanel';
+const AnnotationPanel = memo(AnnotationPanelRaw);
 
 
 const COLORS = THEME_COLORS;
@@ -127,6 +128,40 @@ const BudgetVsForecastSection = memo(function BudgetVsForecastSection() {
   );
 });
 
+// Static summary data — defined at module level so the array reference is
+// stable across parent re-renders, preventing TanStack Table from reprocessing
+// on every drill-down state change.
+const SUMMARY_TABLE_DATA: FinancialRow[] = [
+  { id: 'revenue',      label: 'Revenue',            actual: 142500000, budget: 138200000, forecast: 145800000, variance:  4300000, variancePercent:  3.1 },
+  { id: 'COGS',         label: 'COGS',               actual:  98700000, budget:  95100000, forecast:  99200000, variance:  3600000, variancePercent:  3.8 },
+  { id: 'gross-margin', label: 'Gross Margin',        actual:  43800000, budget:  43100000, forecast:  46600000, variance:   700000, variancePercent:  1.6, isSubtotal: true },
+  { id: 'payroll',      label: 'Payroll',             actual:  52300000, budget:  49800000, forecast:  53100000, variance:  2500000, variancePercent:  5.0 },
+  { id: 'opex',         label: 'Operating Expenses',  actual:  28400000, budget:  27200000, forecast:  29000000, variance:  1200000, variancePercent:  4.4 },
+  { id: 'ebitda',       label: 'EBITDA',              actual: -36900000, budget: -33900000, forecast: -35500000, variance: -3000000, variancePercent: -8.8, isSubtotal: true },
+  { id: 'net-income',   label: 'Net Income',          actual: -42100000, budget: -39200000, forecast: -40800000, variance: -2900000, variancePercent: -7.4, isTotal: true },
+];
+
+// ---- Helper functions outside component to prevent re-creation ----
+function transformChartData(chartData: any): { label: string; value: number }[] {
+  if (!chartData || !chartData.labels || !chartData.datasets || chartData.datasets.length === 0) {
+    return [];
+  }
+  return chartData.labels.map((label: string, index: number) => ({
+    label,
+    value: chartData.datasets[0].data[index],
+  }));
+}
+
+function transformDrillData(data: any): { label: string; value: number }[] {
+  if (!data) return [];
+  if (data.labels && data.datasets) return transformChartData(data);
+  if (Array.isArray(data)) return data.map((item: any) => ({
+    label: item.QuarterName ?? item.MonthName ?? item.quarter ?? item.month ?? item.label ?? '',
+    value: Number(item.Revenue ?? item.revenue ?? item.value ?? 0),
+  }));
+  return [];
+}
+
 export default function ExecutiveOverview() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -146,39 +181,25 @@ export default function ExecutiveOverview() {
   const [drillLoading, setDrillLoading] = useState(false);
   const [drillError, setDrillError] = useState<string | null>(null);
 
+  // categoryLoading kept for future use; originalCategoryDataRef restores on breadcrumb back-nav
+  const [categoryLoading] = useState(false);
+  const originalCategoryDataRef = useRef<any[]>([]);
 
   const [pieSelectedSlice, setPieSelectedSlice] = useState<string | null>(null);
 
   const currentYear = new Date().getFullYear(); // 2026
-  const last4YearsData = revenueByYear
-    .filter((d) => Number(d.label) <= currentYear)
-    .slice(-4);
-
-  const transformChartData = (chartData: any) => {
-    if (!chartData || !chartData.labels || !chartData.datasets || chartData.datasets.length === 0) {
-      return [];
-    }
-    return chartData.labels.map((label: string, index: number) => ({
-      label,
-      value: chartData.datasets[0].data[index],
-    }));
-  };
-
-  // Handles both { labels, datasets } and array format from the drill-down API
-  const transformDrillData = (data: any): { label: string; value: number }[] => {
-    if (!data) return [];
-    if (data.labels && data.datasets) return transformChartData(data);
-    if (Array.isArray(data)) return data.map((item: any) => ({
-      label: item.QuarterName ?? item.MonthName ?? item.quarter ?? item.month ?? item.label ?? '',
-      value: Number(item.Revenue ?? item.revenue ?? item.value ?? 0),
-    }));
-    return [];
-  };
+  
+  const last4YearsData = useMemo(() => 
+    revenueByYear
+      .filter((d) => Number(d.label) <= currentYear)
+      .slice(-4),
+    [revenueByYear, currentYear]
+  );
 
   const fetchingRef = useRef(false);
   const drillingRef = useRef(false);
 
-  const loadDashboardData = useCallback(async () => {
+  const loadDashboardData = async () => {
     if (fetchingRef.current) return;
     fetchingRef.current = true;
     try {
@@ -229,7 +250,9 @@ export default function ExecutiveOverview() {
 
       setRevenueByYear(transformChartData(data.revenue_by_year));
       setRevenueByRegion(transformChartData(data.revenue_by_region));
-      setRevenueByCategory(transformChartData(data.revenue_by_category));
+      const catData = transformChartData(data.revenue_by_category);
+      setRevenueByCategory(catData);
+      originalCategoryDataRef.current = catData;
       
     } catch (err: any) {
       console.error('Error loading dashboard data:', err);
@@ -238,64 +261,137 @@ export default function ExecutiveOverview() {
       setLoading(false);
       fetchingRef.current = false;
     }
-  }, []);
+  };
   
   useEffect(() => {
-    const controller = new AbortController();
     loadDashboardData();
-    return () => { controller.abort(); fetchingRef.current = false; };
-  }, [loadDashboardData]);
+  }, []);
+
+  const currentBarData = useMemo(() => {
+    if (drillLevel === 'year') return last4YearsData;
+    if (drillLevel === 'quarter') return quarterData;
+    return monthData;
+  }, [drillLevel, last4YearsData, quarterData, monthData]);
 
 
-
-    const currentBarData =
-            drillLevel === 'year'
-              ? last4YearsData
-              : drillLevel === 'quarter'
-              ? quarterData
-              : monthData;
-
+  // Capture drillLevel + selectedYear in a ref so handleBarClick always reads
+  // the current value, not a stale closure snapshot.
+  const drillLevelRef = useRef<DrillLevel>('year');
+  const selectedYearRef = useRef<string | null>(null);
+  const lastClickTimeRef = useRef<number>(0);
+  drillLevelRef.current = drillLevel;
+  selectedYearRef.current = selectedYear;
 
   // ---- Real drill-down data, fetched from backend on click ----
-
   const handleBarClick = async (data: any) => {
-    if (drillingRef.current) return;
-    const label = data?.payload?.label ?? data?.label;
-    if (!label) return;
+    console.log('[Drill] handleBarClick called');
+    
+    // Prevent multiple rapid clicks (debounce 500ms)
+    const now = Date.now();
+    if (now - lastClickTimeRef.current < 500) {
+      console.log('[Drill] click ignored: debounce');
+      return;
+    }
+    lastClickTimeRef.current = now;
+
+    // Prevent concurrent drill operations
+    if (drillingRef.current) {
+      console.log('[Drill] click ignored: already drilling');
+      return;
+    }
+
+    // Recharts Bar onClick passes the full bar props; the raw data item is in .payload
+    const label = data?.payload?.label ?? data?.activePayload?.[0]?.payload?.label ?? data?.label;
+    console.log('[Drill] clicked bar — raw data:', data, '→ label:', label);
+    if (!label) {
+      console.warn('[Drill] click ignored: could not extract label from bar data');
+      return;
+    }
+
+    const level = drillLevelRef.current;
+    const year  = selectedYearRef.current;
+
+    // Don't allow drilling at month level
+    if (level === 'month') {
+      console.log('[Drill] already at deepest level');
+      return;
+    }
 
     drillingRef.current = true;
     setDrillLoading(true);
     setDrillError(null);
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
+    // Set a timeout to prevent infinite hangs
+    const timeoutId = setTimeout(() => {
+      if (drillingRef.current) {
+        setDrillError('Request timed out — please try again');
+        setDrillLoading(false);
+        drillingRef.current = false;
+      }
+    }, 10000);
 
     try {
-      if (drillLevel === 'year') {
-        const res = await getRevenueDrilldown({ level: 'quarter', year: Number(label) });
+      if (level === 'year') {
+        console.log('[Drill] Fetching quarters for year:', label);
+        
+        // Create a race between the API call and a timeout
+        const fetchPromise = getRevenueDrilldown({ level: 'quarter', year: Number(label) });
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('API timeout after 8 seconds')), 8000)
+        );
+        
+        const res = await Promise.race([fetchPromise, timeoutPromise]) as any;
+        console.log('[Drill] API call completed');
+        
         const raw = res.data?.data ?? res.data;
+        console.log('[Drill] quarter raw response:', raw);
         const transformed = transformDrillData(raw);
+        console.log('[Drill] transformed quarter data:', transformed);
         if (transformed.length === 0) {
           setDrillError(`No quarterly data found for ${label}`);
+          drillingRef.current = false;
         } else {
+          console.log('[Drill] Setting quarter data and updating state');
+          // Batch all state updates together
+          setDrillLoading(false);
           setQuarterData(transformed);
           setSelectedYear(label);
           setDrillLevel('quarter');
+          drillingRef.current = false;
+          console.log('[Drill] State updated successfully');
         }
-      } else if (drillLevel === 'quarter') {
-        const res = await getRevenueDrilldown({
+      } else if (level === 'quarter') {
+        console.log('[Drill] Fetching months for:', year, label);
+        
+        // Create a race between the API call and a timeout
+        const fetchPromise = getRevenueDrilldown({
           level: 'month',
-          year: Number(selectedYear),
+          year: Number(year),
           quarter: label,
         });
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('API timeout after 8 seconds')), 8000)
+        );
+        
+        const res = await Promise.race([fetchPromise, timeoutPromise]) as any;
+        console.log('[Drill] API call completed');
+        
         const raw = res.data?.data ?? res.data;
+        console.log('[Drill] month raw response:', raw);
         const transformed = transformDrillData(raw);
+        console.log('[Drill] transformed month data:', transformed);
         if (transformed.length === 0) {
-          setDrillError(`No monthly data found for ${selectedYear} ${label}`);
+          setDrillError(`No monthly data found for ${year} ${label}`);
+          drillingRef.current = false;
         } else {
+          console.log('[Drill] Setting month data and updating state');
+          // Batch all state updates together
+          setDrillLoading(false);
           setMonthData(transformed);
           setSelectedQuarter(label);
           setDrillLevel('month');
+          drillingRef.current = false;
+          console.log('[Drill] State updated successfully');
         }
       }
     } catch (err: any) {
@@ -303,16 +399,27 @@ export default function ExecutiveOverview() {
         setDrillError('Request timed out — please try again');
       } else {
         setDrillError('Failed to load drill-down data');
-        console.error('Drill-down error:', err);
+        console.error('[Drill] error:', err);
       }
-    } finally {
-      clearTimeout(timeout);
       setDrillLoading(false);
       drillingRef.current = false;
+    } finally {
+      clearTimeout(timeoutId);
+      // Only clear loading/drilling if not already done in success path
+      if (drillingRef.current) {
+        setDrillLoading(false);
+        drillingRef.current = false;
+      }
     }
   };
 
   const handleBarBreadcrumb = (target: DrillLevel) => {
+    // Prevent breadcrumb navigation during active drilling
+    if (drillingRef.current) {
+      console.log('[Drill] breadcrumb ignored: drilling in progress');
+      return;
+    }
+
     if (target === 'year') {
       setDrillLevel('year');
       setSelectedYear(null);
@@ -383,7 +490,7 @@ const summaryTableData: FinancialRow[] = [
 
   const handleExportFinancialSummary = () => {
     try {
-      exportFinancialTableToExcel(summaryTableData, 'Executive_Overview_Financial_Summary');
+      exportFinancialTableToExcel(SUMMARY_TABLE_DATA, 'Executive_Overview_Financial_Summary');
     } catch (error) {
       console.error('Export failed:', error);
     }
@@ -415,6 +522,17 @@ const summaryTableData: FinancialRow[] = [
 
   return (
     <div className="space-y-6">
+      {/* Full-screen loading overlay during drill operations */}
+      {drillLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-900 dark:text-white font-semibold">Loading drill-down data...</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">Please wait</p>
+          </div>
+        </div>
+      )}
+
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -498,28 +616,53 @@ const summaryTableData: FinancialRow[] = [
             </div>
           )}
 
-          <div className={drillLoading ? 'opacity-30 transition-opacity pointer-events-none' : ' transition-opacity'}>
-            <ResponsiveContainer width="100%" height={300} className="px-4">
-              <BarChart data={currentBarData}  margin={{ top: 20, right: 0, left: 30, bottom: 5 }}>
+          {/* No CSS transition on the wrapper — opacity transitions trigger ResizeObserver
+              inside ResponsiveContainer which can cascade into an animation loop */}
+          <div style={{ opacity: drillLoading ? 0.3 : 1, pointerEvents: drillLoading ? 'none' : undefined }}>
+            <ResponsiveContainer 
+              width="100%" 
+              height={300} 
+              className="px-4"
+              key={`chart-${drillLevel}-${selectedYear}-${selectedQuarter}`}
+            >
+              <BarChart data={currentBarData} margin={{ top: 20, right: 0, left: 30, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
                 <XAxis dataKey="label" stroke="#6b7280" />
                 <YAxis tickFormatter={formatCurrency2dp} stroke="#6b7280" />
-                <Tooltip formatter={(value) => (value ? formatCurrency2dp(Number(value)) : '')} />
+                <Tooltip 
+                  formatter={(value) => (value ? formatCurrency2dp(Number(value)) : '')}
+                  content={(props: any) => {
+                    if (!props.active || !props.payload || !props.payload[0]) return null;
+                    return (
+                      <div className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg p-3">
+                        <p className="font-semibold text-gray-900 dark:text-white">{props.payload[0].payload.label}</p>
+                        <p className="text-blue-600 dark:text-blue-400">Revenue: {formatCurrency2dp(props.payload[0].value)}</p>
+                        {drillLevel !== 'month' && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 italic">👆 Click to drill down</p>
+                        )}
+                      </div>
+                    );
+                  }}
+                />
                 <Legend />
                 <Bar
                   dataKey="value"
                   name="Revenue"
                   fill={PRIMARY}
-                  cursor={drillLevel !== 'month' ? 'pointer' : 'default'}
+                  isAnimationActive={false}
+                  cursor={drillLevel !== 'month' && !drillLoading ? 'pointer' : 'default'}
                   onClick={(data: any) => {
-                    if (drillLevel !== 'month' && !drillLoading) handleBarClick(data);
+                    if (drillLevel !== 'month' && !drillingRef.current && !drillLoading) {
+                      handleBarClick(data);
+                    }
                   }}
-                  label={{ position: 'top', formatter: (v: any) => formatCurrency2dp(Number(v)), fontSize: 16 , fontWeight: 'bold', fill: '#374151' }}
+                  label={{ position: 'top', formatter: (v: any) => formatCurrency2dp(Number(v)), fontSize: 16, fontWeight: 'bold', fill: '#374151' }}
                 />
               </BarChart>
             </ResponsiveContainer>
           </div>
-          {drillLevel !== 'year' && <p className="text-center text-xs text-gray-400 mt-2">Click a bar to drill down further (down to Month level)</p>}
+          {drillLevel !== 'year' && <p className="text-center text-xs text-gray-400 mt-2">👆 Click a bar to drill down further (down to Month level)</p>}
+          {drillLevel === 'year' && <p className="text-center text-xs text-gray-400 mt-2">👆 Single-click any bar to drill down to quarters</p>}
         </div>
 
         {/* Revenue by Region */}
@@ -549,7 +692,13 @@ const summaryTableData: FinancialRow[] = [
                   outerRadius={100}
                   dataKey="value"
                   nameKey="label"
+                  isAnimationActive={false}
                   onClick={(entry: any) => {
+                    // Debounce pie chart clicks
+                    const now = Date.now();
+                    if (now - lastClickTimeRef.current < 300) return;
+                    lastClickTimeRef.current = now;
+                    
                     // FIX: Recharts' pie click event nests the real datum under
                     // `.payload` — `entry.label` is undefined, so the filter
                     // below never matched anything. Read `.payload.label` first.
@@ -572,27 +721,51 @@ const summaryTableData: FinancialRow[] = [
         {/* Budget vs Forecast — sub-component owns its own filter state */}
         <BudgetVsForecastSection />
 
-        {/* Revenue by Category */}
+        {/* Revenue by Category — synced with Revenue drill-down */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Revenue by Category</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={revenueByCategory} layout="vertical" margin={{ left: 40, right: 40, top: 10, bottom: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
-              <XAxis type="number" tickFormatter={formatCurrency2dp} stroke="#6b7280" />
-              <YAxis type="category" dataKey="label" stroke="#6b7280" width={120} tick={{ fontSize: 12 }} interval={0} />
-              <Tooltip formatter={(value) => (value ? formatCurrency2dp(Number(value)) : '')} />
-              <Bar dataKey="value" name="Revenue" label={{ position: 'right', formatter: (v: any) => (v !== undefined && v !== null ? formatCurrency2dp(Number(v)) : ''), fontSize: 14 }}>
-                {revenueByCategory.map((_entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Revenue by Category
+                {drillLevel !== 'year' && (
+                  <span className="ml-2 text-sm font-normal text-blue-600 dark:text-blue-400">
+                    — {drillLevel === 'month' ? `${selectedYear} ${selectedQuarter}` : selectedYear}
+                  </span>
+                )}
+              </h3>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                {drillLevel === 'year'
+                  ? 'All periods · Click a year bar ← to filter by period'
+                  : 'Synced with Revenue drill-down ←'}
+              </p>
+            </div>
+            {categoryLoading && (
+              <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-blue-500" />
+                Updating…
+              </div>
+            )}
+          </div>
+          <div style={{ opacity: categoryLoading ? 0.4 : 1, pointerEvents: categoryLoading ? 'none' : undefined }}>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={revenueByCategory} layout="vertical" margin={{ left: 40, right: 40, top: 10, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
+                <XAxis type="number" tickFormatter={formatCurrency2dp} stroke="#6b7280" />
+                <YAxis type="category" dataKey="label" stroke="#6b7280" width={120} tick={{ fontSize: 12 }} interval={0} />
+                <Tooltip formatter={(value) => (value ? formatCurrency2dp(Number(value)) : '')} />
+                <Bar dataKey="value" name="Revenue" label={{ position: 'right', formatter: (v: any) => (v !== undefined && v !== null ? formatCurrency2dp(Number(v)) : ''), fontSize: 14 }}>
+                  {revenueByCategory.map((_entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
 
       {/* Financial Summary Table */}
-      <FinancialTable data={summaryTableData} title="Financial Summary by Business Area." showExport={true} onExport={handleExportFinancialSummary} />
+      <FinancialTable data={SUMMARY_TABLE_DATA} title="Financial Summary by Business Area." showExport={true} onExport={handleExportFinancialSummary} />
       <AnnotationPanel pageKey="cfo-overview"  />
     </div>
   );

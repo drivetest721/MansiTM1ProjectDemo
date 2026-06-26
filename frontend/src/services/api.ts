@@ -7,6 +7,25 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 10000, // 10 second timeout
+});
+
+// Request interceptor for logging
+api.interceptors.request.use((config) => {
+  console.log(`🔵 API Request: ${config.method?.toUpperCase()} ${config.url}`, config.params);
+  return config;
+}, (error) => {
+  console.error('❌ API Request Error:', error);
+  return Promise.reject(error);
+});
+
+// Response interceptor for logging
+api.interceptors.response.use((response) => {
+  console.log(`✅ API Response: ${response.config.url}`, response.status);
+  return response;
+}, (error) => {
+  console.error('❌ API Response Error:', error?.config?.url, error?.message);
+  return Promise.reject(error);
 });
 
 // Type definitions for API parameters

@@ -358,15 +358,18 @@ export default function CFOBudgeting() {
   };
 
   const handleDrillDown = async (row: FinancialRow) => {
-    try {
-      const level = row.level || 'statement';
-      const hierarchyMap: Record<string, string> = { statement: 'account_type', account_type: 'account' };
-      const nextLevel = hierarchyMap[level];
-      if (!nextLevel) return [];
+    const level = row.level || 'statement';
+    const hierarchyMap: Record<string, string> = { statement: 'account_type', account_type: 'account' };
+    const nextLevel = hierarchyMap[level];
+    if (!nextLevel) return [];
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
+    try {
       const params: any = { level: nextLevel, parent_value: row.label };
-      if (filters.year !== 'all')        params.year   = parseInt(filters.year);
-      if (filters.entity !== 'all')      params.entity = filters.entity;
+      if (filters.year !== 'all')        params.year       = parseInt(filters.year);
+      if (filters.entity !== 'all')      params.entity     = filters.entity;
       if (filters.department !== 'all')  params.department = filters.department;
 
       const response = await getBudgetDrillDown(params);
@@ -383,9 +386,15 @@ export default function CFOBudgeting() {
         variancePercent: 7,
         indent: (row.indent || 0) + 1,
       }));
-    } catch (error) {
-      console.error('Drill-down failed:', error);
+    } catch (error: any) {
+      if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') {
+        console.error('Budget drill-down timed out');
+      } else {
+        console.error('Drill-down failed:', error);
+      }
       return [];
+    } finally {
+      clearTimeout(timeout);
     }
   };
 

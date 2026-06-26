@@ -247,12 +247,15 @@ export default function WorkforcePlanning() {
   };
 
   const handleDrillDown = async (row: CubeRow) => {
-    try {
-      const level = row.level || 'department';
-      const hierarchyMap: Record<string, string> = { 'department': 'cost_center', 'cost_center': 'employee' };
-      const nextLevel = hierarchyMap[level];
-      if (!nextLevel) return [];
+    const level = row.level || 'department';
+    const hierarchyMap: Record<string, string> = { 'department': 'cost_center', 'cost_center': 'employee' };
+    const nextLevel = hierarchyMap[level];
+    if (!nextLevel) return [];
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
+    try {
       const params: any = { level: nextLevel, parent_value: row.rowLabel };
       if (filters.year !== 'all') params.year = parseInt(filters.year);
       if (filters.entity !== 'all') params.entity = filters.entity;
@@ -272,9 +275,15 @@ export default function WorkforcePlanning() {
         'Total Compensation': item.total_compensation,
         'Avg Salary': item.total_compensation / (item.employee_count || 1),
       }));
-    } catch (error) {
-      console.error('Drill-down failed:', error);
+    } catch (error: any) {
+      if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') {
+        console.error('Workforce drill-down timed out');
+      } else {
+        console.error('Drill-down failed:', error);
+      }
       return [];
+    } finally {
+      clearTimeout(timeout);
     }
   };
 
