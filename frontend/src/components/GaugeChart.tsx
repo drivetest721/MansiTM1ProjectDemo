@@ -87,9 +87,9 @@ export default function GaugeChart({
 
       <div className="text-center -mt-2">
         <p className="text-xl font-bold text-gray-900 dark:text-white">{format(actual)}</p>
-        <p className="text-xs text-gray-500 dark:text-gray-400">Target: {format(target)}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">Budget: {format(target)}</p>
         <p className={`text-xs font-semibold mt-1 ${isGood ? 'text-green-600' : 'text-red-600'}`}>
-          {achievedPct.toFixed(1)}% of target
+          {achievedPct.toFixed(1)}% of Budget
         </p>
       </div>
     </div>

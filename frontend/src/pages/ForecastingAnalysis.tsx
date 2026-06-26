@@ -182,6 +182,27 @@ export default function ForecastingAnalysis() {
       options: entityOptions ?? [],
     },
   ];
+   
+
+const formatChartCurrency = (value: number | undefined) => {
+  if (value === undefined || value === null) return '-';
+
+  const abs = Math.abs(value);
+
+  let formatted: string;
+
+  if (abs >= 1_000_000_000) {
+    formatted = `${(abs / 1_000_000_000).toFixed(1)}B`;
+  } else if (abs >= 1_000_000) {
+    formatted = `${(abs / 1_000_000).toFixed(1)}M`;
+  } else if (abs >= 1_000) {
+    formatted = `${(abs / 1_000).toFixed(1)}K`;
+  } else {
+    formatted = abs.toFixed(0);
+  }
+
+  return value < 0 ? `(${formatted})` : formatted;
+};
 
   const handleResetFilters = () => setFilters({ year: '2024', entity: 'all' });
 
@@ -262,15 +283,15 @@ export default function ForecastingAnalysis() {
                   <div className="space-y-3">
                     <div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">Revenue</p>
-                      <p className="text-xl font-bold text-gray-900 dark:text-white">{formatCurrency(scenario.revenue)}</p>
+                      <p className="text-xl font-bold text-gray-900 dark:text-white">{formatChartCurrency(scenario.revenue)}</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">EBITDA</p>
-                      <p className="text-xl font-bold text-gray-900 dark:text-white">{formatCurrency(scenario.ebitda)}</p>
+                      <p className="text-xl font-bold text-gray-900 dark:text-white">{formatChartCurrency(scenario.ebitda)}</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">Net Income</p>
-                      <p className="text-xl font-bold text-gray-900 dark:text-white">{formatCurrency(scenario.netIncome)}</p>
+                      <p className="text-xl font-bold text-gray-900 dark:text-white">{formatChartCurrency(scenario.netIncome)}</p>
                     </div>
                   </div>
                 </div>
@@ -278,16 +299,7 @@ export default function ForecastingAnalysis() {
             })}
           </div>
 
-          {/* Forecast Table */}
-          {forecastTableData.length > 0 && (
-            <FinancialTable
-              data={forecastTableData}
-              title="Forecast Analysis Table"
-              showExport={true}
-              onExport={handleExportForecastTable}
-            />
-          )}
-
+          
           {/* Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Monthly Budget vs Forecast Trend */}
@@ -299,8 +311,8 @@ export default function ForecastingAnalysis() {
                 <LineChart data={forecastTrendData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
                   <XAxis dataKey="month" stroke="#6b7280" />
-                  <YAxis tickFormatter={(v) => formatCurrency(v)} stroke="#6b7280" />
-                  <Tooltip formatter={(value) => (value ? formatCurrency(Number(value)) : '')} />
+                  <YAxis tickFormatter={(v) => formatChartCurrency(Number(v))} stroke="#6b7280" />
+                  <Tooltip formatter={(value) => (value ? formatChartCurrency(Number(value)) : '')} />
                   <Legend />
                   <Line type="monotone" dataKey="budget" name="Budget" stroke="#10b981" strokeWidth={2}>
                     <LabelList
@@ -308,7 +320,7 @@ export default function ForecastingAnalysis() {
                       position="top"
                       offset={-25}
                       angle={-45}
-                      formatter={(v) => (v != null ? formatCurrency(Number(v)) : '')}
+                      formatter={(v) => (v != null ? formatChartCurrency(Number(v)) : '')}
                       style={{ fontSize: 14, fill: '#10b981' }}
                     />
                   </Line>
@@ -318,7 +330,7 @@ export default function ForecastingAnalysis() {
                       position="bottom"
                       offset={25}
                       angle={45}
-                      formatter={(v) => (v != null ? formatCurrency(Number(v)) : '')}
+                      formatter={(v) => (v != null ? formatChartCurrency(Number(v)) : '')}
                       style={{ fontSize: 14, fill: '#f59e0b' }}
                     />
                   </Line>
@@ -328,7 +340,7 @@ export default function ForecastingAnalysis() {
                       position="top"
                       offset={25}
                       angle={45}
-                      formatter={(v) => (v != null ? formatCurrency(Number(v)) : '')}
+                      formatter={(v) => (v != null ? formatChartCurrency(Number(v)) : '')}
                       style={{ fontSize: 14, fill: '#ef4444' }}
                     />
                   </Line>
@@ -345,37 +357,33 @@ export default function ForecastingAnalysis() {
                 <BarChart data={scenarioComparisonData} margin={{ top: 30, right: 30, left: 20, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
                   <XAxis dataKey="scenario" stroke="#6b7280" />
-                  <YAxis tickFormatter={(v) => formatCurrency(v)} stroke="#6b7280" />
+                  <YAxis tickFormatter={(v) => formatChartCurrency(v)} stroke="#6b7280" />
                   <Tooltip formatter={(value) => (value ? formatCurrency(Number(value)) : '')} />
                   <Legend />
-                  <Bar dataKey="Revenue" name="Revenue" fill="#3b82f6">
-                    <LabelList
-                      dataKey="Revenue"
-                      position="top"
-                      formatter={(v: any) => formatCurrency(v)}
-                      style={{ fontSize: 14, fontWeight: 500, fill: '#3b82f6' }}
-                    />
-                  </Bar>
-                  <Bar dataKey="EBITDA" name="EBITDA" fill="#10b981">
-                    <LabelList
-                      dataKey="EBITDA"
-                      position="bottom"
-                      formatter={(v: any) => formatCurrency(v)}
-                      style={{ fontSize: 12, fontWeight: 500, fill: '#10b981' }}
-                    />
-                  </Bar>
-                  <Bar dataKey="Net Income" name="Net Income" fill="#f59e0b">
-                    <LabelList
-                      dataKey="Net Income"
-                      position="bottom"
-                      formatter={(v: any) => formatCurrency(v)}
-                      style={{ fontSize: 12, fontWeight: 500, fill: '#f59e0b' }}
-                    />
-                  </Bar>
+                 
+                 <Bar dataKey="Net Income" name="Net Income" fill="#f59e0b">
+                  <LabelList
+                    dataKey="Net Income"
+                    position="bottom"
+                    formatter={(v: any) => formatChartCurrency(v)}
+                    style={{ fontSize: 12, fontWeight: 500, fill: '#f59e0b' }}
+                  />
+                </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
+
+          {/* Forecast Table */}
+          {forecastTableData.length > 0 && (
+            <FinancialTable
+              data={forecastTableData}
+              title="Forecast Analysis Table"
+              showExport={true}
+              onExport={handleExportForecastTable}
+              showBudget={false}
+            />
+          )}
 
         
 

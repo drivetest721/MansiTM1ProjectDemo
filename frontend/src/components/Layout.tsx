@@ -30,7 +30,7 @@ const analyticsItems = [
   { path: '/revenue-planning', label: 'Product Financial Analysis', icon: TrendingUp },
   { path: '/workforce-planning', label: 'Workforce Reporting', icon: Users },
   { path: '/cfo-budgeting', label: 'CFO Budgeting', icon: Wallet },
-  { path: '/forecasting-analysis', label: 'Forecasting Analysis', icon: LineChart },
+
   { path: '/pl-statement', label: 'P&L Statement', icon: FileText },
   { path: '/balance-sheet', label: 'Balance Sheet', icon: Scale },
 ];

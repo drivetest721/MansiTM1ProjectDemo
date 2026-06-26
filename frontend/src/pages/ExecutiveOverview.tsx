@@ -130,14 +130,49 @@ const BudgetVsForecastSection = memo(function BudgetVsForecastSection() {
 
 // ─── Static data ─────────────────────────────────────────────────────────────
 const SUMMARY_TABLE_DATA: FinancialRow[] = [
-  { id: 'revenue',      label: 'Revenue',           actual: 142500000, budget: 138200000, forecast: 145800000, variance:  4300000, variancePercent:  3.1 },
-  { id: 'COGS',         label: 'COGS',              actual:  98700000, budget:  95100000, forecast:  99200000, variance:  3600000, variancePercent:  3.8 },
-  { id: 'gross-margin', label: 'Gross Margin',       actual:  43800000, budget:  43100000, forecast:  46600000, variance:   700000, variancePercent:  1.6, isSubtotal: true },
-  { id: 'payroll',      label: 'Payroll',            actual:  52300000, budget:  49800000, forecast:  53100000, variance:  2500000, variancePercent:  5.0 },
-  { id: 'opex',         label: 'Operating Expenses', actual:  28400000, budget:  27200000, forecast:  29000000, variance:  1200000, variancePercent:  4.4 },
-  { id: 'ebitda',       label: 'EBITDA',             actual: -36900000, budget: -33900000, forecast: -35500000, variance: -3000000, variancePercent: -8.8, isSubtotal: true },
- 
-];
+  { 
+    id: 'revenue', label: 'Revenue', 
+    actual: 142500000, budget: 138200000, forecast: 145800000, 
+    variance: 4300000, variancePercent: 3.1,
+    forecastVariance: 142500000 - 145800000,           // -3300000
+    forecastVariancePercent: ((142500000 - 145800000) / 145800000) * 100   // -2.26%
+  },
+  { 
+    id: 'COGS', label: 'COGS', 
+    actual: 98700000, budget: 95100000, forecast: 99200000, 
+    variance: 3600000, variancePercent: 3.8,
+    forecastVariance: 98700000 - 99200000,             // -500000
+    forecastVariancePercent: ((98700000 - 99200000) / 99200000) * 100
+  },
+  { 
+    id: 'gross-margin', label: 'Gross Margin', 
+    actual: 43800000, budget: 43100000, forecast: 46600000, 
+    variance: 700000, variancePercent: 1.6, isSubtotal: true,
+    forecastVariance: 43800000 - 46600000,
+    forecastVariancePercent: ((43800000 - 46600000) / 46600000) * 100
+  },
+  { 
+    id: 'payroll', label: 'Payroll', 
+    actual: 52300000, budget: 49800000, forecast: 53100000, 
+    variance: 2500000, variancePercent: 5.0,
+    forecastVariance: 52300000 - 53100000,
+    forecastVariancePercent: ((52300000 - 53100000) / 53100000) * 100
+  },
+  { 
+    id: 'opex', label: 'Operating Expenses', 
+    actual: 28400000, budget: 27200000, forecast: 29000000, 
+    variance: 1200000, variancePercent: 4.4,
+    forecastVariance: 28400000 - 29000000,
+    forecastVariancePercent: ((28400000 - 29000000) / 29000000) * 100
+  },
+  { 
+    id: 'ebitda', label: 'EBITDA', 
+    actual: -36900000, budget: -33900000, forecast: -35500000, 
+    variance: -3000000, variancePercent: -8.8, isSubtotal: true,
+    forecastVariance: -36900000 - (-35500000),
+    forecastVariancePercent: ((-36900000 - (-35500000)) / Math.abs(-35500000)) * 100
+  },
+]
 
 // ─── Helper functions (module-level, stable references) ──────────────────────
 function transformChartData(chartData: any): { label: string; value: number }[] {
@@ -225,7 +260,7 @@ export default function ExecutiveOverview() {
         switch (format) {
           case 'currency': return formatCurrency2dp(value);
           case 'percent': return formatPercent2dp(value);
-          case 'number': return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          case 'number': return value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
           default: return value.toLocaleString('en-US');
         }
       };
@@ -370,7 +405,7 @@ export default function ExecutiveOverview() {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Executive Overview</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">CFO-level financial performance dashboard</p>
         </div>
-        <div className="text-right text-sm text-gray-600 dark:text-gray-400">
+        <div className="text-right text-sm text-black font-bold dark:text-gray-400">
           <div>Period: FY 2025</div>
           <div>Last Updated: {new Date().toLocaleDateString()}</div>
         </div>
@@ -509,10 +544,15 @@ export default function ExecutiveOverview() {
                 cx="50%" cy="50%"
                 labelLine={false}
                 label={(props: any) => {
-                  const name = props.label || props.name;
-                  const percent = props.percent;
-                  return percent ? `${name} ${(percent * 100).toFixed(2)}%` : '';
-                }}
+                const name = props.label || props.name;
+                const percent = props.percent;
+                if (!percent) return null;
+                return (
+                  <text x={props.x} y={props.y} fill={props.fill} textAnchor={props.textAnchor} dominantBaseline="central" fontWeight="bold" fontSize={14}>
+                    {`${name} ${(percent * 100).toFixed(2)}%`}
+                  </text>
+                );
+              }}
                 outerRadius={100}
                 dataKey="value"
                 nameKey="label"
@@ -570,7 +610,7 @@ export default function ExecutiveOverview() {
                 <YAxis type="category" dataKey="label" stroke="#6b7280" width={120} tick={{ fontSize: 12 }} interval={0} />
                 <Tooltip formatter={(value) => (value ? formatCurrency2dpGraph(Number(value)) : '')} />
                 <Bar dataKey="value" name="Revenue"
-                  label={{ position: 'right', formatter: (v: any) => (v !== undefined && v !== null ? formatCurrency2dpGraph(Number(v)) : ''), fontSize: 14 }}>
+                  label={{ position: 'right', formatter: (v: any) => (v !== undefined && v !== null ? formatCurrency2dpGraph(Number(v)) : ''), fontSize: 14 , fontWeight: 'bold' }}>
                   {revenueByCategory.map((_entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}

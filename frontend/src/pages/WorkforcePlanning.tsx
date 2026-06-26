@@ -349,6 +349,8 @@ export default function WorkforcePlanning() {
 
       {/* Action Buttons */}
       <div className="flex items-center justify-end gap-3 mb-4">
+
+        <p className='font-bold'>Work In Progress</p>
         <button
           onClick={() => setShowPivotDialog(true)}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md transition-colors shadow-sm"
@@ -375,10 +377,15 @@ export default function WorkforcePlanning() {
               <Pie
                 data={byDepartment} cx="50%" cy="50%" labelLine={false}
                 label={(props: any) => {
-                  const { name, percent } = props;
-                  if (!percent || !name) return '';
-                  return `${name.split(' ')[0]} ${(percent * 100).toFixed(2)}%`;
-                }}
+                const name = props.label || props.name;
+                const percent = props.percent;
+                if (!percent) return null;
+                return (
+                  <text x={props.x} y={props.y} fill={props.fill} textAnchor={props.textAnchor} dominantBaseline="central" fontWeight="bold" fontSize={14}>
+                    {`${name} ${(percent * 100).toFixed(2)}%`}
+                  </text>
+                );
+              }}
                 outerRadius={90}
                 fill="#8884d8"
                 dataKey="value"

@@ -423,19 +423,29 @@ export default function CFOBudgeting() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">CFO Budgeting</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">Budget planning and expense management</p>
-          <div className="mt-2 flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
-            <span className="font-semibold">📊 Drill-Down Hierarchy:</span>
-            <span className="bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded">Statement Type</span>
-            <span>→</span>
-            <span className="bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded">Account Type</span>
-            <span>→</span>
-            <span className="bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded">Account Name</span>
-          </div>
+          
         </div>
       </div>
 
       
-      {/* 4 gauges */}
+
+
+      {/* Global Filters — spinner shown while dynamic options load */}
+      <div className="relative">
+        {filtersLoading && (
+          <div className="absolute top-2 right-2 z-10 flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
+            <div className="h-3 w-3 animate-spin rounded-full border border-gray-300 border-t-indigo-500" />
+            Loading filters…
+          </div>
+        )}
+        <GlobalFilters
+          filters={filterOptions}
+          values={filters}
+          onApply={setFilters}
+          onReset={handleResetFilters}
+        />
+      </div>
+            {/* 4 gauges */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <GaugeChart
           title="Revenue"
@@ -468,23 +478,6 @@ export default function CFOBudgeting() {
           format={formatPercent2dp}
         />
       </div>
-
-      {/* Global Filters — spinner shown while dynamic options load */}
-      <div className="relative">
-        {filtersLoading && (
-          <div className="absolute top-2 right-2 z-10 flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
-            <div className="h-3 w-3 animate-spin rounded-full border border-gray-300 border-t-indigo-500" />
-            Loading filters…
-          </div>
-        )}
-        <GlobalFilters
-          filters={filterOptions}
-          values={filters}
-          onApply={setFilters}
-          onReset={handleResetFilters}
-        />
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
         <NetProfitChart title="Revenue: Actual vs Budget by Entity" data={revenueByEntity} />
       </div>

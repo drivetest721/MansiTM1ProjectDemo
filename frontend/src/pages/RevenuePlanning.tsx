@@ -360,6 +360,7 @@ export default function RevenuePlanning() {
 
       {/* Action Buttons */}
       <div className="flex items-center justify-end gap-3 mb-4">
+         <p className='font-bold'>Work In Progress</p>
         <button
           onClick={() => setShowPivotDialog(true)}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md transition-colors shadow-sm"
@@ -382,10 +383,15 @@ export default function RevenuePlanning() {
                 cy="50%"
                 labelLine={false}
                 label={(props: any) => {
-                  const { name, percent } = props;
-                  if (!percent || !name) return '';
-                  return `${name} ${(percent * 100).toFixed(2)}%`;
-                }}
+                const name = props.label || props.name;
+                const percent = props.percent;
+                if (!percent) return null;
+                return (
+                  <text x={props.x} y={props.y} fill={props.fill} textAnchor={props.textAnchor} dominantBaseline="central" fontWeight="bold" fontSize={14}>
+                    {`${name} ${(percent * 100).toFixed(2)}%`}
+                  </text>
+                );
+              }}
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
@@ -403,15 +409,24 @@ export default function RevenuePlanning() {
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Gross Margin % by Region</h3>
           <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={revenueByRegion}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
-              <XAxis dataKey="region" stroke="#6b7280" tick={{ fontSize: 11 }} />
-              <YAxis stroke="#6b7280" />
-              <Tooltip formatter={(value: any) => value ? `${Number(value).toFixed(2)}%` : ''} />
-              <Bar dataKey="margin" fill={THEME_COLORS[0]}
-                label={{ position: 'top', formatter: (v: any) => `${Number(v).toFixed(1)}%`, fontSize: 14, fill: '#374151', fontWeight: 'bold' }}
-              />
-            </BarChart>
+            <BarChart data={revenueByRegion} margin={{ top: 20, right: 10, left: 10, bottom: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
+                <XAxis
+                  dataKey="region"
+                  stroke="#6b7280"
+                  tick={{ fontSize: 14 }}
+                  angle={-15}
+                  textAnchor="end"
+                  interval={0}
+                />
+                <YAxis stroke="#6b7280" />
+                <Tooltip formatter={(value: any) => value ? `${Number(value).toFixed(2)}%` : ''} />
+                <Bar
+                  dataKey="margin"
+                  fill={THEME_COLORS[0]}
+                  label={{ position: 'top', formatter: (v: any) => `${Number(v).toFixed(1)}%`, fontSize: 14, fill: '#374151', fontWeight: 'bold' }}
+                />
+              </BarChart>
           </ResponsiveContainer>
         </div>
 

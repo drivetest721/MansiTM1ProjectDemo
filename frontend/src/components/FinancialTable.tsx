@@ -33,6 +33,7 @@ interface FinancialTableProps {
   showExport?: boolean;
   columns?: ColumnDef<FinancialRow>[];
   showForecast?: boolean;
+  showBudget?: boolean;  
   /** When true, single-click on any data row opens the global DrillPanel */
   drillEnabled?: boolean;
   onExport?: () => void;
@@ -44,6 +45,7 @@ export default function FinancialTable({
   title,
   showExport = true,
   showForecast = true,
+  showBudget = true,
   drillEnabled = false,
   columns,
   onExport,
@@ -77,20 +79,21 @@ export default function FinancialTable({
     if (value < 0) return 'text-red-600 dark:text-red-400 font-semibold';
     return 'text-gray-700 dark:text-gray-300';
   };
-  const getRowVarianceColor = (row: FinancialRow, value: number | undefined) => {
-  // Cost-type rows: higher actual = bad (red), lower = good (green)
-  if (row.id === 'cost' ) {
-    return getCostVarianceColor(value);
-  }
-  // Default: higher = good (green), lower = bad (red)
-  return getVarianceColor(value);
-};
-  const getCostVarianceColor = (value: number | undefined) => {
-    if (value === undefined || value === null) return 'text-gray-700 dark:text-gray-300';
-    if (value < 0) return 'text-green-600 dark:text-green-400 font-semibold';
-    if (value > 0) return 'text-red-600 dark:text-red-400 font-semibold';
-    return 'text-gray-700 dark:text-gray-300';
+   
+  const COST_TYPE_ROWS = new Set(['cost', 'COGS', 'payroll', 'opex']);
+
+const getRowVarianceColor = (row: FinancialRow, value: number | undefined) => {
+  if (COST_TYPE_ROWS.has(row.id)) {
+      return getCostVarianceColor(value);
+    }
+    return getVarianceColor(value);
   };
+    const getCostVarianceColor = (value: number | undefined) => {
+      if (value === undefined || value === null) return 'text-gray-700 dark:text-gray-300';
+      if (value < 0) return 'text-green-600 dark:text-green-400 font-semibold';
+      if (value > 0) return 'text-red-600 dark:text-red-400 font-semibold';
+      return 'text-gray-700 dark:text-gray-300';
+    };
 
   const toggleExpand = async (row: FinancialRow) => {
     const rowId = row.id;
@@ -173,51 +176,51 @@ export default function FinancialTable({
     return result;
   };
 
-  const defaultColumns: ColumnDef<FinancialRow>[] = [
-      {
-      id: 'label',
-      accessorKey: 'label',
-      header: 'Particulars',
-      cell: ({ row }) => {
-        const indent = row.original.indent || 0;
-        const hasChildren =
-          (row.original.children && row.original.children.length > 0) ||
-          row.original.expandable ||
-          childrenData[row.original.id]?.length > 0 ||
-          Boolean(row.original.level);
-        const isExpanded = expandedRows.has(row.original.id);
-        const isLoading = loadingRows.has(row.original.id);
-        const isTotal = row.original.isTotal;
-        const isSubtotal = row.original.isSubtotal;
+ const defaultColumns: ColumnDef<FinancialRow>[] = [
+  {
+    id: 'label',
+    accessorKey: 'label',
+    header: 'Particulars',
+    cell: ({ row }) => {
+      const indent = row.original.indent || 0;
+      const hasChildren =
+        (row.original.children && row.original.children.length > 0) ||
+        row.original.expandable ||
+        childrenData[row.original.id]?.length > 0 ||
+        Boolean(row.original.level);
+      const isExpanded = expandedRows.has(row.original.id);
+      const isLoading = loadingRows.has(row.original.id);
+      const isTotal = row.original.isTotal;
+      const isSubtotal = row.original.isSubtotal;
 
-        return (
-          <div
-            className={`flex items-center ${isTotal || isSubtotal ? 'font-bold' : ''}`}
-            style={{ paddingLeft: `${indent * 1.5}rem` }}
-          >
-            {hasChildren ? (
-              <button
-                onClick={() => toggleExpand(row.original)}
-                disabled={isLoading}
-                className="mr-2 p-0.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded disabled:opacity-50 transition-colors"
-                aria-label={isExpanded ? 'Collapse' : 'Expand'}
-              >
-                {isLoading ? (
-                  <Loader2 size={16} className="animate-spin text-blue-500" />
-                ) : isExpanded ? (
-                  <ChevronDown size={16} className="text-gray-600 dark:text-gray-400" />
-                ) : (
-                  <ChevronRight size={16} className="text-gray-600 dark:text-gray-400" />
-                )}
-              </button>
-            ) : (
-              <span className="w-6 mr-2" />
-            )}
-            <span>{row.original.label}</span>
-          </div>
-        );
-      },
+      return (
+        <div
+          className={`flex items-center ${isTotal || isSubtotal ? 'font-bold' : ''}`}
+          style={{ paddingLeft: `${indent * 1.5}rem` }}
+        >
+          {hasChildren ? (
+            <button
+              onClick={() => toggleExpand(row.original)}
+              disabled={isLoading}
+              className="mr-2 p-0.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded disabled:opacity-50 transition-colors"
+              aria-label={isExpanded ? 'Collapse' : 'Expand'}
+            >
+              {isLoading ? (
+                <Loader2 size={16} className="animate-spin text-blue-500" />
+              ) : isExpanded ? (
+                <ChevronDown size={16} className="text-gray-600 dark:text-gray-400" />
+              ) : (
+                <ChevronRight size={16} className="text-gray-600 dark:text-gray-400" />
+              )}
+            </button>
+          ) : (
+            <span className="w-6 mr-2" />
+          )}
+          <span>{row.original.label}</span>
+        </div>
+      );
     },
+  },
   {
     id: 'actual',
     accessorKey: 'actual',
@@ -228,37 +231,42 @@ export default function FinancialTable({
       </div>
     ),
   },
-  {
-    id: 'budget',
-    accessorKey: 'budget',
-    header: () => <div className="text-right">Budget</div>,
-    cell: ({ row }) => (
-      <div className={`text-right ${row.original.isTotal || row.original.isSubtotal ? 'font-bold' : ''}`}>
-        {formatCurrency(row.original.budget)}
-      </div>
-    ),
-  },
-  // Variance: Actual vs Budget — always visible
-  {
-    id: 'variance',
-    accessorKey: 'variance',
-    header: () => <div className="text-right">Variance</div>,
-    cell: ({ row }) => (
-      <div className={`text-right ${getRowVarianceColor(row.original, row.original.variance)} ${row.original.isTotal || row.original.isSubtotal ? 'font-bold' : ''}`}>
-        {formatCurrency(row.original.variance)}
-      </div>
-    ),
-  },
-  {
-    id: 'variancePercent',
-    accessorKey: 'variancePercent',
-    header: () => <div className="text-right">Variance %</div>,
-    cell: ({ row }) => (
-      <div className={`text-right ${getRowVarianceColor(row.original, row.original.variancePercent)} ${row.original.isTotal || row.original.isSubtotal ? 'font-bold' : ''}`}>
-        {formatPercent(row.original.variancePercent)}
-      </div>
-    ),
-  },
+
+  // Budget group — only rendered when showBudget is true
+  ...(showBudget
+    ? ([
+        {
+          id: 'budget',
+          accessorKey: 'budget',
+          header: () => <div className="text-right">Budget</div>,
+          cell: ({ row }) => (
+            <div className={`text-right ${row.original.isTotal || row.original.isSubtotal ? 'font-bold' : ''}`}>
+              {formatCurrency(row.original.budget)}
+            </div>
+          ),
+        },
+        {
+          id: 'variance',
+          accessorKey: 'variance',
+          header: () => <div className="text-right">Variance (ACT VS BUD)</div>,
+          cell: ({ row }) => (
+            <div className={`text-right ${getRowVarianceColor(row.original, row.original.variance)} ${row.original.isTotal || row.original.isSubtotal ? 'font-bold' : ''}`}>
+              {formatCurrency(row.original.variance)}
+            </div>
+          ),
+        },
+        {
+          id: 'variancePercent',
+          accessorKey: 'variancePercent',
+          header: () => <div className="text-right">Variance % (ACT VS BUD)</div>,
+          cell: ({ row }) => (
+            <div className={`text-right ${getRowVarianceColor(row.original, row.original.variancePercent)} ${row.original.isTotal || row.original.isSubtotal ? 'font-bold' : ''}`}>
+              {formatPercent(row.original.variancePercent)}
+            </div>
+          ),
+        },
+      ] as ColumnDef<FinancialRow>[])
+    : []),
 
   // Forecast group — only rendered when showForecast is true
   ...(showForecast
@@ -276,7 +284,7 @@ export default function FinancialTable({
         {
           id: 'forecastVariance',
           accessorKey: 'forecastVariance',
-          header: () => <div className="text-right">Variance (Actual vs Forecast)</div>,
+          header: () => <div className="text-right">Variance (ACT VS FCST)</div>,
           cell: ({ row }) => (
             <div className={`text-right ${getRowVarianceColor(row.original, row.original.forecastVariance)} ${row.original.isTotal || row.original.isSubtotal ? 'font-bold' : ''}`}>
               {formatCurrency(row.original.forecastVariance)}
@@ -286,7 +294,7 @@ export default function FinancialTable({
         {
           id: 'forecastVariancePercent',
           accessorKey: 'forecastVariancePercent',
-          header: () => <div className="text-right">Variance % (Actual vs Forecast)</div>,
+          header: () => <div className="text-right">Variance % (ACT VS FCST)</div>,
           cell: ({ row }) => (
             <div className={`text-right ${getRowVarianceColor(row.original, row.original.forecastVariancePercent)} ${row.original.isTotal || row.original.isSubtotal ? 'font-bold' : ''}`}>
               {formatPercent(row.original.forecastVariancePercent)}
@@ -295,7 +303,8 @@ export default function FinancialTable({
         },
       ] as ColumnDef<FinancialRow>[])
     : []),
- ];
+];
+  
   const table = useReactTable({
     data: flattenData(data),
     columns: columns || defaultColumns,

@@ -219,10 +219,9 @@ class ForecastService:
                     "id": f"forecast-{idx}",
                     "label": row.Account,
                     "actual": None,  # Not available in this view
-                    "budget": float(row.Budget) if row.Budget else 0.0,
+                    
                     "forecast": float(row.Forecast) if row.Forecast else 0.0,
-                    "variance": float(row.Variance) if row.Variance else 0.0,
-                    "variancePercent": float(row.VariancePercent) if row.VariancePercent else 0.0
+                    
                 }
                 for idx, row in enumerate(rows)
             ]

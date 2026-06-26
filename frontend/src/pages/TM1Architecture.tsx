@@ -68,7 +68,7 @@ export default function TM1Architecture() {
       exampleLines: [
         { label: 'Process', value: 'Load_Revenue_Cube' },
         { label: 'Source', value: 'SQL ODBC' },
-        { label: 'Schedule', value: 'Daily 02:00' },
+       
         { label: 'Target', value: 'Revenue Cube' },
       ],
     },

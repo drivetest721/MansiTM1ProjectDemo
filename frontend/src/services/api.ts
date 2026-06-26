@@ -221,25 +221,8 @@ export interface DrillDownParams {
   scenario?: string;
 }
 
-export const getRevenueDrillDown = async (
-  params: { level: 'quarter' | 'month'; year?: number; quarter?: string },
-  signal?: AbortSignal
-) => {
-  console.log('🟢 FETCH CALLED WITH:', params);
-  
-  const query = new URLSearchParams();
-  query.set('level', params.level);
-  if (params.year !== undefined) query.set('year', String(params.year));
-  if (params.quarter) query.set('quarter', params.quarter);
-
-  const url = `http://localhost:8000/api/dashboard/revenue-drilldown?${query.toString()}`;
-  console.log('🟢 FETCH URL:', url);
-
-  const res = await fetch(url, { signal });
-  const data = await res.json();
-  console.log('🟢 FETCH RESULT:', data);
-  return { data };
-};
+export const getRevenueDrillDown = (params: DrillDownParams) =>
+  api.get('/api/revenue/drill-down', { params });
 export const getWorkforceDrillDown = (params: Omit<DrillDownParams, 'region' | 'scenario'>) =>
   api.get('/api/workforce/drill-down', { params });
 
