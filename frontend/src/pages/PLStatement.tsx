@@ -1,221 +1,418 @@
-﻿import { useState, useEffect } from 'react';
-import FinancialTable, { type FinancialRow } from '../components/FinancialTable';
-import GlobalFilters, { type FilterOption } from '../components/GlobalFilters';
-import { getPLStatementMapped, getEntities } from '../services/api';
-import { Loader2 } from 'lucide-react';
-import { exportFinancialTableToExcel } from '../utils/exportToExcel';
+/**
+ * PLStatement — monthly column view
+ *
+ * Layout:
+ *   Left panel  — MonthTreeFilter (year → quarter → month checkboxes)
+ *   Right panel — Entity + Scenario dropdowns + the monthly table
+ *
+ * Performance notes:
+ *   • A single API call per Apply; no fetch on every checkbox tick.
+ *   • Columns are memoised — only rebuilt when selectedMonths changes.
+ *   • Table uses FinancialTable with custom columns (no variance columns).
+ *   • Max 12 month columns (one year) keeps render fast.
+ */
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { getPLStatementMonthly, getEntities } from '../services/api';
+import MonthTreeFilter from '../components/MonthTreeFilter';
 import AnnotationPanel from '../components/AnnotationPanel';
+import { Loader2, Download } from 'lucide-react';
+import { exportFinancialTableToExcel } from '../utils/exportToExcel';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface MonthlyRow {
+  id: string;
+  label: string;
+  monthly: Record<string, number | null>;
+  total: number | null;
+  indent?: number;
+  isTotal?: boolean;
+  isSubtotal?: boolean;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const MONTH_ORDER = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function sortMonths(months: string[]): string[] {
+  return [...months].sort((a, b) => {
+    const ai = MONTH_ORDER.indexOf(a.slice(0, 3));
+    const bi = MONTH_ORDER.indexOf(b.slice(0, 3));
+    return ai - bi;
+  });
+}
+
+function allMonthsForYear(year: string): string[] {
+  const yy = year.slice(-2);
+  return MONTH_ORDER.map((m) => `${m}-${yy}`);
+}
+
+function formatCurrency(value: number | null | undefined): string {
+  if (value === undefined || value === null) return '';
+  const abs = Math.abs(value) / 1_000_000;
+  const fmt = abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return value < 0 ? `($${fmt}M)` : `$${fmt}M`;
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function PLStatement() {
-  // Filters: Year, Month, Entity only — Version removed (consistent with other pages)
-  const [filters, setFilters] = useState<Record<string, string>>({
-    year: '2024',
-    month: 'ytd',
-    entity: 'all',
-  });
+  // ── Filters ──────────────────────────────────────────────────────────────
+  const [selectedYear, setSelectedYear]     = useState('2024');
+  const [selectedMonths, setSelectedMonths] = useState<string[]>(allMonthsForYear('2024'));
+  const [entity, setEntity]                 = useState('all');
+  const [scenario, setScenario]             = useState<'actual' | 'budget' | 'forecast'>('actual');
 
-  const [plData, setPlData]     = useState<FinancialRow[]>([]);
-  const [summary, setSummary]   = useState<any>(null);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState<string | null>(null);
+  // ── Data ─────────────────────────────────────────────────────────────────
+  const [tableData, setTableData]           = useState<MonthlyRow[]>([]);
+  const [availableMonths, setAvailableMonths] = useState<string[]>([]);
+  const [loading, setLoading]               = useState(true);
+  const [error, setError]                   = useState<string | null>(null);
 
-  // Dynamic entity options — undefined = loading, [] = loaded (possibly empty)
-  const [entityOptions, setEntityOptions]   = useState<{ value: string; label: string }[] | undefined>(undefined);
-  const [filtersLoading, setFiltersLoading] = useState(true);
+  // ── Entity options ────────────────────────────────────────────────────────
+  const [entityOptions, setEntityOptions]   = useState<{ value: string; label: string }[]>([]);
 
-  // -------------------------------------------------------------------------
-  // Load entity options on mount — Promise.allSettled so a failure here
-  // does not block the data load. API returns snake_case entity_name.
-  // -------------------------------------------------------------------------
   useEffect(() => {
-    setFiltersLoading(true);
-    (async () => {
-      const [entResult] = await Promise.allSettled([getEntities()]);
-
-      if (entResult.status === 'fulfilled') {
-        const entities: any[] = entResult.value.data?.data ?? [];
-        setEntityOptions(
-          entities.map((e) => ({ value: e.entity_name, label: e.entity_name }))
-        );
-      } else {
-        console.error('Entity options failed:', entResult.reason);
-        setEntityOptions([]);
-      }
-
-      setFiltersLoading(false);
-    })();
+    getEntities()
+      .then((res) => {
+        const ents: any[] = res.data?.data ?? [];
+        setEntityOptions(ents.map((e) => ({ value: e.entity_name, label: e.entity_name })));
+      })
+      .catch(() => setEntityOptions([]));
   }, []);
 
-  // -------------------------------------------------------------------------
-  // Fetch P&L statement data whenever year or entity changes.
-  // Uses a `cancelled` closure flag — no race condition from fetchingRef.
-  // Previous data stays visible while reloading (overlay spinner only).
-  // -------------------------------------------------------------------------
+  // ── Fetch on filter apply ─────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
 
-    const params: { year: number; entity?: string } = { year: parseInt(filters.year) };
-    if (filters.entity !== 'all') params.entity = filters.entity;
+    const params: { year: number; scenario: string; entity?: string } = {
+      year: parseInt(selectedYear),
+      scenario,
+    };
+    if (entity !== 'all') params.entity = entity;
 
-    getPLStatementMapped(params)
-      .then((response) => {
+    getPLStatementMonthly(params)
+      .then((res) => {
         if (cancelled) return;
-        const result = response.data.data;
-        if (result?.lines?.length > 0) {
-          setPlData(result.lines);
-          setSummary(result.summary);
+        const data = res.data?.data;
+        if (data?.lines?.length) {
+          setTableData(data.lines);
+          setAvailableMonths(data.months ?? []);
           setError(null);
         } else {
-          setPlData([]);
-          setError('No P&L data available for the selected filters. Try a different year or entity.');
+          setTableData([]);
+          setError('No P&L data available for the selected filters.');
         }
       })
       .catch((err: any) => {
         if (cancelled) return;
-        console.error('Failed to load P&L data:', err);
-        setError('Failed to connect to backend. Please ensure the backend server is running on localhost:8000.');
-        setPlData([]);
+        console.error('Monthly PL fetch failed:', err);
+        // Surface the real server error if available, otherwise fall back to connection message
+        const serverDetail = err?.response?.data?.detail;
+        const status       = err?.response?.status;
+        if (status && serverDetail) {
+          setError(`Server error (${status}): ${serverDetail}`);
+        } else if (status) {
+          setError(`Server returned HTTP ${status}. Check backend logs for details.`);
+        } else {
+          setError('Failed to connect to backend. Ensure the server is running on localhost:8000.');
+        }
+        setTableData([]);
       })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+      .finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [filters.year, filters.entity]);
+  }, [selectedYear, entity, scenario]);
 
-  // -------------------------------------------------------------------------
-  // Filter definitions
-  // -------------------------------------------------------------------------
-  const filterOptions: FilterOption[] = [
-    {
-      id: 'year',
-      label: 'Year',
-      options: Array.from({ length: 13 }, (_, i) => 2018 + i).map((y) => ({
-        value: String(y),
-        label: String(y),
-      })),
+  // ── Month tree Apply ──────────────────────────────────────────────────────
+  const handleTreeApply = useCallback(
+    ({ year, months }: { year: string; months: string[] }) => {
+      if (year !== selectedYear) {
+        setSelectedYear(year);  // triggers re-fetch
+      }
+      setSelectedMonths(months);
     },
-    {
-      id: 'month',
-      label: 'Month',
-      options: [
-        { value: 'ytd', label: 'Year to Date' },
-        { value: '01',  label: 'January'   },
-        { value: '02',  label: 'February'  },
-        { value: '03',  label: 'March'     },
-        { value: '04',  label: 'April'     },
-        { value: '05',  label: 'May'       },
-        { value: '06',  label: 'June'      },
-        { value: '07',  label: 'July'      },
-        { value: '08',  label: 'August'    },
-        { value: '09',  label: 'September' },
-        { value: '10',  label: 'October'   },
-        { value: '11',  label: 'November'  },
-        { value: '12',  label: 'December'  },
-      ],
-    },
-    {
-      id: 'entity',
-      label: 'Entity',
-      options: entityOptions ?? [],
-    },
-  ];
+    [selectedYear]
+  );
 
-  const handleResetFilters = () =>
-    setFilters({ year: '2024', month: 'ytd', entity: 'all' });
+  // ── Visible months (intersection of selected ∩ available, sorted) ─────────
+  const visibleMonths = useMemo(() => {
+    const available = new Set(availableMonths);
+    const selected  = new Set(selectedMonths);
+    // Show selected months that exist in the fetched data; fall back to all available
+    const intersection = [...selected].filter((m) => available.has(m));
+    return sortMonths(intersection.length ? intersection : [...available]);
+  }, [selectedMonths, availableMonths]);
 
-  // -------------------------------------------------------------------------
-  // Margin calculations from live summary
-  // -------------------------------------------------------------------------
-  const calculateMargins = () => {
-    if (!summary) {
-      return { grossMargin: 30.7, operatingMargin: -55.3, ebitdaMargin: -51.6, netMargin: -57.3 };
-    }
-    const { total_revenue, gross_profit, net_income } = summary;
-    return {
-      grossMargin:      total_revenue > 0 ? (gross_profit / total_revenue) * 100 : 0,
-      operatingMargin:  -55.3, // simplified until backend provides operating income
-      ebitdaMargin:     -51.6, // simplified until backend provides EBITDA
-      netMargin:        total_revenue > 0 ? (net_income   / total_revenue) * 100 : 0,
-    };
-  };
-
-  const margins = calculateMargins();
-
-  const handleExportPLTable = () => {
+  // ── Export ────────────────────────────────────────────────────────────────
+  const handleExport = useCallback(() => {
     try {
-      exportFinancialTableToExcel(plData, 'PL_Statement_Table');
-    } catch (error) {
-      console.error('Export failed:', error);
+      // Build flat export rows
+      const rows = tableData
+        .filter((r) => r.label)
+        .map((r) => {
+          const row: Record<string, any> = { Account: r.label };
+          visibleMonths.forEach((m) => { row[m] = r.monthly?.[m] ?? null; });
+          row['Total'] = r.total ?? null;
+          return row;
+        });
+      // Use the existing util if it accepts raw arrays, otherwise fall back
+      const blob = buildExcelBlob(rows);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `PL_Statement_${selectedYear}_${scenario}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Export failed:', e);
     }
-  };
+  }, [tableData, visibleMonths, selectedYear, scenario]);
 
-  // -------------------------------------------------------------------------
-  // Render
-  // -------------------------------------------------------------------------
+  // Minimal CSV fallback (xlsx util signature may differ)
+  function buildExcelBlob(rows: Record<string, any>[]): Blob {
+    if (!rows.length) return new Blob();
+    const headers = Object.keys(rows[0]);
+    const csv = [
+      headers.join(','),
+      ...rows.map((r) => headers.map((h) => (r[h] ?? '')).join(',')),
+    ].join('\n');
+    return new Blob([csv], { type: 'text/csv' });
+  }
+
+  // ── Scenario label ────────────────────────────────────────────────────────
+  const scenarioLabel =
+    scenario === 'budget' ? 'Budget' : scenario === 'forecast' ? 'Forecast' : 'Actual';
+
+  // ─── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
+    <div className="space-y-4">
+      {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Profit & Loss Statement</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Comprehensive income statement</p>
+          <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">Comprehensive income statement</p>
         </div>
-        <div className="text-right">
-          <p className="text-sm text-gray-600 dark:text-gray-400">Period: FY {filters.year}</p>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Entity: {filters.entity !== 'all' ? filters.entity : 'All Entities'}
-          </p>
+        <div className="text-right text-sm text-gray-500 dark:text-gray-400 space-y-0.5">
+          <p>Year: FY {selectedYear}</p>
+          <p>Entity: {entity !== 'all' ? entity : 'All Entities'}</p>
+          <p>Scenario: {scenarioLabel}</p>
         </div>
       </div>
 
-      {/* Global Filters — spinner shown while entity options load */}
-      <div className="relative">
-        {filtersLoading && (
-          <div className="absolute top-2 right-2 z-10 flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
-            <div className="h-3 w-3 animate-spin rounded-full border border-gray-300 border-t-indigo-500" />
-            Loading filters…
-          </div>
-        )}
-        <GlobalFilters
-          filters={filterOptions}
-          values={filters}
-          onApply={setFilters}
-          onReset={handleResetFilters}
-        />
-      </div>
-
-      {/* Error Banner */}
-      {error && (
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-          <p className="text-sm text-yellow-800 dark:text-yellow-200">⚠️ {error}</p>
-        </div>
-      )}
-
-      {/* Loading State */}
-      {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-          <span className="ml-2 text-gray-600 dark:text-gray-400">Loading P&L statement...</span>
-        </div>
-      ) : (
-        <>
-          <FinancialTable
-            data={plData}
-            title={`Profit & Loss Statement - ${filters.year}`}
-            showExport={true}
-            showForecast={false}
-            onExport={handleExportPLTable}
+      {/* Two-column filter layout */}
+      <div className="flex gap-4 items-start">
+        {/* Left: tree filter */}
+        <div className="w-64 flex-shrink-0">
+          <MonthTreeFilter
+            selectedYear={selectedYear}
+            selectedMonths={selectedMonths}
+            onApply={handleTreeApply}
           />
+        </div>
+
+        {/* Right: entity + scenario + table */}
+        <div className="flex-1 min-w-0 space-y-4">
+          {/* Entity + Scenario row */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md px-4 py-3 flex flex-wrap gap-4 items-end">
+            {/* Scenario */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-300">Scenario</label>
+              <select
+                value={scenario}
+                onChange={(e) => setScenario(e.target.value as any)}
+                className="px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
+              >
+                <option value="actual">Actual</option>
+                <option value="budget">Budget</option>
+                <option value="forecast">Forecast</option>
+              </select>
+            </div>
+
+            {/* Entity */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-300">Entity</label>
+              <select
+                value={entity}
+                onChange={(e) => setEntity(e.target.value)}
+                className="px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
+              >
+                <option value="all">All Entities</option>
+                {entityOptions.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="ml-auto">
+              <button
+                onClick={handleExport}
+                disabled={loading || !tableData.length}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md transition-colors disabled:opacity-40"
+              >
+                <Download size={15} />
+                Export
+              </button>
+            </div>
+          </div>
+
+          {/* Error banner */}
+          {error && (
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+              <p className="text-sm text-yellow-800 dark:text-yellow-200">⚠️ {error}</p>
+            </div>
+          )}
+
+          {/* Table */}
+          {loading ? (
+            <div className="flex items-center justify-center h-64 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+              <Loader2 className="w-7 h-7 animate-spin text-blue-600" />
+              <span className="ml-2 text-gray-500 dark:text-gray-400 text-sm">Loading P&L data…</span>
+            </div>
+          ) : (
+            <MonthlyTable
+              rows={tableData}
+              months={visibleMonths}
+              title={`Profit & Loss — FY ${selectedYear} (${scenarioLabel})`}
+            />
+          )}
 
           <AnnotationPanel
             pageKey="pl-statement"
-            period={`${filters.year}:${filters.entity !== 'all' ? filters.entity : 'all'}`}
+            period={`${selectedYear}:${entity !== 'all' ? entity : 'all'}`}
           />
-        </>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── MonthlyTable ─────────────────────────────────────────────────────────────
+// Separate component so React can bail out on re-renders independently.
+
+interface MonthlyTableProps {
+  rows: MonthlyRow[];
+  months: string[];
+  title?: string;
+}
+
+function MonthlyTable({ rows, months, title }: MonthlyTableProps) {
+  if (!rows.length) {
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center text-gray-400 text-sm">
+        No data available
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+      {title && (
+        <div className="px-5 py-3 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-sm font-semibold text-gray-800 dark:text-white">{title}</h2>
+        </div>
       )}
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs" style={{ tableLayout: 'fixed', minWidth: `${220 + months.length * 90 + 90}px` }}>
+          <colgroup>
+            <col style={{ width: '220px' }} />
+            {months.map((m) => <col key={m} style={{ width: '90px' }} />)}
+            <col style={{ width: '90px' }} />
+          </colgroup>
+          <thead className="bg-gray-50 dark:bg-gray-900 sticky top-0 z-10">
+            <tr>
+              <th className="px-3 py-2 text-left font-semibold text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 uppercase tracking-wide">
+                Account
+              </th>
+              {months.map((m) => (
+                <th key={m} className="px-2 py-2 text-right font-semibold text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 uppercase tracking-wide whitespace-nowrap">
+                  {m}
+                </th>
+              ))}
+              <th className="px-2 py-2 text-right font-semibold text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 uppercase tracking-wide bg-blue-50 dark:bg-blue-900/20 whitespace-nowrap">
+                Total
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+            {rows.map((row) => {
+              if (!row.label) {
+                // Blank spacer row
+                return (
+                  <tr key={row.id} className="h-2">
+                    <td colSpan={months.length + 2} />
+                  </tr>
+                );
+              }
+
+              const isHeader = row.isSubtotal && !row.total && Object.values(row.monthly).every((v) => v === null);
+              const isTotal  = row.isTotal;
+              const isSubtotal = row.isSubtotal;
+              const indent   = row.indent ?? 0;
+
+              return (
+                <tr
+                  key={row.id}
+                  className={
+                    isTotal
+                      ? 'bg-blue-50 dark:bg-blue-900/20 border-t-2 border-blue-300 dark:border-blue-700'
+                      : isHeader
+                      ? 'bg-gray-100 dark:bg-gray-700/50'
+                      : isSubtotal
+                      ? 'bg-gray-50 dark:bg-gray-800/50'
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-900/30'
+                  }
+                >
+                  {/* Account label */}
+                  <td
+                    className={`px-3 py-1.5 whitespace-nowrap overflow-hidden text-ellipsis ${
+                      isTotal || isSubtotal ? 'font-bold' : ''
+                    } text-gray-900 dark:text-gray-100`}
+                    style={{ paddingLeft: `${12 + indent * 16}px` }}
+                    title={row.label}
+                  >
+                    {row.label}
+                  </td>
+
+                  {/* Monthly values */}
+                  {months.map((m) => {
+                    const val = row.monthly?.[m];
+                    return (
+                      <td
+                        key={m}
+                        className={`px-2 py-1.5 text-right whitespace-nowrap tabular-nums ${
+                          isTotal || isSubtotal ? 'font-bold' : ''
+                        } ${
+                          typeof val === 'number' && val < 0
+                            ? 'text-red-600 dark:text-red-400'
+                            : 'text-gray-900 dark:text-gray-100'
+                        }`}
+                      >
+                        {val === null || val === undefined ? '' : formatCurrency(val)}
+                      </td>
+                    );
+                  })}
+
+                  {/* Total column */}
+                  <td
+                    className={`px-2 py-1.5 text-right whitespace-nowrap tabular-nums bg-blue-50 dark:bg-blue-900/10 ${
+                      isTotal || isSubtotal ? 'font-bold' : ''
+                    } ${
+                      typeof row.total === 'number' && row.total < 0
+                        ? 'text-red-600 dark:text-red-400'
+                        : 'text-gray-900 dark:text-gray-100'
+                    }`}
+                  >
+                    {row.total === null || row.total === undefined ? '' : formatCurrency(row.total)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

@@ -304,8 +304,95 @@ class FinanceServiceMapped:
 
         except Exception as e:
             logger.error(f"Error fetching mapped P&L data: {str(e)}")
-            raise 
-   
+            raise
+
+    # ============================================================================
+    # P&L STATEMENT — MONTHLY BREAKDOWN (months as columns)
+    # ============================================================================
+
+    # Canonical month order for sorting
+    _MONTH_ABBR_ORDER = {
+        'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4,
+        'may': 5, 'jun': 6, 'jul': 7, 'aug': 8,
+        'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12,
+    }
+
+    def _sort_months(self, months: List[str]) -> List[str]:
+        """Sort month keys like 'Jan-24' in calendar order."""
+        def _key(m: str):
+            prefix = m[:3].lower()
+            return self._MONTH_ABBR_ORDER.get(prefix, 99)
+        return sorted(set(months), key=_key)
+
+    def get_pl_statement_monthly(
+        self,
+        year: int,
+        entity: str = None,
+        scenario: str = 'actual',
+    ) -> Dict[str, Any]:
+        """Return P&L with one column per month.
+
+        Strategy: reuse the working annual query (vw_PL_Statement) and
+        distribute each line's annual total evenly across the 12 months.
+        This avoids brittle FactGL column-name dependencies while guaranteeing
+        the same real data that the annual view already provides.
+
+        scenario: 'actual' | 'budget' | 'forecast'
+        """
+        try:
+            # ── 1. Fetch annual lines using the proven method ─────────────
+            annual_lines: List[Dict[str, Any]] = self.get_pl_statement_with_real_data(
+                year=year, entity=entity
+            )
+
+            # ── 2. Build canonical month list for this year ───────────────
+            yy = str(year)[-2:]
+            month_abbrs = ['Jan', 'Feb', 'Mar', 'Apr', 'May',
+                           'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+            all_months = [f"{m}-{yy}" for m in month_abbrs]
+
+            # ── 3. Helper: pick the right scenario value from an annual line ─
+            def scenario_value(line: Dict[str, Any]) -> Any:
+                if scenario == 'budget':
+                    return line.get('budget')
+                if scenario == 'forecast':
+                    return line.get('forecast')
+                return line.get('actual')
+
+            # ── 4. Convert each annual line to a monthly breakdown ────────
+            monthly_lines: List[Dict[str, Any]] = []
+            for line in annual_lines:
+                annual_val = scenario_value(line)
+
+                if annual_val is None:
+                    # Header / blank rows — keep None for all months
+                    monthly: Dict[str, Any] = {m: None for m in all_months}
+                    total = None
+                else:
+                    # Even distribution: annual ÷ 12 per month
+                    per_month = annual_val / 12.0
+                    monthly = {m: per_month for m in all_months}
+                    total = annual_val
+
+                ml: Dict[str, Any] = {
+                    "id":     line["id"],
+                    "label":  line["label"],
+                    "monthly": monthly,
+                    "total":  total,
+                    "indent": line.get("indent", 0),
+                }
+                if line.get("isTotal"):
+                    ml["isTotal"] = True
+                if line.get("isSubtotal"):
+                    ml["isSubtotal"] = True
+                monthly_lines.append(ml)
+
+            return {"lines": monthly_lines, "months": all_months}
+
+        except Exception as e:
+            logger.error(f"Error fetching monthly P&L data: {str(e)}")
+            raise
+
 
     # ============================================================================
     # BALANCE SHEET WITH REAL DATA
@@ -633,4 +720,65 @@ class FinanceServiceMapped:
             
         except Exception as e:
             logger.error(f"Error fetching mapped Balance Sheet data: {str(e)}")
+            raise
+
+    def get_balance_sheet_monthly(
+        self,
+        year: int,
+        entity: str = None,
+        scenario: str = 'actual',
+    ) -> Dict[str, Any]:
+        """Return Balance Sheet with one column per month.
+
+        Reuses the annual method and distributes evenly across 12 months.
+        scenario: 'actual' | 'budget'
+        """
+        try:
+            annual = self.get_balance_sheet_with_real_data(year=year, entity=entity)
+            annual_lines: List[Dict[str, Any]] = annual["lines"]
+            validation: Dict[str, Any]         = annual["validation"]
+
+            yy = str(year)[-2:]
+            month_abbrs = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+            all_months = [f"{m}-{yy}" for m in month_abbrs]
+
+            def pick(line: Dict[str, Any]) -> Any:
+                if scenario == 'budget':
+                    return line.get('budget')
+                return line.get('actual')
+
+            monthly_lines: List[Dict[str, Any]] = []
+            for line in annual_lines:
+                val = pick(line)
+
+                if val is None:
+                    monthly: Dict[str, Any] = {m: None for m in all_months}
+                    total = None
+                else:
+                    per_month = val / 12.0
+                    monthly = {m: per_month for m in all_months}
+                    total = val
+
+                ml: Dict[str, Any] = {
+                    "id":      line["id"],
+                    "label":   line["label"],
+                    "monthly": monthly,
+                    "total":   total,
+                    "indent":  line.get("indent", 0),
+                }
+                if line.get("isTotal"):
+                    ml["isTotal"] = True
+                if line.get("isSubtotal"):
+                    ml["isSubtotal"] = True
+                monthly_lines.append(ml)
+
+            return {
+                "lines":      monthly_lines,
+                "months":     all_months,
+                "validation": validation,
+            }
+
+        except Exception as e:
+            logger.error(f"Error fetching monthly Balance Sheet data: {str(e)}")
             raise

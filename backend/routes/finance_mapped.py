@@ -57,6 +57,62 @@ async def get_pl_statement_mapped(
         raise HTTPException(status_code=500, detail=f"Error fetching mapped P&L statement: {str(e)}")
 
 
+@router.get("/pl-statement-monthly", summary="Get P&L Statement with one column per month")
+async def get_pl_statement_monthly(
+    year: int = Query(..., description="Fiscal year"),
+    entity: Optional[str] = Query(None, description="Filter by entity name"),
+    scenario: str = Query('actual', description="Scenario: actual | budget | forecast"),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Returns P&L statement with a column per month (Jan-YY … Dec-YY).
+    Budget/forecast values are derived from actuals via fixed scaling factors.
+    """
+    try:
+        service = FinanceServiceMapped(db)
+        result = service.get_pl_statement_monthly(year=year, entity=entity, scenario=scenario)
+        return {
+            "success": True,
+            "data": {
+                "year": year,
+                "entity": entity or "All Entities",
+                "scenario": scenario,
+                "months": result["months"],
+                "lines": result["lines"],
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error in get_pl_statement_monthly: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching monthly P&L: {str(e)}")
+
+
+@router.get("/balance-sheet-monthly", summary="Get Balance Sheet with one column per month")
+async def get_balance_sheet_monthly(
+    year: int = Query(..., description="Fiscal year"),
+    entity: Optional[str] = Query(None, description="Filter by entity name"),
+    scenario: str = Query('actual', description="Scenario: actual | budget"),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Balance Sheet with a column per month (Jan-YY … Dec-YY)."""
+    try:
+        service = FinanceServiceMapped(db)
+        result = service.get_balance_sheet_monthly(year=year, entity=entity, scenario=scenario)
+        return {
+            "success": True,
+            "data": {
+                "year": year,
+                "entity": entity or "All Entities",
+                "scenario": scenario,
+                "months": result["months"],
+                "lines": result["lines"],
+                "validation": result["validation"],
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error in get_balance_sheet_monthly: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching monthly Balance Sheet: {str(e)}")
+
+
 @router.get("/balance-sheet-mapped", summary="Get Balance Sheet with mapped real data")
 async def get_balance_sheet_mapped(
     year: int = Query(..., description="Year for balance sheet"),

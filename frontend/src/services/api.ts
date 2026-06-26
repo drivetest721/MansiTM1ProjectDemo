@@ -263,9 +263,17 @@ export const getFinancialRatios = (params: { year: number; entity?: string }) =>
 export const getPLStatementMapped = (params: PLParams) =>
   api.get('/api/finance-mapped/pl-statement-mapped', { params });
 
+// P&L Statement — monthly columns (Actual / Budget / Forecast)
+export const getPLStatementMonthly = (params: PLParams & { scenario?: string }) =>
+  api.get('/api/finance-mapped/pl-statement-monthly', { params });
+
 // Balance Sheet (Mapped - Real Data)
 export const getBalanceSheetMapped = (params: BalanceSheetParams) =>
   api.get('/api/finance-mapped/balance-sheet-mapped', { params });
+
+// Balance Sheet — monthly columns (Actual / Budget)
+export const getBalanceSheetMonthly = (params: BalanceSheetParams & { scenario?: string }) =>
+  api.get('/api/finance-mapped/balance-sheet-monthly', { params });
 
 // ==========================================
 // FORECASTING & SCENARIOS APIs (HIGH PRIORITY)
