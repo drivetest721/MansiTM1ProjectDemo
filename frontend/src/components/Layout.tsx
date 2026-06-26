@@ -30,7 +30,7 @@ const analyticsItems = [
   { path: '/revenue-planning', label: 'Product Financial Analysis', icon: TrendingUp },
   { path: '/workforce-planning', label: 'Workforce Reporting', icon: Users },
   { path: '/cfo-budgeting', label: 'CFO Budgeting', icon: Wallet },
-
+  { path: '/forecasting-analysis', label: 'Forecasting Analysis', icon: LineChart },
   { path: '/pl-statement', label: 'P&L Statement', icon: FileText },
   { path: '/balance-sheet', label: 'Balance Sheet', icon: Scale },
 ];
@@ -39,7 +39,7 @@ const consolidationItems = [
   { path: '/tm1-architecture', label: 'TM1 Architecture', icon: Network },
   { path: '/dimension-explorer', label: 'Dimension Explorer', icon: Database },
   { path: '/cube-explorer', label: 'Cube Explorer', icon: Box },
-  { path: '/financial-consolidation', label: 'Financial Consolidation', icon: Globe },
+  // { path: '/financial-consolidation', label: 'Financial Consolidation', icon: Globe },
   { path: '/admin-data-health', label: 'Admin / Data Health', icon: Settings },
 ];
 

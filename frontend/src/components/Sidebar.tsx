@@ -22,7 +22,7 @@ const navigation = [
   { name: 'Forecasting Analysis', href: '/forecasting-analysis', icon: BarChart3 },
   { name: 'P&L Statement', href: '/pl-statement', icon: FileText },
   { name: 'Balance Sheet', href: '/balance-sheet', icon: Layers },
-  { name: 'Financial Consolidation', href: '/financial-consolidation', icon: GitBranch },
+  // { name: 'Financial Consolidation', href: '/financial-consolidation', icon: GitBranch },
   { name: 'Cube Explorer', href: '/cube-explorer', icon: Database },
   { name: 'Dimension Explorer', href: '/dimension-explorer', icon: PieChart },
   { name: 'TM1 Architecture', href: '/tm1-architecture', icon: Target },
