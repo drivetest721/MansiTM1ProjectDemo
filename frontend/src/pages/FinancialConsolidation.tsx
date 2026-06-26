@@ -7,6 +7,8 @@ import HierarchyTree from '../components/HierarchyTree';
 import type { HierarchyNode } from '../components/HierarchyTree';
 import { getEntityHierarchy, getConsolidatedCubeData } from '../services/api';
 import { Loader2 } from 'lucide-react';
+import AnnotationPanel from '../components/AnnotationPanel';
+import { exportCubeToExcel } from '../utils/exportToExcel';
 
 // Removed ~230 lines of mock data - now using real backend data from consolidation_service.py
 const CHILDREN_INDENT: Record<number, number> = {
@@ -136,6 +138,18 @@ export default function FinancialConsolidation() {
     return () => { controller.abort(); fetchingRef.current = false; };
   }, [filters.year]);
 
+   const handleExportConsolidationTable = () => {
+      try {
+        exportCubeToExcel(
+          cubeData,
+          ['Revenue', 'Expense', 'EBITDA', 'Net Income', 'Assets', 'Liabilities', 'Equity'],
+          'Consolidation_Table'
+        );
+      } catch (error) {
+        console.error('Export failed:', error);
+      }
+};
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -186,7 +200,7 @@ export default function FinancialConsolidation() {
                 measures={['Revenue', 'Expense', 'EBITDA', 'Net Income', 'Assets', 'Liabilities', 'Equity']}
                 title="Consolidated Financial Data"
                 showExport={true}
-                onExport={() => {}}
+                onExport={handleExportConsolidationTable}
                 onDrillDown={async (row) => getChildRows(row)}  // ← key fix
               />
             </div>
@@ -196,6 +210,7 @@ export default function FinancialConsolidation() {
          
         </>
       )}
+      <AnnotationPanel pageKey="cfo-financial-consolidation" period={`${filters.year}:${filters.entity}`} />
     </div>
   );
 }

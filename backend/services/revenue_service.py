@@ -206,15 +206,16 @@ class RevenueService:
             
             query = f"""
             SELECT 
-                RegionName as DimensionValue,
+                ProductCategory as DimensionValue,
                 ISNULL(SUM(Revenue), 0) as Revenue,
                 ISNULL(SUM(Cost), 0) as Cost,
                 ISNULL(SUM(Margin), 0) as Margin,
                 CASE WHEN SUM(Revenue) > 0 THEN (SUM(Margin) / SUM(Revenue) * 100) ELSE 0 END as MarginPercent,
+                ISNULL(SUM(Quantity), 0) as Quantity,
                 COUNT(*) as Count
             FROM Sales.vw_RevenueCube_Source WITH (NOLOCK)
             {where_clause}
-            GROUP BY RegionName
+            GROUP BY ProductCategory
             ORDER BY Revenue DESC
             """
             
@@ -227,18 +228,21 @@ class RevenueService:
                     cost=float(r.Cost),
                     margin=float(r.Margin),
                     margin_percent=float(r.MarginPercent),
+                    quantity=float(r.Quantity),
                     count=r.Count
                 )
                 for r in results
             ]
             
             # Calculate total
+            total_revenue = sum(r.revenue for r in data)
             total = RevenueAggregation(
                 dimension_value="Total",
-                revenue=sum(r.revenue for r in data),
+                revenue=total_revenue,
                 cost=sum(r.cost for r in data),
                 margin=sum(r.margin for r in data),
-                margin_percent=(sum(r.margin for r in data) / sum(r.revenue for r in data) * 100) if sum(r.revenue for r in data) > 0 else 0,
+                margin_percent=(sum(r.margin for r in data) / total_revenue * 100) if total_revenue > 0 else 0,
+                quantity=sum(r.quantity for r in data),
                 count=sum(r.count for r in data)
             )
             

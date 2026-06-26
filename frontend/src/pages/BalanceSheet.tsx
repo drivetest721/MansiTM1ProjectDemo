@@ -1,10 +1,12 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import FinancialTable from '../components/FinancialTable';
 import type { FinancialRow } from '../components/FinancialTable';
 import GlobalFilters from '../components/GlobalFilters';
 import type { FilterOption } from '../components/GlobalFilters';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { getBalanceSheetMapped, getEntities } from '../services/api';
+import AnnotationPanel from '../components/AnnotationPanel';
+import { exportFinancialTableToExcel } from '../utils/exportToExcel';
 
 // Balance Sheet data (fallback)
 
@@ -189,6 +191,14 @@ export default function BalanceSheet() {
 
   const ratios = calculateRatios();
 
+  const handleExportBalanceSheetTable = () => {
+  try {
+    exportFinancialTableToExcel(bsData, 'Balance_Sheet_Table');
+  } catch (error) {
+    console.error('Export failed:', error);
+  }
+};
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -285,11 +295,13 @@ export default function BalanceSheet() {
             title={`Balance Sheet - As of ${filters.month === 'ytd' ? 'YTD' : 'Month End'} ${filters.year}`}
             showExport={true}
             showForecast={false}
+            onExport={handleExportBalanceSheetTable}
           />
 
 
         </>
       )}
+      <AnnotationPanel pageKey="cfo-balance-sheet" period={`${filters.year}:${filters.entity}`} />
     </div>
   );
 }

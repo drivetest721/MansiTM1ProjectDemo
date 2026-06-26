@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import FinancialTable, { type FinancialRow } from '../components/FinancialTable';
 import GlobalFilters, { type FilterOption } from '../components/GlobalFilters';
 import { getPLStatementMapped, getEntities } from '../services/api';
 import { Loader2 } from 'lucide-react';
+import { exportFinancialTableToExcel } from '../utils/exportToExcel';
 import AnnotationPanel from '../components/AnnotationPanel';
 
 
@@ -157,6 +158,14 @@ export default function PLStatement() {
 
   const margins = calculateMargins();
 
+  const handleExportPLTable = () => {
+  try {
+    exportFinancialTableToExcel(plData, 'PL_Statement_Table');
+  } catch (error) {
+    console.error('Export failed:', error);
+  }
+};
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -231,6 +240,7 @@ export default function PLStatement() {
             title={`Profit & Loss Statement - ${filters.year}`}
             showExport={true}
             showForecast={false}
+            onExport={handleExportPLTable}
           />
 
     

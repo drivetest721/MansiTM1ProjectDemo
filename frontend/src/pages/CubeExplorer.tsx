@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Loader2, Database } from 'lucide-react';
 import { getCubes, getCubeDetails, getCubeSampleData } from '../services/api';
+import AnnotationPanel from '../components/AnnotationPanel';
 
 interface Cube {
   cube_id: string;
@@ -216,6 +217,7 @@ export default function CubeExplorer() {
           )}
         </div>
       </div>
+      <AnnotationPanel pageKey="cfo-cube-explorer" />
     </div>
   );
 }

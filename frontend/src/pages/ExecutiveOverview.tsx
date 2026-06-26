@@ -7,6 +7,8 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, L
 import { getDashboard, getRevenueDrilldown } from '../services/api';
 import { exportFinancialTableToExcel } from '../utils/exportToExcel';
 import { THEME_COLORS, formatCurrency2dp, formatPercent2dp } from '../theme/colors';
+import AnnotationPanel from '../components/AnnotationPanel';
+
 
 const COLORS = THEME_COLORS;
 const PRIMARY = THEME_COLORS[0];
@@ -549,6 +551,7 @@ export default function ExecutiveOverview() {
 
       {/* Financial Summary Table */}
       <FinancialTable data={summaryTableData} title="Financial Summary by Business Area." showExport={true} onExport={handleExportFinancialSummary} />
+      <AnnotationPanel pageKey="cfo-overview"  />
     </div>
   );
 }

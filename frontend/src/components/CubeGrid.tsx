@@ -63,6 +63,11 @@ export default function CubeGrid({
     return String(value);
   };
 
+  const formatUnitPrice = (value: number | undefined) => {
+    if (value === undefined || value === null || isNaN(value)) return '-';
+    return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
   const toggleExpand = useCallback(async (row: CubeRow) => {
     const rowId = row.id;
     
@@ -203,14 +208,18 @@ export default function CubeGrid({
       header: () => <div className="text-right">{measure}</div>,
       cell: ({ row }: any) => {
           const value = row.original[measure];
-          
-          // Don't format Headcount as currency
-          const isCount = measure.toLowerCase().includes('headcount') || measure.toLowerCase().includes('count') || measure.toLowerCase().includes('quantity');
-          
+          const measureLower = measure.toLowerCase();
+
+          const isCount = measureLower.includes('headcount') || measureLower.includes('count') || measureLower.includes('quantity');
+          const isPercent = measure.includes('%') || measureLower.includes('percent');
+          const isUnitPrice = measureLower.includes('price') || measureLower.includes('avg selling');
+
           const formatted = isCount
-            ? (value ?? '-').toString()
-            : measure.includes('%') || measure.toLowerCase().includes('percent')
+            ? (value === undefined || value === null ? '-' : Number(value).toLocaleString('en-US'))
+            : isPercent
             ? formatPercent(value)
+            : isUnitPrice
+            ? formatUnitPrice(value)
             : formatNumber(value);
 
           return (

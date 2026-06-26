@@ -10,6 +10,8 @@ import { getRevenueByRegionAgg, getRevenueByProduct, getRevenueByCustomerSegment
 import { exportCubeToExcel } from '../utils/exportToExcel';
 import { Settings2 } from 'lucide-react';
 import { THEME_COLORS, formatCurrency2dp } from '../theme/colors';
+import AnnotationPanel from '../components/AnnotationPanel';
+
 export default function RevenuePlanning() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -18,7 +20,7 @@ export default function RevenuePlanning() {
   const [revenueByCategory, setRevenueByCategory] = useState<any[]>([]);
   const [revenueBySegment, setRevenueBySegment] = useState<any[]>([]);
   const [revenueByRegion, setRevenueByRegion] = useState<any[]>([]);
-  
+
   const [filters, setFilters] = useState<Record<string, string>>({
     year: 'all',
     quarter: 'all',
@@ -30,6 +32,9 @@ export default function RevenuePlanning() {
   const fetchingRef = useRef(false);
 
   // Pivot configuration state
+  // NOTE: measure labels here ("Gross Margin", "Gross Margin %") must match
+  // the keys used on each CubeRow exactly, since CubeGrid looks up
+  // row.original[measure] using these strings verbatim.
   const [showPivotDialog, setShowPivotDialog] = useState(false);
   const [pivotConfig, setPivotConfig] = useState<PivotConfig>({
     rowDimensions: ['Product'],
@@ -38,40 +43,40 @@ export default function RevenuePlanning() {
   });
 
   const filterOptions: FilterOption[] = [
-  {
-    id: 'year',
-    label: 'Year',
-    options: Array.from({ length: 13 }, (_, i) => 2018 + i).map(y => ({ value: String(y), label: String(y) })),
-  },
-  {
-    id: 'quarter',
-    label: 'Quarter',
-    options: [
-      { value: 'Q1', label: 'Q1' },
-      { value: 'Q2', label: 'Q2' },
-      { value: 'Q3', label: 'Q3' },
-      { value: 'Q4', label: 'Q4' },
-    ],
-  },
-  {
-    id: 'region',
-    label: 'Region',
-    options: [
-      { value: 'North America', label: 'North America' },
-      { value: 'Europe Middle East Africa', label: 'Europe Middle East Africa' },
-      { value: 'Asia Pacific', label: 'Asia Pacific' },
-    ],
-  },
-  {
-    id: 'scenario',
-    label: 'Scenario',
-    options: [
-      { value: 'Actual', label: 'Actual' },
-      { value: 'Budget', label: 'Budget' },
-      { value: 'Forecast', label: 'Forecast' },
-    ],
-  },
-];
+    {
+      id: 'year',
+      label: 'Year',
+      options: Array.from({ length: 13 }, (_, i) => 2018 + i).map(y => ({ value: String(y), label: String(y) })),
+    },
+    {
+      id: 'quarter',
+      label: 'Quarter',
+      options: [
+        { value: 'Q1', label: 'Q1' },
+        { value: 'Q2', label: 'Q2' },
+        { value: 'Q3', label: 'Q3' },
+        { value: 'Q4', label: 'Q4' },
+      ],
+    },
+    {
+      id: 'region',
+      label: 'Region',
+      options: [
+        { value: 'North America', label: 'North America' },
+        { value: 'Europe Middle East Africa', label: 'Europe Middle East Africa' },
+        { value: 'Asia Pacific', label: 'Asia Pacific' },
+      ],
+    },
+    {
+      id: 'scenario',
+      label: 'Scenario',
+      options: [
+        { value: 'Actual', label: 'Actual' },
+        { value: 'Budget', label: 'Budget' },
+        { value: 'Forecast', label: 'Forecast' },
+      ],
+    },
+  ];
 
   useEffect(() => {
     const controller = new AbortController();
@@ -84,7 +89,7 @@ export default function RevenuePlanning() {
     fetchingRef.current = true;
     setLoading(true);
     setError(null);
-    
+
     try {
       // Prepare filter params (only include non-'all' values)
       const params: any = { page: 1, page_size: 100 };
@@ -109,26 +114,36 @@ export default function RevenuePlanning() {
       ]);
 
       // Transform category data to CubeRow format (ROOT LEVEL - categories)
-      const gridData: CubeRow[] = byProduct.data.data.map((category: any) => ({
-        id: `category-${category.dimension_value}`,
-        rowLabel: category.dimension_value,
-        indent: 0,
-        level: 'category',
-        hasChildren: true, // Categories can drill down to families
-        Revenue: category.revenue,
-        Cost: category.cost,
-        Quantity: category.quantity,
-        Margin: category.margin,
-        'Margin %': category.margin_percent,
-        'Avg Selling Price': category.revenue / (category.quantity || 1),
-      }));
+      // NOTE: keys must exactly match the `measures` array above
+      // ("Gross Margin" / "Gross Margin %"), not the old "Margin" / "Margin %".
+      const gridData: CubeRow[] = byProduct.data.data.map((category: any) => {
+        // Some category-level aggregations may not return a quantity figure
+        // (it's only available once you drill into family/product level).
+        // Don't fake an average by dividing by 1 — leave it undefined so the
+        // grid honestly shows "-" instead of a misleading number.
+        const quantity = category.quantity;
 
-      // Add grand total row
-      const totalRevenue = gridData.reduce((sum, row) => sum + (row.Revenue as number), 0);
-      const totalCost = gridData.reduce((sum, row) => sum + (row.Cost as number), 0);
-      const totalMargin = gridData.reduce((sum, row) => sum + (row.Margin as number), 0);
-      const totalQuantity = gridData.reduce((sum, row) => sum + (row.Quantity as number), 0);
-      
+        return {
+          id: `category-${category.dimension_value}`,
+          rowLabel: category.dimension_value,
+          indent: 0,
+          level: 'category',
+          hasChildren: true, // Categories can drill down to families
+          Revenue: category.revenue,
+          Cost: category.cost,
+          Quantity: quantity,
+          'Gross Margin': category.margin,
+          'Gross Margin %': category.margin_percent,
+          'Avg Selling Price': quantity ? category.revenue / quantity : undefined,
+        };
+      });
+
+      // Add grand total row — guarded against undefined/NaN propagation
+      const totalRevenue = gridData.reduce((sum, row) => sum + (Number(row.Revenue) || 0), 0);
+      const totalCost = gridData.reduce((sum, row) => sum + (Number(row.Cost) || 0), 0);
+      const totalMargin = gridData.reduce((sum, row) => sum + (Number(row['Gross Margin']) || 0), 0);
+      const totalQuantity = gridData.reduce((sum, row) => sum + (Number(row.Quantity) || 0), 0);
+
       gridData.push({
         id: 'total',
         rowLabel: 'Grand Total',
@@ -137,17 +152,17 @@ export default function RevenuePlanning() {
         isTotal: true,
         Revenue: totalRevenue,
         Cost: totalCost,
-        Quantity: totalQuantity,
-        Margin: totalMargin,
-        'Margin %': totalMargin / totalRevenue * 100,
-        'Avg Selling Price': totalRevenue / totalQuantity,
+        Quantity: totalQuantity > 0 ? totalQuantity : undefined,
+        'Gross Margin': totalMargin,
+        'Gross Margin %': totalRevenue > 0 ? (totalMargin / totalRevenue) * 100 : 0,
+        'Avg Selling Price': totalQuantity > 0 ? totalRevenue / totalQuantity : undefined,
       });
 
       setCubeData(gridData);
 
       // Transform aggregations for charts
       const colors = THEME_COLORS;
-      
+
       setRevenueByCategory(
         byProduct.data.data.map((item: any, idx: number) => ({
           name: item.dimension_value,
@@ -194,7 +209,7 @@ export default function RevenuePlanning() {
     try {
       exportCubeToExcel(
         cubeData,
-        ['Revenue', 'Cost', 'Quantity', 'Margin', 'Margin %', 'Avg Selling Price'],
+        ['Revenue', 'Cost', 'Quantity', 'Gross Margin', 'Gross Margin %', 'Avg Selling Price'],
         'Revenue_Planning_Cube'
       );
     } catch (error) {
@@ -205,7 +220,7 @@ export default function RevenuePlanning() {
   const handlePivotApply = (config: PivotConfig) => {
     setPivotConfig(config);
     setShowPivotDialog(false);
-    
+
     // Navigate to pivot table view with data and configuration
     navigate('/revenue-planning/pivot', {
       state: {
@@ -215,7 +230,7 @@ export default function RevenuePlanning() {
         sourcePage: '/revenue-planning',
       },
     });
-    
+
   };
 
   const handleDrillDown = async (row: CubeRow) => {
@@ -248,8 +263,8 @@ export default function RevenuePlanning() {
         Revenue: item.revenue || 0,
         Cost: item.cost || 0,
         Quantity: item.quantity || 0,
-        Margin: item.margin || 0,
-        'Margin %': item.margin_percent || 0,
+        'Gross Margin': item.margin || 0,
+        'Gross Margin %': item.margin_percent || 0,
         'Avg Selling Price': (item.revenue || 0) / (item.quantity || 1),
       }));
     } catch (error: any) {
@@ -293,7 +308,7 @@ export default function RevenuePlanning() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Product Financial Analysis</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">TM1-style Interactive cube for analyzing product revenue and profitability metrics.</p>          
+          <p className="text-gray-600 dark:text-gray-400 mt-1">TM1-style Interactive cube for analyzing product revenue and profitability metrics.</p>
           <div className="mt-2 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
             <span className="font-semibold">📊 Drill-Down Hierarchy:</span>
             <span className="bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded">Product Category</span>
@@ -322,7 +337,7 @@ export default function RevenuePlanning() {
           Pivot Options
         </button>
       </div>
-      
+
       {/* Main Cube Grid */}
       <CubeGrid
         data={cubeData}
@@ -371,7 +386,7 @@ export default function RevenuePlanning() {
               <XAxis dataKey="region" stroke="#6b7280" tick={{ fontSize: 11 }} />
               <YAxis stroke="#6b7280" />
                 <Tooltip formatter={(value: any) => value ? `${Number(value).toFixed(2)}%` : ''} />
-              
+
                 <Bar dataKey="margin" fill={THEME_COLORS[0]}
                   label={{ position: 'top', formatter: (v: any) => `${Number(v).toFixed(1)}%`, fontSize: 14, fill: '#374151', fontWeight: 'bold' }}
                 />
@@ -388,7 +403,7 @@ export default function RevenuePlanning() {
               <XAxis type="number" tickFormatter={formatCurrency} stroke="#6b7280" />
               <YAxis type="category" dataKey="segment" stroke="#6b7280" />
               <Tooltip formatter={(value: any) => value ? formatCurrency(Number(value)) : ''} />
-              <Bar dataKey="value" fill={THEME_COLORS[3]} 
+              <Bar dataKey="value" fill={THEME_COLORS[3]}
                 label={{ position: 'right', formatter: (v: any) => v ? formatCurrency(Number(v)) : '', fontSize: 14, fill: '#374151', fontWeight: 'bold' }}
               />
             </BarChart>
@@ -396,7 +411,7 @@ export default function RevenuePlanning() {
         </div>
       </div>
 
-      
+
 
       {/* Pivot Dialog */}
       <PivotDialog
@@ -405,10 +420,11 @@ export default function RevenuePlanning() {
         availableDimensions={['Product', 'Time', 'Customer', 'Region', 'Entity', 'Version']}
         currentRowDimensions={pivotConfig.rowDimensions}
         currentColumnDimensions={pivotConfig.columnDimensions}
-        availableMeasures={['Revenue', 'Cost', 'Quantity', 'Margin', 'Margin %']}
+        availableMeasures={['Revenue', 'Cost', 'Quantity', 'Gross Margin', 'Gross Margin %']}
         selectedMeasures={pivotConfig.measures}
         onApply={handlePivotApply}
       />
+      <AnnotationPanel pageKey="cfo-revenue-planning" period={`${filters.year}:${filters.entity}`} />
     </div>
   );
 }

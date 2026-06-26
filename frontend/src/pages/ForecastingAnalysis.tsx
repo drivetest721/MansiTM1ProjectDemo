@@ -9,6 +9,7 @@ import { getScenarioSummary, getForecastTable, getEntities, getForecastMonthlyTr
 import WorkflowStatusBadge from '../components/WorkflowStatusBadge';
 import AnnotationPanel from '../components/AnnotationPanel';
 import RollingForecastPanel from '../components/RollingForecastPanel';
+import { exportFinancialTableToExcel } from '../utils/exportToExcel';
 import { LabelList } from 'recharts';
 
 
@@ -141,25 +142,38 @@ export default function ForecastingAnalysis() {
         ]);
 
         // --- Scenarios ---
-        if (scenarioRes.status === 'fulfilled') {
-          const scenarioData = scenarioRes.value.data.data; // { year, entity, scenarios }
-          if (scenarioData?.scenarios?.length > 0) {
-            const mapped = scenarioData.scenarios.map((s: any) => ({
-              name: s.scenario_name === 'Base Case' ? 'Most Likely Case' : s.scenario_name, 
-              revenue:     s.revenue,
-              ebitda:      s.ebitda ?? s.net_income * 1.1,
-              netIncome:   s.net_income,
-              probability: s.probability ? `${(s.probability * 100).toFixed(0)}%` : '33%',
-              color:       s.color || 'blue',
-            }));
-            setScenarios(mapped);
-          } else {
-            setScenarios(scenariosFallback);
+          if (scenarioRes.status === 'fulfilled') {
+            const scenarioData = scenarioRes.value.data.data;
+
+            if (scenarioData?.scenarios?.length > 0) {
+              const mapped = scenarioData.scenarios.map((s: any) => ({
+                name: s.scenario_name === 'Base Case' ? 'Most Likely Case' : s.scenario_name,
+                revenue: s.revenue,
+                ebitda: s.ebitda ?? s.net_income * 1.1,
+                netIncome: s.net_income,
+                probability: s.probability ? `${(s.probability * 100).toFixed(0)}%` : '33%',
+                color: s.color || 'blue',
+              }));
+
+              // Sort scenarios in desired order
+              const scenarioOrder: Record<string, number> = {
+                'Most Likely Case': 2,
+                'Best Case': 1,
+                'Worst Case': 3,
+              };
+
+              mapped.sort(
+                (a: any, b: any) =>
+                  (scenarioOrder[a.name] || 99) -
+                  (scenarioOrder[b.name] || 99)
+              );
+
+              setScenarios(mapped);
+            } else {
+              setScenarios(scenariosFallback);
+            }
           }
-        } else {
-          console.error('Scenario summary failed:', scenarioRes.reason);
-          setScenarios(scenariosFallback);
-        }
+        
 
         // --- Forecast table ---
         if (tableRes.status === 'fulfilled') {
@@ -280,6 +294,15 @@ const scenarioComparisonData = scenarios.map((s) => ({
   EBITDA:       s.ebitda     || 0,
   'Net Income': s.netIncome  || 0,
 }));
+
+
+const handleExportForecastTable = () => {
+  try {
+    exportFinancialTableToExcel(forecastTableData, 'Forecast_Analysis_Table');
+  } catch (error) {
+    console.error('Export failed:', error);
+  }
+};
   // -------------------------------------------------------------------------
   // Render
   // -------------------------------------------------------------------------
@@ -348,15 +371,14 @@ const scenarioComparisonData = scenarios.map((s) => ({
 
           {/* Forecast Table (only shown when API returns data) */}
           {forecastTableData.length > 0 && (
-            <FinancialTable
+             <FinancialTable
               data={forecastTableData}
               title="Forecast Analysis Table"
               showExport={true}
+              onExport={handleExportForecastTable}
             />
           )}
 
-          {/* Rolling Forecast Panel */}
-          <RollingForecastPanel year={Number(filters.year)} />
 
           {/* Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

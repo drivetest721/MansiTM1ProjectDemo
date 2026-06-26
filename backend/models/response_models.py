@@ -133,6 +133,8 @@ class RevenueAggregation(BaseModel):
     cost: float
     margin: float
     margin_percent: float
+    quantity: float = 0   # ← add this line
+
     count: int
 
 

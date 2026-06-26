@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Loader2, Network } from 'lucide-react';
 import { getDimensions, getDimensionDetails, getDimensionHierarchy, getDimensionElements } from '../services/api';
 import HierarchyTree from '../components/HierarchyTree';
+import AnnotationPanel from '../components/AnnotationPanel';
 
 interface Dimension {
   dimension_id: string;
@@ -230,6 +231,7 @@ export default function DimensionExplorer() {
           )}
         </div>
       </div>
+      <AnnotationPanel pageKey="cfo-dimension-explorer"  />
     </div>
   );
 }

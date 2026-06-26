@@ -467,8 +467,8 @@ export default function CFOBudgeting() {
       />
 
       {/* Revenue actual vs budget, by department / entity, side by side */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <NetProfitChart title="Revenue: Actual vs Budget by Department" data={revenueByDept} />
+      <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
+        
         <NetProfitChart title="Revenue: Actual vs Budget by Entity" data={revenueByEntity} />
       </div>
 
