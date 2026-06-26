@@ -329,15 +329,57 @@ export default function ExecutiveOverview() {
   };
 
   // ---- Trend (line) chart: hierarchical Year/Quarter/Month filtering ----
-  const summaryTableData: FinancialRow[] = [
-    { id: 'revenue', label: 'Revenue', actual: 142500000, budget: 138200000, forecast: 145800000, variance: 4300000, variancePercent: 3.1 },
-    { id: 'COGS', label: 'COGS', actual: 98700000, budget: 95100000, forecast: 99200000, variance: 3600000, variancePercent: 3.8 },
-    { id: 'gross-margin', label: 'Gross Margin', actual: 43800000, budget: 43100000, forecast: 46600000, variance: 700000, variancePercent: 1.6, isSubtotal: true },
-    { id: 'payroll', label: 'Payroll', actual: 52300000, budget: 49800000, forecast: 53100000, variance: 2500000, variancePercent: 5.0 },
-    { id: 'opex', label: 'Operating Expenses', actual: 28400000, budget: 27200000, forecast: 29000000, variance: 1200000, variancePercent: 4.4 },
-    { id: 'ebitda', label: 'EBITDA', actual: -36900000, budget: -33900000, forecast: -35500000, variance: -3000000, variancePercent: -8.8, isSubtotal: true },
-    { id: 'net-income', label: 'Net Income', actual: -42100000, budget: -39200000, forecast: -40800000, variance: -2900000, variancePercent: -7.4, isTotal: true },
-  ];
+const summaryTableData: FinancialRow[] = [
+  { 
+    id: 'revenue', label: 'Revenue', 
+    actual: 142500000, budget: 138200000, forecast: 145800000, 
+    variance: 4300000, variancePercent: 3.1,
+    forecastVariance: 142500000 - 145800000,           // -3300000
+    forecastVariancePercent: ((142500000 - 145800000) / 145800000) * 100   // -2.26%
+  },
+  { 
+    id: 'COGS', label: 'COGS', 
+    actual: 98700000, budget: 95100000, forecast: 99200000, 
+    variance: 3600000, variancePercent: 3.8,
+    forecastVariance: 98700000 - 99200000,             // -500000
+    forecastVariancePercent: ((98700000 - 99200000) / 99200000) * 100
+  },
+  { 
+    id: 'gross-margin', label: 'Gross Margin', 
+    actual: 43800000, budget: 43100000, forecast: 46600000, 
+    variance: 700000, variancePercent: 1.6, isSubtotal: true,
+    forecastVariance: 43800000 - 46600000,
+    forecastVariancePercent: ((43800000 - 46600000) / 46600000) * 100
+  },
+  { 
+    id: 'payroll', label: 'Payroll', 
+    actual: 52300000, budget: 49800000, forecast: 53100000, 
+    variance: 2500000, variancePercent: 5.0,
+    forecastVariance: 52300000 - 53100000,
+    forecastVariancePercent: ((52300000 - 53100000) / 53100000) * 100
+  },
+  { 
+    id: 'opex', label: 'Operating Expenses', 
+    actual: 28400000, budget: 27200000, forecast: 29000000, 
+    variance: 1200000, variancePercent: 4.4,
+    forecastVariance: 28400000 - 29000000,
+    forecastVariancePercent: ((28400000 - 29000000) / 29000000) * 100
+  },
+  { 
+    id: 'ebitda', label: 'EBITDA', 
+    actual: -36900000, budget: -33900000, forecast: -35500000, 
+    variance: -3000000, variancePercent: -8.8, isSubtotal: true,
+    forecastVariance: -36900000 - (-35500000),
+    forecastVariancePercent: ((-36900000 - (-35500000)) / Math.abs(-35500000)) * 100
+  },
+  { 
+    id: 'net-income', label: 'Net Income', 
+    actual: -42100000, budget: -39200000, forecast: -40800000, 
+    variance: -2900000, variancePercent: -7.4, isTotal: true,
+    forecastVariance: -42100000 - (-40800000),
+    forecastVariancePercent: ((-42100000 - (-40800000)) / Math.abs(-40800000)) * 100
+  },
+];
 
   const handleExportFinancialSummary = () => {
     try {

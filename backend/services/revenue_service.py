@@ -304,6 +304,7 @@ class RevenueService:
                 ISNULL(SUM(Cost), 0) as Cost,
                 ISNULL(SUM(Margin), 0) as Margin,
                 CASE WHEN SUM(Revenue) > 0 THEN (SUM(Margin) / SUM(Revenue) * 100) ELSE 0 END as MarginPercent,
+                ISNULL(SUM(Quantity), 0) as Quantity,
                 COUNT(*) as Count
             FROM Sales.vw_RevenueCube_Source WITH (NOLOCK)
             {where_clause}
@@ -320,6 +321,7 @@ class RevenueService:
                     cost=float(r.Cost),
                     margin=float(r.Margin),
                     margin_percent=float(r.MarginPercent),
+                    quantity=float(r.Quantity),
                     count=r.Count
                 )
                 for r in results

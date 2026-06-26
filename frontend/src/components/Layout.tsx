@@ -36,10 +36,10 @@ const analyticsItems = [
 ];
 
 const consolidationItems = [
-  { path: '/financial-consolidation', label: 'Financial Consolidation', icon: Globe },
-  { path: '/cube-explorer', label: 'Cube Explorer', icon: Box },
-  { path: '/dimension-explorer', label: 'Dimension Explorer', icon: Database },
   { path: '/tm1-architecture', label: 'TM1 Architecture', icon: Network },
+  { path: '/dimension-explorer', label: 'Dimension Explorer', icon: Database },
+  { path: '/cube-explorer', label: 'Cube Explorer', icon: Box },
+  { path: '/financial-consolidation', label: 'Financial Consolidation', icon: Globe },
   { path: '/admin-data-health', label: 'Admin / Data Health', icon: Settings },
 ];
 
@@ -208,6 +208,19 @@ export default function Layout({ children }: LayoutProps) {
         >
           <nav className="p-3 space-y-2">
             <NavGroup
+              label="Financial Consolidation"
+              icon={Server}
+              items={consolidationItems}
+              currentPath={currentPath}
+              defaultOpen={true}
+              onNavigate={() => setSidebarOpen(false)}
+              collapsed={collapsed}
+            />
+            
+            <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
+            
+            
+            <NavGroup
               label="Analytics & Reporting"
               icon={BarChart2}
               items={analyticsItems}
@@ -217,17 +230,7 @@ export default function Layout({ children }: LayoutProps) {
               collapsed={collapsed}
             />
 
-            <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
 
-            <NavGroup
-              label="Financial Consolidation"
-              icon={Server}
-              items={consolidationItems}
-              currentPath={currentPath}
-              defaultOpen={true}
-              onNavigate={() => setSidebarOpen(false)}
-              collapsed={collapsed}
-            />
           </nav>
 
           {/* Collapse / expand toggle — sits on the sidebar's edge, vertically centered */}

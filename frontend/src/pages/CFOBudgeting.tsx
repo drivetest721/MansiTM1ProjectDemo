@@ -12,7 +12,6 @@ import {
 } from '../services/api';
 import { exportFinancialTableToExcel } from '../utils/exportToExcel';
 import AnnotationPanel from '../components/AnnotationPanel';
-import WorkflowStatusBadge from '../components/WorkflowStatusBadge';
 import GaugeChart from '../components/GaugeChart';
 import NetProfitChart, { type NetProfitRow } from '../components/NetProfitChart';
 import { THEME_COLORS, formatCurrency2dp, formatPercent2dp } from '../theme/colors';
@@ -22,20 +21,24 @@ import { THEME_COLORS, formatCurrency2dp, formatPercent2dp } from '../theme/colo
 // Revenue and Expense map directly to P&L. There is no literal "Net Profit"
 // account — it's always Revenue minus Expense, computed, never a stored row.
 // COGS accounts — exact names from Planning.vw_BudgetCube_Source
-const COGS_ACCOUNTS = new Set(['Direct Cost', 'Delivery Cost']);
+const COGS_PREFIXES = ['Travel Expense', 'Salary Expense'];
 
-// Revenue → revenue bucket
-// Expense where AccountName is "Direct Cost" or "Delivery Cost" → cogs bucket
-// All other Expense accounts → opex bucket
-// Equity / Asset / Liability → ignored (balance sheet, not P&L)
+function isCogsAccount(accountName: string) {
+  if (!accountName) return false;
+  return COGS_PREFIXES.some((prefix) => accountName.startsWith(prefix));
+}
+
 function sumByCategory(rows: any[]) {
   const totals = { revenue: 0, cogs: 0, opex: 0 };
   (rows || []).forEach((r: any) => {
     if (r.account_type === 'Revenue') {
       totals.revenue += r.amount || 0;
     } else if (r.account_type === 'Expense') {
-      if (COGS_ACCOUNTS.has(r.account)) totals.cogs += r.amount || 0;
-      else totals.opex += r.amount || 0;
+      if (isCogsAccount(r.account)) {
+        totals.cogs += r.amount || 0;
+      } else {
+        totals.opex += r.amount || 0;
+      }
     }
   });
   return totals;
@@ -422,12 +425,7 @@ export default function CFOBudgeting() {
         </div>
       </div>
 
-      <WorkflowStatusBadge
-        page="cfo-budgeting"
-        entity={filters.entity !== 'all' ? filters.entity : 'all'}
-        year={filters.year !== 'all' ? filters.year : 'all'}
-      />
-
+      
       {/* 4 gauges */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <GaugeChart

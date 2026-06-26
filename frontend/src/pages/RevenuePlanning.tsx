@@ -454,6 +454,7 @@ export default function RevenuePlanning() {
         selectedMeasures={pivotConfig.measures}
         onApply={handlePivotApply}
       />
+      <AnnotationPanel pageKey="cfo-revenue-planning" period={`${filters.year}:${filters.entity}`} />
     </div>
   );
 }

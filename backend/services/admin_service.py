@@ -34,10 +34,7 @@ class AdminService:
             db_status = self._check_database_status()
             status["components"].append(db_status)
             
-            # Check active connections
-            conn_status = self._check_connections()
-            status["components"].append(conn_status)
-            
+           
             # Overall health
             all_healthy = all(c["status"] == "healthy" for c in status["components"])
             status["overall_status"] = "healthy" if all_healthy else "warning"

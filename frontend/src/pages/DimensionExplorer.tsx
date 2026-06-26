@@ -44,55 +44,56 @@ export default function DimensionExplorer() {
   }, [selectedDimension]);
 
   const loadDimensions = async () => {
-    try {
-      setLoading(true);
-      const res = await getDimensions();
-      if (res.data.success) {
-        setDimensions(res.data.data.dimensions || []);
-        if (res.data.data.dimensions && res.data.data.dimensions.length > 0) {
-          setSelectedDimension(res.data.data.dimensions[0].dimension_id);
-        }
+  try {
+    setLoading(true);
+    const res = await getDimensions();
+    if (res.data.success) {
+      const dimensions = res.data.data || [];   // ✅
+      setDimensions(dimensions);
+      if (dimensions.length > 0) {
+        setSelectedDimension(dimensions[0].dimension_id);
       }
-    } catch (err: any) {
-      console.error('Failed to load dimensions:', err);
-      setError('Failed to load dimensions from backend');
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (err: any) {
+    console.error('Failed to load dimensions:', err);
+    setError('Failed to load dimensions from backend');
+  } finally {
+    setLoading(false);
+  }
+};
 
-  const loadDimensionDetails = async (dimensionId: string) => {
-    try {
-      const res = await getDimensionDetails(dimensionId);
-      if (res.data.success) {
-        setDimensionDetails(res.data.data);
-      }
-    } catch (err: any) {
-      console.error('Failed to load dimension details:', err);
+const loadDimensionHierarchy = async (dimensionId: string) => {
+  try {
+    const res = await getDimensionHierarchy(dimensionId);
+    if (res.data.success) {
+      setHierarchy(res.data.data);              // ✅ data IS the hierarchy
     }
-  };
+  } catch (err: any) {
+    console.error('Failed to load hierarchy:', err);
+  }
+};
 
-  const loadDimensionHierarchy = async (dimensionId: string) => {
-    try {
-      const res = await getDimensionHierarchy(dimensionId);
-      if (res.data.success) {
-        setHierarchy(res.data.data.hierarchy);
-      }
-    } catch (err: any) {
-      console.error('Failed to load hierarchy:', err);
+const loadDimensionElements = async (dimensionId: string) => {
+  try {
+    const res = await getDimensionElements(dimensionId, 100);
+    if (res.data.success) {
+      setElements(res.data.data || []);         // ✅ data IS the array
     }
-  };
+  } catch (err: any) {
+    console.error('Failed to load elements:', err);
+  }
+};
 
-  const loadDimensionElements = async (dimensionId: string) => {
-    try {
-      const res = await getDimensionElements(dimensionId, 100);
-      if (res.data.success) {
-        setElements(res.data.data.elements || []);
-      }
-    } catch (err: any) {
-      console.error('Failed to load elements:', err);
+const loadDimensionDetails = async (dimensionId: string) => {
+  try {
+    const res = await getDimensionDetails(dimensionId);
+    if (res.data.success) {
+      setDimensionDetails(res.data.data);
     }
-  };
+  } catch (err: any) {
+    console.error('Failed to load dimension details:', err);
+  }
+};
 
   if (loading) {
     return (
@@ -231,7 +232,7 @@ export default function DimensionExplorer() {
           )}
         </div>
       </div>
-      <AnnotationPanel pageKey="cfo-dimension-explorer"  />
+      {/* <AnnotationPanel pageKey="cfo-dimension-explorer"  /> */}
     </div>
   );
 }

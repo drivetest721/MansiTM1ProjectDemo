@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Loader2 } from 'lucide-react';
+import { AlertTriangle, Loader2, ChevronDown, ChevronRight } from 'lucide-react';
 import { getSystemStatus, getTableHealth, getCubeHealth, getDataQuality } from '../services/api';
 
 interface SystemComponent {
@@ -59,9 +59,11 @@ export default function AdminDataHealth() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Track which component sections are expanded. Default: all expanded.
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+
   useEffect(() => {
     loadAllData();
-    // Refresh every 30 seconds
     const interval = setInterval(loadAllData, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -71,7 +73,6 @@ export default function AdminDataHealth() {
       setLoading(true);
       setError(null);
 
-      // Load all data in parallel — use allSettled so one failure doesn't block the rest
       const [statusRes, tablesRes, cubesRes, qualityRes] =
         await Promise.allSettled([
           getSystemStatus(),
@@ -80,8 +81,18 @@ export default function AdminDataHealth() {
           getDataQuality(),
         ]);
 
-      if (statusRes.status === 'fulfilled' && statusRes.value.data.success)
-        setSystemStatus(statusRes.value.data.data);
+      if (statusRes.status === 'fulfilled' && statusRes.value.data.success) {
+        const data = statusRes.value.data.data;
+        setSystemStatus(data);
+        // Initialize expanded state for any new components (default: expanded)
+        setExpandedSections((prev) => {
+          const next = { ...prev };
+          data.components.forEach((c: SystemComponent) => {
+            if (next[c.name] === undefined) next[c.name] = true;
+          });
+          return next;
+        });
+      }
 
       if (tablesRes.status === 'fulfilled' && tablesRes.value.data.success)
         setTableHealth(tablesRes.value.data.data.tables || []);
@@ -97,6 +108,10 @@ export default function AdminDataHealth() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleSection = (name: string) => {
+    setExpandedSections((prev) => ({ ...prev, [name]: !prev[name] }));
   };
 
   if (loading && !systemStatus) {
@@ -142,6 +157,15 @@ export default function AdminDataHealth() {
     }
   };
 
+  // Turns a details object into [{label, value}] KPI entries
+  const detailsToKpis = (details: any) => {
+    if (!details) return [];
+    return Object.entries(details).map(([key, value]: [string, any]) => ({
+      label: key.replace(/_/g, ' '),
+      value: typeof value === 'number' ? value.toLocaleString() : String(value),
+    }));
+  };
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -160,188 +184,92 @@ export default function AdminDataHealth() {
         </div>
       )}
 
-      {/* System Status Cards */}
+      {/* System Status — collapsible sections per component */}
       {systemStatus && (
-        <>
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-              System Status
-              <span className={`ml-3 text-sm px-3 py-1 rounded-full ${
-                systemStatus.overall_status === 'healthy' 
-                  ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
-                  : 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'
-              }`}>
-                {systemStatus.overall_status.toUpperCase()}
-              </span>
-            </h2>
-            
-            <div className="grid grid-cols-1 shadow-md md:grid-cols-3 gap-4">
-              {systemStatus.components.map((component, idx) => {
-                const color = getStatusColor(component.status);
-                return (
-                  <div
-                    key={idx}
-                    className={`bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border-l-4 border-${color}-500`}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+            System Status
+            <span className={`ml-3 text-sm px-3 py-1 rounded-full ${
+              systemStatus.overall_status === 'healthy'
+                ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+                : 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'
+            }`}>
+              {systemStatus.overall_status.toUpperCase()}
+            </span>
+          </h2>
+
+          <div className="space-y-3">
+            {systemStatus.components.map((component, idx) => {
+              const color = getStatusColor(component.status);
+              const isOpen = expandedSections[component.name] ?? true;
+              const kpis = detailsToKpis(component.details);
+
+              return (
+                <div
+                  key={idx}
+                  className={`border-l-4 border-${color}-500 rounded-lg bg-gray-50 dark:bg-gray-700 overflow-hidden`}
+                >
+                  {/* Section header — click to toggle */}
+                  <button
+                    type="button"
+                    onClick={() => toggleSection(component.name)}
+                    className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
                   >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-md text-black font-medium dark:text-gray-400">{component.name}</p>
-                        <p className={`text-lg  font-bold mt-1 text-${color}-600`}>
-                          {component.status}
-                        </p>
-                        {component.details && (
-                          <div className="mt-2 text-md text-black-500 dark:text-black-400">
-                            {Object.entries(component.details).map(([key, value]: [string, any]) => (
-                              <div key={key}>
-                                {key.replace(/_/g, ' ')}: {typeof value === 'number' ? value.toLocaleString() : value}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <span className={`text-2xl text-${color}-500`}>{getStatusIcon(component.status)}</span>
+                    <div className="flex items-center gap-3">
+                      {isOpen ? (
+                        <ChevronDown className="w-4 h-4 text-gray-500 dark:text-gray-300" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 text-gray-500 dark:text-gray-300" />
+                      )}
+                      <p className="text-md font-semibold text-gray-900 dark:text-white">
+                        {component.name}
+                      </p>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm font-bold text-${color}-600`}>
+                        {component.status}
+                      </span>
+                      <span className={`text-xl text-${color}-500`}>
+                        {getStatusIcon(component.status)}
+                      </span>
+                    </div>
+                  </button>
 
-         
-        </>
-      )}
-
-      {/* Table Health */}
-      {tableHealth.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Table Health</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              {tableHealth.length} tables monitored • Total: {tableHealth.reduce((sum, t) => sum + t.total_size_mb, 0).toFixed(2)} MB
-            </p>
-          </div>
-          
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-900">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Table Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Schema
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Row Count
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Size (MB)
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Last Update
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Status
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {tableHealth.map((table, idx) => {
-                  const color = getStatusColor(table.status);
-                  return (
-                    <tr key={idx}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                        {table.table_name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {table.schema_name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {table.row_count.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {table.total_size_mb.toFixed(2)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {table.last_update ? new Date(table.last_update).toLocaleString() : 'N/A'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-${color}-100 text-${color}-800`}>
-                          {table.status}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  {/* Collapsible KPI grid */}
+                  {isOpen && (
+                    <div className="px-4 pb-4">
+                      {component.error ? (
+                        <p className="text-lg text-red-600 dark:text-red-400">{component.error}</p>
+                      ) : kpis.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                          {kpis.map((kpi) => (
+                            <div
+                              key={kpi.label}
+                              className="bg-white dark:bg-gray-800 rounded-md shadow-sm p-3 border border-gray-200 dark:border-gray-600"
+                            >
+                              <p className="text-sm uppercase tracking-wide text-black dark:text-gray-400">
+                                {kpi.label}
+                              </p>
+                              <p className="text-md font-semibold text-gray-900 dark:text-white mt-1 break-all">
+                                {kpi.value}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-500 dark:text-gray-400">No details available.</p>
+                      )}
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-3">
+                        Last check: {component.last_check}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
-
-      {/* Cube Health */}
-      {cubeHealth.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Cube Health</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              {cubeHealth.length} cubes monitored • Total: {cubeHealth.reduce((sum, c) => sum + c.cell_count, 0).toLocaleString()} cells
-            </p>
-          </div>
-          
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-900">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Cube Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Dimensions
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Cell Count
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Last Year
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Health
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {cubeHealth.map((cube, idx) => {
-                  const color = getStatusColor(cube.health);
-                  return (
-                    <tr key={idx}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                        {cube.cube_name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {cube.dimension_count}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {cube.cell_count.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {cube.last_year}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${color}`}>
-                          {cube.health}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-     
     </div>
   );
 }

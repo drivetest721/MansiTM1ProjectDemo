@@ -377,11 +377,7 @@ export default function ForecastingAnalysis() {
             </div>
           </div>
 
-          <WorkflowStatusBadge
-            page="forecasting-analysis"
-            entity={filters.entity !== 'all' ? filters.entity : 'all'}
-            year={filters.year}
-          />
+        
 
           <AnnotationPanel
             pageKey="forecasting-analysis"

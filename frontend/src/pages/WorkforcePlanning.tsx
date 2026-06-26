@@ -15,7 +15,9 @@ import {
   getWorkforceDrillDown,
 } from '../services/api';
 import { exportCubeToExcel } from '../utils/exportToExcel';
-import { THEME_COLORS } from '../theme/colors';
+import { THEME_COLORS, formatCurrency2dp } from '../theme/colors';
+import AnnotationPanel from '../components/AnnotationPanel';
+
 
 
 export default function WorkforcePlanning() {
@@ -276,7 +278,9 @@ export default function WorkforcePlanning() {
     }
   };
 
-  const formatCurrency = (value: number) => `$${(value / 1000000).toFixed(1)}M`;
+  const formatCurrency = (value: number) => {
+    return `$${(value / 1000000).toFixed(2)}M`;
+  };
 
   if (loading) {
     return (
@@ -361,7 +365,8 @@ export default function WorkforcePlanning() {
       />
 
       {/* Supporting Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Headcount by Department */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Headcount by Department</h3>
           <ResponsiveContainer width="100%" height={250}>
@@ -373,7 +378,10 @@ export default function WorkforcePlanning() {
                   if (!percent || !name) return '';
                   return `${name.split(' ')[0]} ${(percent * 100).toFixed(2)}%`;
                 }}
-                outerRadius={70} fill="#8884d8" dataKey="value"
+                outerRadius={90}
+                fill="#8884d8"
+                dataKey="value"
+                
               >
                 {byDepartment.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -385,13 +393,13 @@ export default function WorkforcePlanning() {
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Avg Comp by Level</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Avg Comp by Job Position</h3>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={byJobLevel}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
-              <XAxis dataKey="level" stroke="#6b7280" tick={{ fontSize: 14 }} angle={25} origin={20} />
-              <YAxis stroke="#6b7280" tickFormatter={(v: any) => `$${(v / 1000000).toFixed(2)}M`} />
-              <Tooltip formatter={(v: any) => v ? formatCurrency(Number(v)) : ''} />
+              <XAxis dataKey="level" stroke="#6b7280" tick={{ fontSize: 13, fontWeight: 500 }} />
+              <YAxis stroke="#6b7280" tickFormatter={(value: any) => `$${(value / 1000000).toFixed(2)}M`} />
+              <Tooltip formatter={(value: any) => value ? formatCurrency(Number(value)) : ''} />
               <Bar dataKey="avgComp" fill={THEME_COLORS[0]}>
                 <LabelList dataKey="avgComp" position="top"
                   formatter={(v: any) => v ? formatCurrency(Number(v)) : ''}
@@ -402,20 +410,8 @@ export default function WorkforcePlanning() {
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibent text-gray-900 dark:text-white mb-4">Total Comp by Entity</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={byEntity} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
-              <XAxis type="number" tickFormatter={formatCurrency} stroke="#6b7280" />
-              <YAxis type="category" dataKey="entity" stroke="#6b7280" width={100} tick={{ fontSize: 14 }} />
-              <Tooltip formatter={(v: any) => v ? `$${(Number(v) / 1000000).toFixed(2)}M` : ''} />
-              <Bar dataKey="compensation" fill={THEME_COLORS[4]}
-                label={{ position: 'right', formatter: (v: any) => v ? `$${(Number(v) / 1000000).toFixed(2)}M` : '', fontSize: 8, fill: '#374151', fontWeight: 'bold' }}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+      
+       
       </div>
 
       {/* Pivot Dialog */}
@@ -429,6 +425,8 @@ export default function WorkforcePlanning() {
         selectedMeasures={pivotConfig.measures}
         onApply={handlePivotApply}
       />
+
+      <AnnotationPanel pageKey="workforce-planning" period={`${filters.year}:${filters.entity}`} />
     </div>
   );
 }

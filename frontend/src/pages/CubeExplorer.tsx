@@ -47,9 +47,9 @@ export default function CubeExplorer() {
       setLoading(true);
       const res = await getCubes();
       if (res.data.success) {
-        setCubes(res.data.data.cubes || []);
-        if (res.data.data.cubes && res.data.data.cubes.length > 0) {
-          setSelectedCube(res.data.data.cubes[0].cube_id);
+        setCubes(res.data.data || []);
+        if (res.data.data && res.data.data.length > 0) {
+          setSelectedCube(res.data.data[0].cube_id);
         }
       }
     } catch (err: any) {
@@ -217,7 +217,7 @@ export default function CubeExplorer() {
           )}
         </div>
       </div>
-      <AnnotationPanel pageKey="cfo-cube-explorer" />
+      {/* <AnnotationPanel pageKey="cfo-cube-explorer" /> */}
     </div>
   );
 }

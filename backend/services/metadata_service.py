@@ -365,8 +365,8 @@ class MetadataService:
                         {"name": "Employee Type", "type": "Category", "element_count": 10},
                         {"name": "Version", "type": "Version", "element_count": 2}
                     ],
-                    "measures": ["Headcount", "Salary", "Bonus", "Benefits", "Total Compensation"],
-                    "view": "Workforce.FactWorkforcePlanning WITH (NOLOCK)",
+                    "measures": ["BaseSalary", "Bonus", "Benefits", "TotalCompensation", "BonusPercent", "BenefitsPercent"],
+                    "view": "HR.vw_WorkforceCube_Source WITH (NOLOCK)",
                     "cell_count": 0,
                     "last_update": "2024-06-24"
                 },
@@ -470,9 +470,12 @@ class MetadataService:
                         YearNumber,
                         EntityName,
                         DepartmentName,
-                        Headcount,
+                        JobLevel,
+                        EmploymentStatus,
+                        BaseSalary,
+                        Bonus,
                         TotalCompensation
-                    FROM Workforce.FactWorkforcePlanning WITH (NOLOCK)
+                    FROM HR.vw_WorkforceCube_Source WITH (NOLOCK)
                     ORDER BY YearNumber DESC
                 """,
                 "budget": """
