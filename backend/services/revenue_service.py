@@ -435,44 +435,48 @@ class RevenueService:
         level: str,
         parent_value: Optional[str] = None,
         year: Optional[int] = None,
+        quarter: Optional[str] = None,
         region: Optional[str] = None,
-        entity: Optional[str] = None
+        entity: Optional[str] = None,
+        scenario: Optional[str] = None
     ) -> List[dict]:
         """
         Get drill-down data for hierarchical navigation
-        
+
         Hierarchy: ProductCategory -> ProductFamily -> ProductName
-        
+
         Args:
             level: Target level ('category', 'family', 'product')
             parent_value: Parent dimension value to filter by
             year: Optional year filter
+            quarter: Optional quarter filter
             region: Optional region filter
             entity: Optional entity filter
-            
+            scenario: Optional scenario filter
+
         Returns:
             List of aggregated records at target level
         """
         try:
             print(f"   📊 Service: Processing drill-down for level='{level}', parent='{parent_value}'")
-            
+
             # Define hierarchy mapping
             level_columns = {
                 'category': 'ProductCategory',
                 'family': 'ProductFamily',
                 'product': 'ProductName'
             }
-            
+
             if level not in level_columns:
                 raise ValueError(f"Invalid level: {level}")
-            
+
             target_column = level_columns[level]
             print(f"   📊 Service: Target column = {target_column}")
-            
+
             # Build WHERE clause
             where_clauses = []
             params = {}
-            
+
             # Add parent filter
             if parent_value:
                 if level == 'family':
@@ -480,17 +484,23 @@ class RevenueService:
                 elif level == 'product':
                     where_clauses.append("ProductFamily = :parent_value")
                 params["parent_value"] = parent_value
-            
+
             # Add additional filters
             if year:
                 where_clauses.append("YearNumber = :year")
                 params["year"] = year
+            if quarter:
+                where_clauses.append("QuarterName = :quarter")
+                params["quarter"] = quarter
             if region:
                 where_clauses.append("RegionName = :region")
                 params["region"] = region
             if entity:
                 where_clauses.append("EntityName = :entity")
                 params["entity"] = entity
+            if scenario:
+                where_clauses.append("ScenarioName = :scenario")
+                params["scenario"] = scenario
             
             where_clause = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
             print(f"   📊 Service: WHERE clause = {where_clause}")

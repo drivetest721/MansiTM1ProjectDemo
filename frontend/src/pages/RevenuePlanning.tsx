@@ -6,11 +6,12 @@ import GlobalFilters from '../components/GlobalFilters';
 import type { FilterOption } from '../components/GlobalFilters';
 import PivotDialog, { type PivotConfig } from '../components/PivotDialog';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { getRevenueByRegionAgg, getRevenueByProduct, getRevenueByCustomerSegment, getRevenueDrillDown } from '../services/api';
+import { getRevenueByRegionAgg, getRevenueByProduct, getRevenueByCustomerSegment, getRevenueDrillDown, getEntities } from '../services/api';
 import { exportCubeToExcel } from '../utils/exportToExcel';
 import { Settings2 } from 'lucide-react';
 import { THEME_COLORS, formatCurrency2dp } from '../theme/colors';
 import AnnotationPanel from '../components/AnnotationPanel';
+
 
 export default function RevenuePlanning() {
   const navigate = useNavigate();
@@ -26,8 +27,13 @@ export default function RevenuePlanning() {
     quarter: 'all',
     region: 'all',
     entity: 'all',
-    scenario: 'all',
   });
+
+  // Dynamic options loaded from backend — start as undefined (not yet fetched)
+  // undefined  = still loading | [] = fetched but empty (will be hidden) | [...] = has options (shown)
+  const [entityOptions, setEntityOptions] = useState<{ value: string; label: string }[] | undefined>(undefined);
+  const [regionOptions, setRegionOptions] = useState<{ value: string; label: string }[] | undefined>(undefined);
+  const [filtersLoading, setFiltersLoading] = useState(true);
 
   const fetchingRef = useRef(false);
 
@@ -41,6 +47,40 @@ export default function RevenuePlanning() {
     columnDimensions: ['Time'],
     measures: ['Revenue', 'Cost', 'Quantity', 'Gross Margin', 'Gross Margin %', 'Avg Selling Price'],
   });
+
+  // Load filter options from backend on mount.
+  // Rules:
+  // Load filter options using the same endpoints that power the table.
+  // Promise.allSettled ensures one failing call cannot wipe out the others.
+  useEffect(() => {
+    setFiltersLoading(true);
+    (async () => {
+      const [entResult, regionResult] = await Promise.allSettled([
+        getEntities(),
+        getRevenueByRegionAgg({}),
+      ]);
+
+      if (entResult.status === 'fulfilled') {
+        setEntityOptions(
+          (entResult.value.data?.data ?? []).map((e: any) => ({ value: e.entity_name, label: e.entity_name }))
+        );
+      } else {
+        console.error('Entity options failed:', entResult.reason);
+        setEntityOptions([]);
+      }
+
+      if (regionResult.status === 'fulfilled') {
+        setRegionOptions(
+          (regionResult.value.data?.data ?? []).map((r: any) => ({ value: r.dimension_value, label: r.dimension_value }))
+        );
+      } else {
+        console.error('Region options failed:', regionResult.reason);
+        setRegionOptions([]);
+      }
+
+      setFiltersLoading(false);
+    })();
+  }, []);
 
   const filterOptions: FilterOption[] = [
     {
@@ -61,28 +101,14 @@ export default function RevenuePlanning() {
     {
       id: 'region',
       label: 'Region',
-      options: [
-        { value: 'North America', label: 'North America' },
-        { value: 'Europe Middle East Africa', label: 'Europe Middle East Africa' },
-        { value: 'Asia Pacific', label: 'Asia Pacific' },
-      ],
+      options: regionOptions ?? [],
     },
     {
-      id: 'scenario',
-      label: 'Scenario',
-      options: [
-        { value: 'Actual', label: 'Actual' },
-        { value: 'Budget', label: 'Budget' },
-        { value: 'Forecast', label: 'Forecast' },
-      ],
+      id: 'entity',
+      label: 'Entity',
+      options: entityOptions ?? [],
     },
   ];
-
-  useEffect(() => {
-    const controller = new AbortController();
-    loadData(controller.signal);
-    return () => { controller.abort(); fetchingRef.current = false; };
-  }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadData = useCallback(async (signal?: AbortSignal) => {
     if (fetchingRef.current) return;
@@ -91,19 +117,11 @@ export default function RevenuePlanning() {
     setError(null);
 
     try {
-      // Prepare filter params (only include non-'all' values)
-      const params: any = { page: 1, page_size: 100 };
-      if (filters.year !== 'all') params.year = parseInt(filters.year);
-      if (filters.quarter !== 'all') params.quarter = filters.quarter;
-      if (filters.region !== 'all') params.region = filters.region;
-      if (filters.scenario !== 'all') params.scenario = filters.scenario;
-
-      // Build shared filter params — pass every active filter to aggregation endpoints
+      // Build shared filter params (only include non-'all' values)
       const aggParams: Record<string, any> = {};
       if (filters.year !== 'all') aggParams.year = parseInt(filters.year);
       if (filters.quarter !== 'all') aggParams.quarter = filters.quarter;
       if (filters.region !== 'all') aggParams.region = filters.region;
-      if (filters.scenario !== 'all') aggParams.scenario = filters.scenario;
       if (filters.entity !== 'all') aggParams.entity = filters.entity;
 
       // Load aggregations in parallel — all filters applied
@@ -117,18 +135,13 @@ export default function RevenuePlanning() {
       // NOTE: keys must exactly match the `measures` array above
       // ("Gross Margin" / "Gross Margin %"), not the old "Margin" / "Margin %".
       const gridData: CubeRow[] = byProduct.data.data.map((category: any) => {
-        // Some category-level aggregations may not return a quantity figure
-        // (it's only available once you drill into family/product level).
-        // Don't fake an average by dividing by 1 — leave it undefined so the
-        // grid honestly shows "-" instead of a misleading number.
         const quantity = category.quantity;
-
         return {
           id: `category-${category.dimension_value}`,
           rowLabel: category.dimension_value,
           indent: 0,
           level: 'category',
-          hasChildren: true, // Categories can drill down to families
+          hasChildren: true,
           Revenue: category.revenue,
           Cost: category.cost,
           Quantity: quantity,
@@ -193,7 +206,13 @@ export default function RevenuePlanning() {
       setLoading(false);
       fetchingRef.current = false;
     }
-  }, []);
+  }, [filters]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadData(controller.signal);
+    return () => { controller.abort(); fetchingRef.current = false; };
+  }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleResetFilters = () => {
     setFilters({
@@ -201,7 +220,6 @@ export default function RevenuePlanning() {
       quarter: 'all',
       region: 'all',
       entity: 'all',
-      scenario: 'all',
     });
   };
 
@@ -221,7 +239,6 @@ export default function RevenuePlanning() {
     setPivotConfig(config);
     setShowPivotDialog(false);
 
-    // Navigate to pivot table view with data and configuration
     navigate('/revenue-planning/pivot', {
       state: {
         title: 'Revenue Planning',
@@ -230,9 +247,9 @@ export default function RevenuePlanning() {
         sourcePage: '/revenue-planning',
       },
     });
-
   };
 
+  // Pass all active filters through drill-down
   const handleDrillDown = async (row: CubeRow) => {
     const level = row.level || 'category';
     const hierarchyMap: Record<string, string> = {
@@ -250,6 +267,7 @@ export default function RevenuePlanning() {
       if (filters.year !== 'all') params.year = parseInt(filters.year);
       if (filters.region !== 'all') params.region = filters.region;
       if (filters.entity !== 'all') params.entity = filters.entity;
+      if (filters.quarter !== 'all') params.quarter = filters.quarter;
 
       const response = await getRevenueDrillDown(params);
       const responseData = response.data?.data || response.data || [];
@@ -278,6 +296,7 @@ export default function RevenuePlanning() {
       clearTimeout(timeout);
     }
   };
+
   const formatCurrency = formatCurrency2dp;
 
   if (loading) {
@@ -316,16 +335,29 @@ export default function RevenuePlanning() {
             <span className="bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded">Product Family</span>
             <span>→</span>
             <span className="bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded">Product Name</span>
-          </div>        </div>
+          </div>
+        </div>
       </div>
 
-      {/* Global Filters */}
-      <GlobalFilters
-        filters={filterOptions}
-        values={filters}
-        onApply={setFilters}
-        onReset={handleResetFilters}
-      />
+      {/* Global Filters — shown once at least the static filters are defined.
+          Dynamic filters (Region, Entity, Scenario) appear only after their
+          options have loaded from the backend. If an API returns no data for a
+          dimension, that filter is simply omitted rather than showing an empty
+          dropdown. A loading badge is shown while metadata is still fetching. */}
+      <div className="relative">
+        {filtersLoading && (
+          <div className="absolute top-2 right-2 z-10 flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
+            <div className="h-3 w-3 animate-spin rounded-full border border-gray-300 border-t-indigo-500" />
+            Loading filters…
+          </div>
+        )}
+        <GlobalFilters
+          filters={filterOptions}
+          values={filters}
+          onApply={setFilters}
+          onReset={handleResetFilters}
+        />
+      </div>
 
       {/* Action Buttons */}
       <div className="flex items-center justify-end gap-3 mb-4">
@@ -347,6 +379,7 @@ export default function RevenuePlanning() {
         onExport={handleExport}
         onDrillDown={handleDrillDown}
       />
+
       {/* Supporting Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Revenue by Product Category */}
@@ -385,11 +418,10 @@ export default function RevenuePlanning() {
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
               <XAxis dataKey="region" stroke="#6b7280" tick={{ fontSize: 11 }} />
               <YAxis stroke="#6b7280" />
-                <Tooltip formatter={(value: any) => value ? `${Number(value).toFixed(2)}%` : ''} />
-
-                <Bar dataKey="margin" fill={THEME_COLORS[0]}
-                  label={{ position: 'top', formatter: (v: any) => `${Number(v).toFixed(1)}%`, fontSize: 14, fill: '#374151', fontWeight: 'bold' }}
-                />
+              <Tooltip formatter={(value: any) => value ? `${Number(value).toFixed(2)}%` : ''} />
+              <Bar dataKey="margin" fill={THEME_COLORS[0]}
+                label={{ position: 'top', formatter: (v: any) => `${Number(v).toFixed(1)}%`, fontSize: 14, fill: '#374151', fontWeight: 'bold' }}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -398,7 +430,7 @@ export default function RevenuePlanning() {
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Revenue by Segment</h3>
           <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={revenueBySegment} layout="vertical" className="p-3" margin={{top: 0, right: 50, bottom: 0, left: 3}}>
+            <BarChart data={revenueBySegment} layout="vertical" className="p-3" margin={{ top: 0, right: 50, bottom: 0, left: 3 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
               <XAxis type="number" tickFormatter={formatCurrency} stroke="#6b7280" />
               <YAxis type="category" dataKey="segment" stroke="#6b7280" />
@@ -411,8 +443,6 @@ export default function RevenuePlanning() {
         </div>
       </div>
 
-
-
       {/* Pivot Dialog */}
       <PivotDialog
         isOpen={showPivotDialog}
@@ -424,7 +454,6 @@ export default function RevenuePlanning() {
         selectedMeasures={pivotConfig.measures}
         onApply={handlePivotApply}
       />
-      <AnnotationPanel pageKey="cfo-revenue-planning" period={`${filters.year}:${filters.entity}`} />
     </div>
   );
 }

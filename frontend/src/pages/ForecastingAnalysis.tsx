@@ -3,51 +3,23 @@ import FinancialTable from '../components/FinancialTable';
 import type { FinancialRow } from '../components/FinancialTable';
 import GlobalFilters from '../components/GlobalFilters';
 import type { FilterOption } from '../components/GlobalFilters';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList } from 'recharts';
 import { Loader2 } from 'lucide-react';
 import { getScenarioSummary, getForecastTable, getEntities, getForecastMonthlyTrend } from '../services/api';
 import WorkflowStatusBadge from '../components/WorkflowStatusBadge';
 import AnnotationPanel from '../components/AnnotationPanel';
 import RollingForecastPanel from '../components/RollingForecastPanel';
 import { exportFinancialTableToExcel } from '../utils/exportToExcel';
-import { LabelList } from 'recharts';
-
-
 
 // ---------------------------------------------------------------------------
 // Static fallback data — used when API is unavailable
 // ---------------------------------------------------------------------------
-
-// NOTE: scenario names intentionally match what the backend returns so the
-//       comparison chart works correctly whether using live or fallback data.
 const scenariosFallback = [
-  {
-    name: 'Most Likely Case',
-    revenue: 145800000,
-    ebitda: -54400000,
-    netIncome: -61200000,
-    probability: '50%',
-    color: 'blue',
-  },
-  {
-    name: 'Best Case',
-    revenue: 158200000,
-    ebitda: -48900000,
-    netIncome: -55100000,
-    probability: '25%',
-    color: 'green',
-  },
-  {
-    name: 'Worst Case',
-    revenue: 132400000,
-    ebitda: -62100000,
-    netIncome: -69800000,
-    probability: '25%',
-    color: 'red',
-  },
+  { name: 'Most Likely Case', revenue: 145800000, ebitda: -54400000, netIncome: -61200000, probability: '50%', color: 'blue' },
+  { name: 'Best Case',        revenue: 158200000, ebitda: -48900000, netIncome: -55100000, probability: '25%', color: 'green' },
+  { name: 'Worst Case',       revenue: 132400000, ebitda: -62100000, netIncome: -69800000, probability: '25%', color: 'red' },
 ];
 
-// Static monthly trend — used as fallback when API call fails
 const forecastTrendFallback = [
   { month: 'Jan', budget: 11200000, forecast: 11500000 },
   { month: 'Feb', budget: 11500000, forecast: 11800000 },
@@ -63,9 +35,6 @@ const forecastTrendFallback = [
   { month: 'Dec', budget: 14000000, forecast: 14500000 },
 ];
 
-// ---------------------------------------------------------------------------
-// Color mapping for scenario cards — with safe fallback
-// ---------------------------------------------------------------------------
 const colorClasses: Record<string, string> = {
   blue:  'bg-blue-50  dark:bg-blue-900/20  border-blue-200  dark:border-blue-800',
   green: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800',
@@ -76,46 +45,45 @@ const colorClasses: Record<string, string> = {
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
-
 export default function ForecastingAnalysis() {
+  // Filters: Year and Entity only — Scenario removed (consistent with other pages)
   const [filters, setFilters] = useState<Record<string, string>>({
     year: '2024',
-    entity: '',
-    scenario: 'base',
+    entity: 'all',
   });
 
   const fetchingRef = useRef(false);
-  const [scenarios, setScenarios]           = useState<any[]>(scenariosFallback);
+  const [scenarios, setScenarios]               = useState<any[]>(scenariosFallback);
   const [forecastTableData, setForecastTableData] = useState<FinancialRow[]>([]);
   const [forecastTrendData, setForecastTrendData] = useState<any[]>(forecastTrendFallback);
-  const [loading, setLoading]               = useState(true);
-  const [error, setError]                   = useState<string | null>(null);
-  const [entityOptions, setEntityOptions]   = useState<FilterOption['options']>([
-    { value: '', label: 'All Entities' },
-  ]);
+  const [loading, setLoading]                   = useState(true);
+  const [error, setError]                       = useState<string | null>(null);
+
+  // Dynamic filter options — same pattern as CFOBudgeting / WorkforcePlanning
+  const [entityOptions, setEntityOptions]       = useState<{ value: string; label: string }[] | undefined>(undefined);
+  const [filtersLoading, setFiltersLoading]     = useState(true);
 
   // -------------------------------------------------------------------------
-  // Load entity list for filter dropdown
+  // Load entity options on mount — Promise.allSettled so a failure here
+  // does not block the data load
   // -------------------------------------------------------------------------
   useEffect(() => {
-    const loadEntities = async () => {
-      try {
-        const response = await getEntities();
-        // API returns { success, data: [ { entity_name, ... }, ... ] }
-        const entities: any[] = response.data.data || [];
-        setEntityOptions([
-          { value: '', label: 'All Entities' },
-          ...entities.map((e) => ({
-            value: e.entity_name,   // ← backend returns snake_case
-            label: e.entity_name,
-          })),
-        ]);
-      } catch (err) {
-        // Non-critical: entity filter just won't be populated
-        console.error('Failed to load entities:', err);
+    setFiltersLoading(true);
+    (async () => {
+      const [entResult] = await Promise.allSettled([getEntities()]);
+
+      if (entResult.status === 'fulfilled') {
+        const entities: any[] = entResult.value.data?.data ?? [];
+        setEntityOptions(
+          entities.map((e) => ({ value: e.entity_name, label: e.entity_name }))
+        );
+      } else {
+        console.error('Entity options failed:', entResult.reason);
+        setEntityOptions([]);
       }
-    };
-    loadEntities();
+
+      setFiltersLoading(false);
+    })();
   }, []);
 
   // -------------------------------------------------------------------------
@@ -128,78 +96,55 @@ export default function ForecastingAnalysis() {
       setLoading(true);
       setError(null);
 
-      const params = {
-        year: parseInt(filters.year),
-        entity: filters.entity || undefined,
-      };
+      const params: { year: number; entity?: string } = { year: parseInt(filters.year) };
+      if (filters.entity !== 'all') params.entity = filters.entity;
 
       try {
-        // All three requests fire in parallel
         const [scenarioRes, tableRes, trendRes] = await Promise.allSettled([
           getScenarioSummary(params),
           getForecastTable(params),
           getForecastMonthlyTrend(params),
         ]);
 
-        // --- Scenarios ---
-          if (scenarioRes.status === 'fulfilled') {
-            const scenarioData = scenarioRes.value.data.data;
-
-            if (scenarioData?.scenarios?.length > 0) {
-              const mapped = scenarioData.scenarios.map((s: any) => ({
-                name: s.scenario_name === 'Base Case' ? 'Most Likely Case' : s.scenario_name,
-                revenue: s.revenue,
-                ebitda: s.ebitda ?? s.net_income * 1.1,
-                netIncome: s.net_income,
-                probability: s.probability ? `${(s.probability * 100).toFixed(0)}%` : '33%',
-                color: s.color || 'blue',
-              }));
-
-              // Sort scenarios in desired order
-              const scenarioOrder: Record<string, number> = {
-                'Most Likely Case': 2,
-                'Best Case': 1,
-                'Worst Case': 3,
-              };
-
-              mapped.sort(
-                (a: any, b: any) =>
-                  (scenarioOrder[a.name] || 99) -
-                  (scenarioOrder[b.name] || 99)
-              );
-
-              setScenarios(mapped);
-            } else {
-              setScenarios(scenariosFallback);
-            }
+        // Scenarios
+        if (scenarioRes.status === 'fulfilled') {
+          const scenarioData = scenarioRes.value.data.data;
+          if (scenarioData?.scenarios?.length > 0) {
+            const mapped = scenarioData.scenarios.map((s: any) => ({
+              name:        s.scenario_name === 'Base Case' ? 'Most Likely Case' : s.scenario_name,
+              revenue:     s.revenue,
+              ebitda:      s.ebitda ?? s.net_income * 1.1,
+              netIncome:   s.net_income,
+              probability: s.probability ? `${(s.probability * 100).toFixed(0)}%` : '33%',
+              color:       s.color || 'blue',
+            }));
+            const order: Record<string, number> = { 'Most Likely Case': 2, 'Best Case': 1, 'Worst Case': 3 };
+            mapped.sort((a: any, b: any) => (order[a.name] || 99) - (order[b.name] || 99));
+            setScenarios(mapped);
+          } else {
+            setScenarios(scenariosFallback);
           }
-        
+        }
 
-        // --- Forecast table ---
+        // Forecast table
         if (tableRes.status === 'fulfilled') {
-          const tableData: FinancialRow[] = tableRes.value.data.data || [];
-          setForecastTableData(tableData);
+          setForecastTableData(tableRes.value.data.data || []);
         } else {
           console.error('Forecast table failed:', tableRes.reason);
         }
 
-        // --- Monthly trend ---
+        // Monthly trend
         if (trendRes.status === 'fulfilled') {
           const trend: any[] = trendRes.value.data.data || [];
-          if (trend.length > 0) {
-            setForecastTrendData(trend);
-          }
-          // else keep fallback
+          if (trend.length > 0) setForecastTrendData(trend);
         } else {
           console.error('Monthly trend failed:', trendRes.reason);
-          // keep fallback already set
         }
 
-        // Surface an error banner only if ALL three failed
         if (
           scenarioRes.status === 'rejected' &&
-          tableRes.status === 'rejected' &&
-          trendRes.status === 'rejected'
+          tableRes.status  === 'rejected' &&
+          trendRes.status  === 'rejected'
         ) {
           setError('Could not reach the backend. Showing sample data.');
         }
@@ -220,89 +165,46 @@ export default function ForecastingAnalysis() {
   }, [filters.year, filters.entity]);
 
   // -------------------------------------------------------------------------
-  // Filter options (defined inside component so entityOptions state is used)
+  // Filter definitions
   // -------------------------------------------------------------------------
   const filterOptions: FilterOption[] = [
     {
       id: 'year',
       label: 'Year',
-      options: [
-        { value: '2025', label: '2025' },
-        { value: '2024', label: '2024' },
-        { value: '2023', label: '2023' },
-      ],
+      options: Array.from({ length: 13 }, (_, i) => 2018 + i).map((y) => ({
+        value: String(y),
+        label: String(y),
+      })),
     },
     {
       id: 'entity',
       label: 'Entity',
-      options: entityOptions,
-    },
-    {
-      id: 'scenario',
-      label: 'Scenario',
-      options: [
-        { value: 'base',  label: 'Most Likely Case' },
-        { value: 'best',  label: 'Best Case' },
-        { value: 'worst', label: 'Worst Case' },
-      ],
+      options: entityOptions ?? [],
     },
   ];
+
+  const handleResetFilters = () => setFilters({ year: '2024', entity: 'all' });
 
   const formatCurrency = (value: number | null | undefined) => {
     if (value == null) return '-';
     return `$${(value / 1_000_000).toFixed(1)}M`;
   };
 
-  // -------------------------------------------------------------------------
-  // Build scenario comparison from live state (works for both API + fallback)
-  // -------------------------------------------------------------------------
-  const findScenario = (name: string) => scenarios.find((s) => s.name === name);
+  const scenarioComparisonData = scenarios.map((s) => ({
+    scenario:     s.name,
+    Revenue:      s.revenue   || 0,
+    EBITDA:       s.ebitda    || 0,
+    'Net Income': s.netIncome || 0,
+  }));
 
+  const handleExportForecastTable = () => {
+    try {
+      exportFinancialTableToExcel(forecastTableData, 'Forecast_Analysis_Table');
+    } catch (error) {
+      console.error('Export failed:', error);
+    }
+  };
 
-  // Custom label renderer for bars that handles negative values
-  const renderBarLabel = (props: any) => {
-  const { x, y, width, height, value, fill } = props;
-  if (value === undefined || value === null) return null;
-
-  const numValue = Number(value);
-  const isNegative = numValue < 0;
-  const labelX = x + width / 2;
-
-  // For negative bars, y is the baseline (top, near 0) and height is the
-  // distance down to the bar's tip. Bottom of bar = y + height.
-  // For positive bars, y is the tip (top) and height extends down to 0.
-  const labelY = isNegative ? y + height + 16 : y - 8;
-
-  return (
-    <text
-      x={labelX}
-      y={labelY}
-      textAnchor="middle"
-      fontSize={14}
-      fontWeight={500}
-      fill={fill || '#374151'}
-    >
-      {formatCurrency(numValue)}
-    </text>
-  );
-};
-
-// Replace the entire scenarioComparisonData block with this:
-const scenarioComparisonData = scenarios.map((s) => ({
-  scenario: s.name,
-  Revenue:      s.revenue    || 0,
-  EBITDA:       s.ebitda     || 0,
-  'Net Income': s.netIncome  || 0,
-}));
-
-
-const handleExportForecastTable = () => {
-  try {
-    exportFinancialTableToExcel(forecastTableData, 'Forecast_Analysis_Table');
-  } catch (error) {
-    console.error('Export failed:', error);
-  }
-};
   // -------------------------------------------------------------------------
   // Render
   // -------------------------------------------------------------------------
@@ -314,13 +216,21 @@ const handleExportForecastTable = () => {
         <p className="text-gray-600 dark:text-gray-400 mt-1">Forecast scenario analysis and planning</p>
       </div>
 
-      {/* Global Filters */}
-      <GlobalFilters
-        filters={filterOptions}
-        values={filters}
-        onApply={setFilters}
-        onReset={() => setFilters({ year: '2024', entity: '', scenario: 'base' })}
-      />
+      {/* Global Filters — spinner shown while entity options load */}
+      <div className="relative">
+        {filtersLoading && (
+          <div className="absolute top-2 right-2 z-10 flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
+            <div className="h-3 w-3 animate-spin rounded-full border border-gray-300 border-t-indigo-500" />
+            Loading filters…
+          </div>
+        )}
+        <GlobalFilters
+          filters={filterOptions}
+          values={filters}
+          onApply={setFilters}
+          onReset={handleResetFilters}
+        />
+      </div>
 
       {/* Error Banner */}
       {error && (
@@ -340,7 +250,6 @@ const handleExportForecastTable = () => {
           {/* Scenario Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {scenarios.map((scenario) => {
-              // Safe color fallback: if API returns an unknown color, use gray
               const cardClass = colorClasses[scenario.color as string] ?? colorClasses.gray;
               return (
                 <div key={scenario.name} className={`rounded-lg border-2 p-6 ${cardClass}`}>
@@ -369,16 +278,15 @@ const handleExportForecastTable = () => {
             })}
           </div>
 
-          {/* Forecast Table (only shown when API returns data) */}
+          {/* Forecast Table */}
           {forecastTableData.length > 0 && (
-             <FinancialTable
+            <FinancialTable
               data={forecastTableData}
               title="Forecast Analysis Table"
               showExport={true}
               onExport={handleExportForecastTable}
             />
           )}
-
 
           {/* Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -433,14 +341,13 @@ const handleExportForecastTable = () => {
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 Scenario Comparison
               </h3>
-             <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={scenarioComparisonData} margin={{ top: 30, right: 30, left: 20, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
                   <XAxis dataKey="scenario" stroke="#6b7280" />
                   <YAxis tickFormatter={(v) => formatCurrency(v)} stroke="#6b7280" />
                   <Tooltip formatter={(value) => (value ? formatCurrency(Number(value)) : '')} />
                   <Legend />
-
                   <Bar dataKey="Revenue" name="Revenue" fill="#3b82f6">
                     <LabelList
                       dataKey="Revenue"
@@ -449,7 +356,6 @@ const handleExportForecastTable = () => {
                       style={{ fontSize: 14, fontWeight: 500, fill: '#3b82f6' }}
                     />
                   </Bar>
-
                   <Bar dataKey="EBITDA" name="EBITDA" fill="#10b981">
                     <LabelList
                       dataKey="EBITDA"
@@ -458,7 +364,6 @@ const handleExportForecastTable = () => {
                       style={{ fontSize: 12, fontWeight: 500, fill: '#10b981' }}
                     />
                   </Bar>
-
                   <Bar dataKey="Net Income" name="Net Income" fill="#f59e0b">
                     <LabelList
                       dataKey="Net Income"
@@ -471,17 +376,16 @@ const handleExportForecastTable = () => {
               </ResponsiveContainer>
             </div>
           </div>
-          {/* Workflow Status */}
+
           <WorkflowStatusBadge
             page="forecasting-analysis"
-            entity={filters.entity || 'all'}
+            entity={filters.entity !== 'all' ? filters.entity : 'all'}
             year={filters.year}
           />
 
-          {/* Annotation Panel */}
           <AnnotationPanel
             pageKey="forecasting-analysis"
-            period={`${filters.year}:${filters.entity || 'all'}`}
+            period={`${filters.year}:${filters.entity !== 'all' ? filters.entity : 'all'}`}
           />
         </>
       )}

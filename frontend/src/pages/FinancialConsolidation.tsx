@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import CubeGrid from '../components/CubeGrid';
 import type { CubeRow } from '../components/CubeGrid';
 import GlobalFilters from '../components/GlobalFilters';
@@ -10,62 +10,27 @@ import { Loader2 } from 'lucide-react';
 import AnnotationPanel from '../components/AnnotationPanel';
 import { exportCubeToExcel } from '../utils/exportToExcel';
 
-// Removed ~230 lines of mock data - now using real backend data from consolidation_service.py
 const CHILDREN_INDENT: Record<number, number> = {
   0: 1,
   1: 2,
 };
 
-const filterOptions: FilterOption[] = [
-  {
-    id: 'year',
-    label: 'Year',
-    options: [
-      { value: '2025', label: '2025' },
-      { value: '2024', label: '2024' },
-    ],
-  },
-  {
-    id: 'month',
-    label: 'Month',
-    options: [
-      { value: 'ytd', label: 'Year to Date' },
-      { value: '12', label: 'December' },
-    ],
-  },
-  {
-    id: 'currency',
-    label: 'Currency',
-    options: [
-      { value: 'usd', label: 'USD' },
-      { value: 'eur', label: 'EUR' },
-      { value: 'local', label: 'Local Currency' },
-    ],
-  },
-  {
-    id: 'scenario',
-    label: 'Scenario',
-    options: [
-      { value: 'actual', label: 'Actual' },
-      { value: 'budget', label: 'Budget' },
-    ],
-  },
-];
-
 export default function FinancialConsolidation() {
+  // Filters: Year, Month, Currency — Scenario and Version removed (consistent with other pages)
   const [filters, setFilters] = useState<Record<string, string>>({
     year: '2024',
     month: 'ytd',
     currency: 'usd',
-    version: 'actual',
   });
 
   const [hierarchyData, setHierarchyData] = useState<HierarchyNode[]>([]);
-  const [cubeData, setCubeData] = useState<CubeRow[]>([]);
-  const fetchingRef = useRef(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [cubeData, setCubeData]           = useState<CubeRow[]>([]);
+  const [loading, setLoading]             = useState(true);
+  const [error, setError]                 = useState<string | null>(null);
 
+  // ---------------------------------------------------------------------------
+  // Drill-down helper — stable reference via useCallback([cubeData])
+  // ---------------------------------------------------------------------------
   const getChildRows = useCallback((parentRow: CubeRow): CubeRow[] => {
     const childIndent = CHILDREN_INDENT[parentRow.indent ?? 0];
     if (childIndent === undefined) return [];
@@ -74,88 +39,128 @@ export default function FinancialConsolidation() {
     if (parentIndex === -1) return [];
 
     const children: CubeRow[] = [];
-
     for (let i = parentIndex + 1; i < cubeData.length; i++) {
       const row = cubeData[i];
       const rowIndent = row.indent ?? 0;
-
       if (rowIndent <= (parentRow.indent ?? 0)) break;
       if (rowIndent === childIndent) children.push(row);
     }
-
     return children;
   }, [cubeData]);
 
-  // Load entity hierarchy
+  // ---------------------------------------------------------------------------
+  // Load entity hierarchy once on mount
+  // ---------------------------------------------------------------------------
   useEffect(() => {
-    const loadHierarchy = async () => {
-      try {
-        const response = await getEntityHierarchy();
-        if (response.data.success) {
-          setHierarchyData(response.data.data);
-        }
-      } catch (err: any) {
+    getEntityHierarchy()
+      .then((response) => {
+        if (response.data.success) setHierarchyData(response.data.data);
+      })
+      .catch((err: any) => {
         console.error('Failed to load entity hierarchy:', err);
         setError('Failed to load entity hierarchy');
-      }
-    };
-    loadHierarchy();
+      });
   }, []);
-  
 
-  // Load consolidated cube data
+  // ---------------------------------------------------------------------------
+  // Load consolidated cube data whenever year changes.
+  // Uses `cancelled` closure flag — no race condition from fetchingRef.
+  // Previous data stays visible while reloading (overlay spinner only).
+  // ---------------------------------------------------------------------------
   useEffect(() => {
-    const controller = new AbortController();
-    const loadCubeData = async () => {
-      if (fetchingRef.current) return;
-      fetchingRef.current = true;
-      setLoading(true);
-      setError(null);
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
 
-      try {
-        const params = {
-          year: parseInt(filters.year)
-        };
-
-        const response = await getConsolidatedCubeData(params);
+    getConsolidatedCubeData({ year: parseInt(filters.year) })
+      .then((response) => {
+        if (cancelled) return;
         if (response.data.success) {
           setCubeData(response.data.data.rows);
         } else {
           setError('No consolidation data available');
           setCubeData([]);
         }
-      } catch (err: any) {
+      })
+      .catch((err: any) => {
+        if (cancelled) return;
         console.error('Failed to load consolidation cube data:', err);
         setError('Failed to connect to backend. Please ensure the server is running.');
         setCubeData([]);
-      } finally {
-        setLoading(false);
-        fetchingRef.current = false;
-      }
-    };
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
-    loadCubeData();
-    return () => { controller.abort(); fetchingRef.current = false; };
+    return () => { cancelled = true; };
   }, [filters.year]);
 
-   const handleExportConsolidationTable = () => {
-      try {
-        exportCubeToExcel(
-          cubeData,
-          ['Revenue', 'Expense', 'EBITDA', 'Net Income', 'Assets', 'Liabilities', 'Equity'],
-          'Consolidation_Table'
-        );
-      } catch (error) {
-        console.error('Export failed:', error);
-      }
-};
+  // ---------------------------------------------------------------------------
+  // Filter definitions — inside component so year list renders consistently
+  // ---------------------------------------------------------------------------
+  const filterOptions: FilterOption[] = [
+    {
+      id: 'year',
+      label: 'Year',
+      options: Array.from({ length: 13 }, (_, i) => 2018 + i).map((y) => ({
+        value: String(y),
+        label: String(y),
+      })),
+    },
+    {
+      id: 'month',
+      label: 'Month',
+      options: [
+        { value: 'ytd', label: 'Year to Date' },
+        { value: '01', label: 'January'   },
+        { value: '02', label: 'February'  },
+        { value: '03', label: 'March'     },
+        { value: '04', label: 'April'     },
+        { value: '05', label: 'May'       },
+        { value: '06', label: 'June'      },
+        { value: '07', label: 'July'      },
+        { value: '08', label: 'August'    },
+        { value: '09', label: 'September' },
+        { value: '10', label: 'October'   },
+        { value: '11', label: 'November'  },
+        { value: '12', label: 'December'  },
+      ],
+    },
+    {
+      id: 'currency',
+      label: 'Currency',
+      options: [
+        { value: 'usd',   label: 'USD' },
+        { value: 'eur',   label: 'EUR' },
+        { value: 'local', label: 'Local Currency' },
+      ],
+    },
+  ];
 
+  const handleResetFilters = () =>
+    setFilters({ year: '2024', month: 'ytd', currency: 'usd' });
+
+  const handleExportConsolidationTable = () => {
+    try {
+      exportCubeToExcel(
+        cubeData,
+        ['Revenue', 'Expense', 'EBITDA', 'Net Income', 'Assets', 'Liabilities', 'Equity'],
+        'Consolidation_Table'
+      );
+    } catch (err) {
+      console.error('Export failed:', err);
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
   return (
     <div className="space-y-6">
       {/* Page Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Financial Consolidation</h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-1">Entity consolidation across regions </p>
+        <p className="text-gray-600 dark:text-gray-400 mt-1">Entity consolidation across regions</p>
       </div>
 
       {/* Global Filters */}
@@ -163,15 +168,13 @@ export default function FinancialConsolidation() {
         filters={filterOptions}
         values={filters}
         onApply={setFilters}
-        onReset={() => setFilters({ year: '2024', month: 'ytd', currency: 'usd', version: 'actual' })}
+        onReset={handleResetFilters}
       />
 
       {/* Error Banner */}
       {error && (
         <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-          <p className="text-sm text-yellow-800 dark:text-yellow-200">
-            ⚠️ {error}
-          </p>
+          <p className="text-sm text-yellow-800 dark:text-yellow-200">⚠️ {error}</p>
         </div>
       )}
 
@@ -187,30 +190,28 @@ export default function FinancialConsolidation() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Entity Hierarchy Tree */}
             <div className="lg:col-span-1">
-              <HierarchyTree
-                data={hierarchyData}
-                title="Entity Hierarchy"
-              />
+              <HierarchyTree data={hierarchyData} title="Entity Hierarchy" />
             </div>
 
             {/* Consolidation Cube */}
             <div className="lg:col-span-2">
               <CubeGrid
-                data={cubeData.filter(row => (row.indent ?? 0) === 0)} // only Global row
+                data={cubeData.filter(row => (row.indent ?? 0) === 0)}
                 measures={['Revenue', 'Expense', 'EBITDA', 'Net Income', 'Assets', 'Liabilities', 'Equity']}
                 title="Consolidated Financial Data"
                 showExport={true}
                 onExport={handleExportConsolidationTable}
-                onDrillDown={async (row) => getChildRows(row)}  // ← key fix
+                onDrillDown={async (row) => getChildRows(row)}
               />
             </div>
           </div>
-
-          {/* FX Conversion Note */}
-         
         </>
       )}
-      <AnnotationPanel pageKey="cfo-financial-consolidation" period={`${filters.year}:${filters.entity}`} />
+
+      <AnnotationPanel
+        pageKey="cfo-financial-consolidation"
+        period={`${filters.year}:${filters.currency}`}
+      />
     </div>
   );
 }

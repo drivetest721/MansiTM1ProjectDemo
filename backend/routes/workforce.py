@@ -91,18 +91,24 @@ async def get_workforce_drill_down(
     parent_value: Optional[str] = Query(None, description="Parent dimension value"),
     year: Optional[int] = Query(None, description="Filter by year"),
     entity: Optional[str] = Query(None, description="Filter by entity"),
+    department: Optional[str] = Query(None, description="Filter by department"),
+    job_level: Optional[str] = Query(None, description="Filter by job level"),
+    version: Optional[str] = Query(None, description="Filter by version"),
     db: Session = Depends(get_db)
 ):
     """
     Get drill-down data for hierarchical navigation in workforce cube
-    
+
     Hierarchy: DepartmentName -> CostCenterName -> EmployeeName
-    
+
     - **level**: Target level (department, cost_center, employee)
     - **parent_value**: Parent dimension value to drill down from
     - **year**: Optional year filter
     - **entity**: Optional entity filter
-    
+    - **department**: Optional department filter
+    - **job_level**: Optional job level filter
+    - **version**: Optional version filter
+
     Returns aggregated workforce metrics at the requested level.
     """
     try:
@@ -111,7 +117,10 @@ async def get_workforce_drill_down(
             level=level,
             parent_value=parent_value,
             year=year,
-            entity=entity
+            entity=entity,
+            department=department,
+            job_level=job_level,
+            version=version
         )
     except ValueError as e:
         logger.error(f"Invalid drill-down parameters: {str(e)}")

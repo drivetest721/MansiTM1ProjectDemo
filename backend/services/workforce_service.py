@@ -333,19 +333,25 @@ class WorkforceService:
         level: str,
         parent_value: Optional[str] = None,
         year: Optional[int] = None,
-        entity: Optional[str] = None
+        entity: Optional[str] = None,
+        department: Optional[str] = None,
+        job_level: Optional[str] = None,
+        version: Optional[str] = None
     ) -> List[dict]:
         """
         Get drill-down data for hierarchical navigation
-        
+
         Hierarchy: DepartmentName -> CostCenterName -> EmployeeName
-        
+
         Args:
             level: Target level ('department', 'cost_center', 'employee')
             parent_value: Parent dimension value to filter by
             year: Optional year filter
             entity: Optional entity filter
-            
+            department: Optional department filter
+            job_level: Optional job level filter
+            version: Optional version filter
+
         Returns:
             List of aggregated records at target level
         """
@@ -356,16 +362,16 @@ class WorkforceService:
                 'cost_center': 'CostCenterName',
                 'employee': 'EmployeeName'
             }
-            
+
             if level not in level_columns:
                 raise ValueError(f"Invalid level: {level}")
-            
+
             target_column = level_columns[level]
-            
+
             # Build WHERE clause
             where_clauses = []
             params = {}
-            
+
             # Add parent filter
             if parent_value:
                 if level == 'cost_center':
@@ -373,7 +379,7 @@ class WorkforceService:
                 elif level == 'employee':
                     where_clauses.append("CostCenterName = :parent_value")
                 params["parent_value"] = parent_value
-            
+
             # Add additional filters
             if year:
                 where_clauses.append("YearNumber = :year")
@@ -381,6 +387,15 @@ class WorkforceService:
             if entity:
                 where_clauses.append("EntityName = :entity")
                 params["entity"] = entity
+            if department:
+                where_clauses.append("DepartmentName = :department")
+                params["department"] = department
+            if job_level:
+                where_clauses.append("JobLevel = :job_level")
+                params["job_level"] = job_level
+            if version:
+                where_clauses.append("VersionName = :version")
+                params["version"] = version
             
             where_clause = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
             

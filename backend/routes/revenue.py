@@ -135,32 +135,38 @@ async def get_revenue_drill_down(
     level: str = Query(..., description="Target level: category, family, or product"),
     parent_value: Optional[str] = Query(None, description="Parent dimension value"),
     year: Optional[int] = Query(None, description="Filter by year"),
+    quarter: Optional[str] = Query(None, description="Filter by quarter (Q1, Q2, Q3, Q4)"),
     region: Optional[str] = Query(None, description="Filter by region"),
     entity: Optional[str] = Query(None, description="Filter by entity"),
+    scenario: Optional[str] = Query(None, description="Filter by scenario"),
     db: Session = Depends(get_db)
 ):
     """
     Get drill-down data for hierarchical navigation in revenue cube
-    
+
     Hierarchy: ProductCategory -> ProductFamily -> ProductName
-    
+
     - **level**: Target level (category, family, product)
     - **parent_value**: Parent dimension value to drill down from
     - **year**: Optional year filter
+    - **quarter**: Optional quarter filter
     - **region**: Optional region filter
     - **entity**: Optional entity filter
-    
+    - **scenario**: Optional scenario filter
+
     Returns aggregated revenue metrics at the requested level.
     """
     try:
-        
+
         service = RevenueService(db)
         result = service.get_drill_down(
             level=level,
             parent_value=parent_value,
             year=year,
+            quarter=quarter,
             region=region,
-            entity=entity
+            entity=entity,
+            scenario=scenario
         )
         
         

@@ -21,49 +21,26 @@ import { THEME_COLORS, formatCurrency2dp, formatPercent2dp } from '../theme/colo
 // 'Equity' | 'Expense' | 'Revenue' | 'Asset' | 'Liability'
 // Revenue and Expense map directly to P&L. There is no literal "Net Profit"
 // account — it's always Revenue minus Expense, computed, never a stored row.
-type AccountCategory = 'revenue' | 'cogs' | 'opex' | 'other';
+// COGS accounts — exact names from Planning.vw_BudgetCube_Source
+const COGS_ACCOUNTS = new Set(['Direct Cost', 'Delivery Cost']);
 
-// HEURISTIC — your account_type doesn't separate COGS from OpEx, so this
-// guesses based on keywords in the account NAME. VERIFY this against the
-// console.log output below (search for "Unique Expense account names") and
-// tell me the actual naming convention so I can replace this with an exact map.
-function classifyExpenseSubtype(accountName: string): 'cogs' | 'opex' {
-  const n = (accountName || '').toLowerCase();
-  
-  const cogsKeywords = [
-    'cogs', 'cost of goods', 'cost of sales', 'cost of revenue',
-    'direct cost', 'materials', 'production cost', 'raw material',
-  ];
-  if (cogsKeywords.some((kw) => n.includes(kw))) return 'cogs';
-  return 'opex'; // default bucket for everything else classified as Expense
-}
-
-function classifyAccount(row: { account?: string; account_type?: string }): AccountCategory {
-  switch (row.account_type) {
-    case 'Revenue':
-      return 'revenue';
-    case 'Expense':
-      return classifyExpenseSubtype(row.account || '');
-    default:
-      // Equity / Asset / Liability — Balance Sheet items, not part of P&L gauges
-      return 'other';
-  }
-}
-
+// Revenue → revenue bucket
+// Expense where AccountName is "Direct Cost" or "Delivery Cost" → cogs bucket
+// All other Expense accounts → opex bucket
+// Equity / Asset / Liability → ignored (balance sheet, not P&L)
 function sumByCategory(rows: any[]) {
   const totals = { revenue: 0, cogs: 0, opex: 0 };
   (rows || []).forEach((r: any) => {
-    const cat = classifyAccount(r);
-    if (cat === 'revenue') totals.revenue += r.amount || 0;
-    else if (cat === 'cogs') totals.cogs += r.amount || 0;
-    else if (cat === 'opex') totals.opex += r.amount || 0;
+    if (r.account_type === 'Revenue') {
+      totals.revenue += r.amount || 0;
+    } else if (r.account_type === 'Expense') {
+      if (COGS_ACCOUNTS.has(r.account)) totals.cogs += r.amount || 0;
+      else totals.opex += r.amount || 0;
+    }
   });
   return totals;
 }
 
-// Single-page fetch — replaces the old 50-page pagination loop.
-// The old approach made up to 50 × 6 = 300 sequential requests per filter change,
-// freezing the browser tab. One page of 500 rows is fast and sufficient.
 async function fetchBudgetRows(params: Record<string, any>): Promise<any[]> {
   try {
     const response = await getBudget({ ...params, page: 1, page_size: 500 });
@@ -74,22 +51,17 @@ async function fetchBudgetRows(params: Record<string, any>): Promise<any[]> {
   }
 }
 
-// Fetches all budget rows in scope (no account filter — account_type isn't a
-// backend query param), then sums only Revenue-typed rows per department/entity.
-// Used for the "Actual vs Budget by Department/Entity" charts.
 async function fetchRevenueGrouped(
   groupKey: 'department' | 'entity',
   version: 'Actual' | 'Budget',
-  filters: { year?: number; entity?: string; department?: string; scenario?: string }
+  filters: { year?: number; entity?: string; department?: string }
 ): Promise<Record<string, number>> {
   const params: Record<string, any> = { version };
   if (filters.year) params.year = filters.year;
   if (filters.entity) params.entity = filters.entity;
   if (filters.department) params.department = filters.department;
-  if (filters.scenario) params.scenario = filters.scenario;
 
   const rows = await fetchBudgetRows(params);
-
   const totals: Record<string, number> = {};
   rows.forEach((row) => {
     if (row.account_type !== 'Revenue') return;
@@ -119,7 +91,7 @@ export default function CFOBudgeting() {
   const [byAccount, setByAccount] = useState<any[]>([]);
   const [byDepartment, setByDepartment] = useState<any[]>([]);
   const [byEntity, setByEntity] = useState<any[]>([]);
-   const fetchingRef = useRef(false);
+  const fetchingRef = useRef(false);
 
   const [gaugeData, setGaugeData] = useState({
     revenue: { actual: 0, target: 0 },
@@ -127,51 +99,88 @@ export default function CFOBudgeting() {
     opex: { actual: 0, target: 0 },
     profitMargin: { actual: 0, target: 0 },
   });
-  // Renamed for clarity — these are Revenue comparisons now, not Net Profit
-  // (kept the NetProfitChart component itself since it's generic chart code)
   const [revenueByDept, setRevenueByDept] = useState<NetProfitRow[]>([]);
   const [revenueByEntity, setRevenueByEntity] = useState<NetProfitRow[]>([]);
 
+  // Filters: Year, Entity, Department, Account only.
+  // Scenario and Version removed — consistent with Revenue and Workforce pages.
   const [filters, setFilters] = useState<Record<string, string>>({
     year: 'all',
     entity: 'all',
     department: 'all',
     account: 'all',
-    scenario: 'all',
-    version: 'all',
   });
+
+  // Dynamic filter options — loaded from the same endpoints that power the table.
+  // undefined = still loading | [] = loaded (possibly empty) | [...] = has options
+  const [entityOptions, setEntityOptions]     = useState<{ value: string; label: string }[] | undefined>(undefined);
+  const [departmentOptions, setDepartmentOptions] = useState<{ value: string; label: string }[] | undefined>(undefined);
+  const [accountOptions, setAccountOptions]   = useState<{ value: string; label: string }[] | undefined>(undefined);
+  const [filtersLoading, setFiltersLoading]   = useState(true);
+
+  // Load filter options on mount using Promise.allSettled so one failing call
+  // cannot wipe out the others. Options come from the same aggregation endpoints
+  // as the table, so values are guaranteed to match what's in the data.
+  useEffect(() => {
+    setFiltersLoading(true);
+    (async () => {
+      const [entResult, deptResult, acctResult] = await Promise.allSettled([
+        getBudgetByEntity({}),
+        getBudgetByDepartment({}),
+        getBudgetByAccount({}),
+      ]);
+
+      if (entResult.status === 'fulfilled') {
+        setEntityOptions(
+          (entResult.value.data?.data ?? []).map((e: any) => ({ value: e.dimension_value, label: e.dimension_value }))
+        );
+      } else {
+        console.error('Entity options failed:', entResult.reason);
+        setEntityOptions([]);
+      }
+
+      if (deptResult.status === 'fulfilled') {
+        setDepartmentOptions(
+          (deptResult.value.data?.data ?? []).map((d: any) => ({ value: d.dimension_value, label: d.dimension_value }))
+        );
+      } else {
+        console.error('Department options failed:', deptResult.reason);
+        setDepartmentOptions([]);
+      }
+
+      if (acctResult.status === 'fulfilled') {
+        setAccountOptions(
+          (acctResult.value.data?.data ?? []).map((a: any) => ({ value: a.dimension_value, label: a.dimension_value }))
+        );
+      } else {
+        console.error('Account options failed:', acctResult.reason);
+        setAccountOptions([]);
+      }
+
+      setFiltersLoading(false);
+    })();
+  }, []);
 
   const filterOptions: FilterOption[] = [
     {
       id: 'year',
       label: 'Year',
-      options: [
-        ...Array.from({ length: 13 }, (_, i) => 2018 + i).map((y) => ({ value: String(y), label: String(y) })),
-      ],
-    },
-    { id: 'entity', label: 'Entity', options: [] },
-    { id: 'department', label: 'Department', options: [] },
-    { id: 'account', label: 'Account', options: [] },
-    // Restored — your filters state still reads filters.scenario / filters.version
-    // in loadData, but these dropdown definitions had been dropped, which would
-    // make those filters unreachable from the UI.
-    {
-      id: 'scenario',
-      label: 'Scenario',
-      options: [
-        { value: 'Base', label: 'Base Case' },
-        { value: 'Best', label: 'Best Case' },
-        { value: 'Worst', label: 'Worst Case' },
-      ],
+      options: Array.from({ length: 13 }, (_, i) => 2018 + i).map((y) => ({ value: String(y), label: String(y) })),
     },
     {
-      id: 'version',
-      label: 'Version',
-      options: [
-        { value: 'Actual', label: 'Actual' },
-        { value: 'Budget', label: 'Budget' },
-        { value: 'Forecast', label: 'Forecast' },
-      ],
+      id: 'entity',
+      label: 'Entity',
+      options: entityOptions ?? [],
+    },
+    {
+      id: 'department',
+      label: 'Department',
+      options: departmentOptions ?? [],
+    },
+    {
+      id: 'account',
+      label: 'Account',
+      options: accountOptions ?? [],
     },
   ];
 
@@ -179,8 +188,10 @@ export default function CFOBudgeting() {
     const controller = new AbortController();
     loadData(controller.signal);
     return () => { controller.abort(); fetchingRef.current = false; };
-  }, [filters]);
+  }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // NOTE: [filters] in deps is required — without it loadData is a stale closure
+  // that always sees the initial filter values regardless of user selections.
   const loadData = useCallback(async (_signal?: AbortSignal) => {
     if (fetchingRef.current) return;
     fetchingRef.current = true;
@@ -188,54 +199,45 @@ export default function CFOBudgeting() {
     setError(null);
 
     try {
-      const aggParams = filters.year !== 'all'
-        ? { year: parseInt(filters.year), version: filters.version !== 'all' ? filters.version : undefined }
-        : {};
+      const aggParams: Record<string, any> = {};
+      if (filters.year !== 'all') aggParams.year = parseInt(filters.year);
+      if (filters.entity !== 'all') aggParams.entity = filters.entity;
+      if (filters.department !== 'all') aggParams.department = filters.department;
 
-      const npYear = filters.year !== 'all' ? parseInt(filters.year) : undefined;
-      const npScenario = filters.scenario !== 'all' ? filters.scenario : undefined;
-      const npEntity = filters.entity !== 'all' ? filters.entity : undefined;
-      const npDepartment = filters.department !== 'all' ? filters.department : undefined;
+      const npYear       = filters.year !== 'all'       ? parseInt(filters.year)   : undefined;
+      const npEntity     = filters.entity !== 'all'     ? filters.entity           : undefined;
+      const npDepartment = filters.department !== 'all' ? filters.department        : undefined;
 
-      // ---- existing table/chart aggregations (unchanged endpoints) ----
       const [byAcct, byDept, byEnt] = await Promise.all([
         getBudgetByAccount(aggParams),
         getBudgetByDepartment(aggParams),
         getBudgetByEntity(aggParams),
       ]);
 
-      // ---- gauge source data: filtered raw rows, classified client-side by account_type ----
+      // Gauge source: Actual vs Budget rows, classified client-side by account_type
       const gaugeBaseParams: Record<string, any> = {};
-      if (npYear) gaugeBaseParams.year = npYear;
-      if (npEntity) gaugeBaseParams.entity = npEntity;
+      if (npYear)       gaugeBaseParams.year       = npYear;
+      if (npEntity)     gaugeBaseParams.entity     = npEntity;
       if (npDepartment) gaugeBaseParams.department = npDepartment;
-      if (npScenario) gaugeBaseParams.scenario = npScenario;
 
       const [acctActualRows, acctBudgetRows] = await Promise.all([
         fetchBudgetRows({ ...gaugeBaseParams, version: 'Actual' }),
         fetchBudgetRows({ ...gaugeBaseParams, version: 'Budget' }),
       ]);
 
-      // DEBUG — run once, check console, then tell me the actual Expense
-      // account naming convention so I can replace the COGS/OpEx heuristic
-      // with an exact mapping instead of a keyword guess.
-      const expenseAccountNames = [...new Set(
+      console.log('Unique Expense account names:', [...new Set(
         acctActualRows.filter((r) => r.account_type === 'Expense').map((r) => r.account)
-      )];
-      console.log('Unique Expense account names:', expenseAccountNames);
-      console.log('Unique Revenue account names:', [...new Set(
-        acctActualRows.filter((r) => r.account_type === 'Revenue').map((r) => r.account)
       )]);
 
-      // ---- Revenue actual vs budget, by department / entity ----
+      // Revenue actual vs budget, by department / entity
       const [deptActual, deptBudget, entActual, entBudget] = await Promise.all([
-        fetchRevenueGrouped('department', 'Actual', { year: npYear, scenario: npScenario, entity: npEntity }),
-        fetchRevenueGrouped('department', 'Budget', { year: npYear, scenario: npScenario, entity: npEntity }),
-        fetchRevenueGrouped('entity', 'Actual', { year: npYear, scenario: npScenario, department: npDepartment }),
-        fetchRevenueGrouped('entity', 'Budget', { year: npYear, scenario: npScenario, department: npDepartment }),
+        fetchRevenueGrouped('department', 'Actual', { year: npYear, entity: npEntity, department: npDepartment }),
+        fetchRevenueGrouped('department', 'Budget', { year: npYear, entity: npEntity, department: npDepartment }),
+        fetchRevenueGrouped('entity', 'Actual',     { year: npYear, entity: npEntity, department: npDepartment }),
+        fetchRevenueGrouped('entity', 'Budget',     { year: npYear, entity: npEntity, department: npDepartment }),
       ]);
 
-      // ---- existing table/KPI logic (unchanged) ----
+      // Table / KPI
       const statementMap: Record<string, any> = {};
       byAcct.data.data.forEach((acct: any) => {
         const statement = acct.dimension_value.includes('Revenue') || acct.dimension_value.includes('Income') ? 'P&L' : 'Balance Sheet';
@@ -257,8 +259,8 @@ export default function CFOBudgeting() {
         indent: 0,
       }));
 
-      const totalBudget = tableData.reduce((sum, row) => sum + (row.budget || 0), 0);
-      const totalActual = tableData.reduce((sum, row) => sum + (row.actual || 0), 0);
+      const totalBudget   = tableData.reduce((sum, row) => sum + (row.budget   || 0), 0);
+      const totalActual   = tableData.reduce((sum, row) => sum + (row.actual   || 0), 0);
       const totalForecast = tableData.reduce((sum, row) => sum + (row.forecast || 0), 0);
 
       tableData.push({
@@ -276,60 +278,61 @@ export default function CFOBudgeting() {
       setBudgetData(tableData);
 
       const totalBudgetAmount = byDept.data.data.reduce((sum: number, d: any) => sum + d.amount, 0);
-      const avgBudget = totalBudgetAmount / byDept.data.data.length;
+      const avgBudget = totalBudgetAmount / (byDept.data.data.length || 1);
 
       setKpiData([
-        { title: 'Total Budget', value: `$${(totalBudgetAmount / 1000000).toFixed(1)}M`, icon: DollarSign, color: 'text-blue-600' },
-        { title: 'Accounts', value: byAcct.data.data.length.toString(), icon: FileText, color: 'text-green-600' },
-        { title: 'Departments', value: byDept.data.data.length.toString(), icon: Building2, color: 'text-indigo-600' },
-        { title: 'Entities', value: byEnt.data.data.length.toString(), icon: Building2, color: 'text-purple-600' },
-        { title: 'Avg Budget', value: `$${(avgBudget / 1000000).toFixed(1)}M`, icon: TrendingUp, color: 'text-amber-600' },
-        { title: 'Records', value: tableData.length.toLocaleString(), icon: CheckCircle, color: 'text-teal-600' },
+        { title: 'Total Budget',  value: `$${(totalBudgetAmount / 1000000).toFixed(1)}M`, icon: DollarSign,   color: 'text-blue-600'   },
+        { title: 'Accounts',      value: byAcct.data.data.length.toString(),               icon: FileText,     color: 'text-green-600'  },
+        { title: 'Departments',   value: byDept.data.data.length.toString(),               icon: Building2,    color: 'text-indigo-600' },
+        { title: 'Entities',      value: byEnt.data.data.length.toString(),                icon: Building2,    color: 'text-purple-600' },
+        { title: 'Avg Budget',    value: `$${(avgBudget / 1000000).toFixed(1)}M`,          icon: TrendingUp,   color: 'text-amber-600'  },
+        { title: 'Records',       value: tableData.length.toLocaleString(),                icon: CheckCircle,  color: 'text-teal-600'   },
       ]);
 
       const colors = THEME_COLORS;
 
       setByAccount(
         byAcct.data.data.slice(0, 10).map((item: any, idx: number) => ({
-          account: item.dimension_value.length > 20 ? item.dimension_value.substring(0, 20) + '...' : item.dimension_value,
-          budget: item.amount,
-          fill: colors[idx % colors.length],
+          account:    item.dimension_value.length > 20 ? item.dimension_value.substring(0, 20) + '...' : item.dimension_value,
+          budget:     item.amount,
+          fill:       colors[idx % colors.length],
         }))
       );
       setByDepartment(
         byDept.data.data.slice(0, 10).map((item: any, idx: number) => ({
           department: item.dimension_value.length > 20 ? item.dimension_value.substring(0, 20) + '...' : item.dimension_value,
-          budget: item.amount,
-          fill: colors[idx % colors.length],
+          budget:     item.amount,
+          fill:       colors[idx % colors.length],
         }))
       );
       setByEntity(
         byEnt.data.data.slice(0, 10).map((item: any, idx: number) => ({
-          entity: item.dimension_value.length > 20 ? item.dimension_value.substring(0, 20) + '...' : item.dimension_value,
-          budget: item.amount,
-          fill: colors[idx % colors.length],
+          entity:     item.dimension_value.length > 20 ? item.dimension_value.substring(0, 20) + '...' : item.dimension_value,
+          budget:     item.amount,
+          fill:       colors[idx % colors.length],
         }))
       );
 
-      // ---- gauge data (Revenue / COGS / OpEx / Profit %) ----
+      // Gauge data
       const actualTotals = sumByCategory(acctActualRows);
       const budgetTotals = sumByCategory(acctBudgetRows);
 
-      const netProfitActual = actualTotals.revenue - actualTotals.cogs - actualTotals.opex;
-      const netProfitBudget = budgetTotals.revenue - budgetTotals.cogs - budgetTotals.opex;
+      // Net Profit = Revenue − COGS − OpEx
+      const netProfitActual    = actualTotals.revenue - actualTotals.cogs - actualTotals.opex;
+      const netProfitBudget    = budgetTotals.revenue - budgetTotals.cogs - budgetTotals.opex;
       const profitMarginActual = actualTotals.revenue !== 0 ? (netProfitActual / actualTotals.revenue) * 100 : 0;
       const profitMarginBudget = budgetTotals.revenue !== 0 ? (netProfitBudget / budgetTotals.revenue) * 100 : 0;
 
       setGaugeData({
-        revenue: { actual: actualTotals.revenue, target: budgetTotals.revenue },
-        cogs: { actual: actualTotals.cogs, target: budgetTotals.cogs },
-        opex: { actual: actualTotals.opex, target: budgetTotals.opex },
-        profitMargin: { actual: profitMarginActual, target: profitMarginBudget },
+        revenue:      { actual: actualTotals.revenue, target: budgetTotals.revenue },
+        cogs:         { actual: actualTotals.cogs,    target: budgetTotals.cogs    },
+        opex:         { actual: actualTotals.opex,    target: budgetTotals.opex    },
+        profitMargin: { actual: profitMarginActual,   target: profitMarginBudget   },
       });
 
-      // ---- Revenue actual vs budget, by department / entity ----
       setRevenueByDept(mergeGroupedTotals(deptActual, deptBudget));
       setRevenueByEntity(mergeGroupedTotals(entActual, entBudget));
+
     } catch (err: any) {
       console.error('Error loading budget data:', err);
       setError(err.message || 'Failed to load budget data');
@@ -337,10 +340,10 @@ export default function CFOBudgeting() {
       setLoading(false);
       fetchingRef.current = false;
     }
-  }, []);
+  }, [filters]); // [filters] required — prevents stale closure
 
   const handleResetFilters = () => {
-    setFilters({ year: 'all', entity: 'all', department: 'all', account: 'all', scenario: 'all', version: 'all' });
+    setFilters({ year: 'all', entity: 'all', department: 'all', account: 'all' });
   };
 
   const handleExport = () => {
@@ -359,9 +362,9 @@ export default function CFOBudgeting() {
       if (!nextLevel) return [];
 
       const params: any = { level: nextLevel, parent_value: row.label };
-      if (filters.year !== 'all') params.year = parseInt(filters.year);
-      if (filters.entity !== 'all') params.entity = filters.entity;
-      if (filters.scenario !== 'all') params.scenario = filters.scenario;
+      if (filters.year !== 'all')        params.year   = parseInt(filters.year);
+      if (filters.entity !== 'all')      params.entity = filters.entity;
+      if (filters.department !== 'all')  params.department = filters.department;
 
       const response = await getBudgetDrillDown(params);
 
@@ -425,7 +428,7 @@ export default function CFOBudgeting() {
         year={filters.year !== 'all' ? filters.year : 'all'}
       />
 
-      {/* 4 gauges, above filters */}
+      {/* 4 gauges */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <GaugeChart
           title="Revenue"
@@ -459,16 +462,23 @@ export default function CFOBudgeting() {
         />
       </div>
 
-      <GlobalFilters
-        filters={filterOptions}
-        values={filters}
-        onApply={setFilters}
-        onReset={handleResetFilters}
-      />
+      {/* Global Filters — spinner shown while dynamic options load */}
+      <div className="relative">
+        {filtersLoading && (
+          <div className="absolute top-2 right-2 z-10 flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
+            <div className="h-3 w-3 animate-spin rounded-full border border-gray-300 border-t-indigo-500" />
+            Loading filters…
+          </div>
+        )}
+        <GlobalFilters
+          filters={filterOptions}
+          values={filters}
+          onApply={setFilters}
+          onReset={handleResetFilters}
+        />
+      </div>
 
-      {/* Revenue actual vs budget, by department / entity, side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
-        
         <NetProfitChart title="Revenue: Actual vs Budget by Entity" data={revenueByEntity} />
       </div>
 
