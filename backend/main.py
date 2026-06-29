@@ -12,7 +12,7 @@ import os
 from datetime import datetime
 
 # Import all routers
-from routes import dashboard, metadata, revenue, workforce, budget_forecast, finance, health, forecast, finance_enhanced, finance_mapped, consolidation, admin, annotations, workflow, rolling_forecast
+from routes import dashboard, metadata, revenue, workforce, budget_forecast, finance, health, forecast, finance_enhanced, finance_mapped, consolidation, admin, annotations, workflow, rolling_forecast, reports
 
 # Configure logging
 log_dir = "logs"
@@ -70,6 +70,7 @@ app.include_router(admin.router, tags=["Admin & Health"])
 app.include_router(annotations.router, prefix="/api", tags=["Annotations"])
 app.include_router(workflow.router, prefix="/api", tags=["Workflow Status"])
 app.include_router(rolling_forecast.router, prefix="/api", tags=["Rolling Forecast"])
+app.include_router(reports.router, prefix="/api/reports", tags=["Management Reports"])
 
 @app.on_event("startup")
 async def startup_event():

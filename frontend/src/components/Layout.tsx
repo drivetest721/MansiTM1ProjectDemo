@@ -19,6 +19,9 @@ import {
   ChevronRight,
   BarChart2,
   Server,
+  FileSpreadsheet,
+  SlidersHorizontal,
+  BookOpen,
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -33,6 +36,9 @@ const analyticsItems = [
   { path: '/forecasting-analysis', label: 'Forecasting Analysis', icon: LineChart },
   { path: '/pl-statement', label: 'P&L Statement', icon: FileText },
   { path: '/balance-sheet', label: 'Balance Sheet', icon: Scale },
+  { path: '/custom-report-studio', label: 'Custom Report Studio', icon: FileSpreadsheet },
+  { path: '/report-parameters',   label: 'Report Parameters',    icon: SlidersHorizontal },
+  { path: '/management-report',   label: 'Management Report',    icon: BookOpen },
 ];
 
 const consolidationItems = [

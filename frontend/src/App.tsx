@@ -2,7 +2,10 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import ErrorBoundary from './components/ErrorBoundary';
 import { DrillProvider } from './context/DrillContext';
+import { ReportProvider } from './context/ReportContext';
 import ExecutiveOverview from './pages/ExecutiveOverview';
+import ReportParameters from './pages/ReportParameters';
+import ManagementReport from './pages/ManagementReport';
 import RevenuePlanning from './pages/RevenuePlanning';
 import WorkforcePlanning from './pages/WorkforcePlanning';
 import CFOBudgeting from './pages/CFOBudgeting';
@@ -15,6 +18,7 @@ import DimensionExplorer from './pages/DimensionExplorer';
 import TM1Architecture from './pages/TM1Architecture';
 import AdminDataHealth from './pages/AdminDataHealth';
 import PivotTableView from './pages/PivotTableView';
+import CustomReportStudio from './pages/CustomReportStudio';
 import './index.css';
 
 // Pre-define route elements outside JSX — workaround for Vite 8/rolldown
@@ -34,12 +38,16 @@ const el = {
   dimExplorer:     <ErrorBoundary label="Dimension Explorer"><DimensionExplorer /></ErrorBoundary>,
   architecture:    <ErrorBoundary label="TM1 Architecture"><TM1Architecture /></ErrorBoundary>,
   adminHealth:     <ErrorBoundary label="Admin Data Health"><AdminDataHealth /></ErrorBoundary>,
+  reportStudio:    <ErrorBoundary label="Custom Report Studio"><CustomReportStudio /></ErrorBoundary>,
+  reportParams:    <ErrorBoundary label="Report Parameters"><ReportParameters /></ErrorBoundary>,
+  mgmtReport:      <ErrorBoundary label="Management Report"><ManagementReport /></ErrorBoundary>,
 };
 
 function App() {
   return (
     <BrowserRouter>
       <DrillProvider>
+        <ReportProvider>
         <Layout>
           <Routes>
             <Route path="/" element={el.overview} />
@@ -56,8 +64,12 @@ function App() {
             <Route path="/dimension-explorer" element={el.dimExplorer} />
             <Route path="/tm1-architecture" element={el.architecture} />
             <Route path="/admin-data-health" element={el.adminHealth} />
+            <Route path="/custom-report-studio" element={el.reportStudio} />
+            <Route path="/report-parameters"    element={el.reportParams} />
+            <Route path="/management-report"    element={el.mgmtReport} />
           </Routes>
         </Layout>
+        </ReportProvider>
       </DrillProvider>
     </BrowserRouter>
   );

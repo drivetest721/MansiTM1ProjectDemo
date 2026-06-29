@@ -1,17 +1,18 @@
 import { Link, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  TrendingUp, 
-  DollarSign, 
-  Target, 
-  PieChart, 
-  FileText, 
+import {
+  LayoutDashboard,
+  TrendingUp,
+  DollarSign,
+  Target,
+  PieChart,
+  FileText,
   BarChart3,
   Users,
   Settings,
   Layers,
   Database,
-  GitBranch
+  GitBranch,
+  FileSpreadsheet
 } from 'lucide-react';
 
 const navigation = [
@@ -23,6 +24,7 @@ const navigation = [
   { name: 'P&L Statement', href: '/pl-statement', icon: FileText },
   { name: 'Balance Sheet', href: '/balance-sheet', icon: Layers },
   // { name: 'Financial Consolidation', href: '/financial-consolidation', icon: GitBranch },
+  { name: 'Custom Report Studio', href: '/custom-report-studio', icon: FileSpreadsheet },
   { name: 'Cube Explorer', href: '/cube-explorer', icon: Database },
   { name: 'Dimension Explorer', href: '/dimension-explorer', icon: PieChart },
   { name: 'TM1 Architecture', href: '/tm1-architecture', icon: Target },
