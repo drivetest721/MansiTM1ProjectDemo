@@ -283,6 +283,7 @@ class MetadataService:
                     "cube_name": "Revenue Planning",
                     "description": "Revenue forecasting and planning cube",
                     "dimension_count": 6,
+                    "measure_count": 5,
                     "status": "active",
                     "last_update": "2024-06-24"
                 },
@@ -291,6 +292,7 @@ class MetadataService:
                     "cube_name": "Workforce Planning",
                     "description": "Headcount and compensation planning cube",
                     "dimension_count": 5,
+                    "measure_count": 6,
                     "status": "active",
                     "last_update": "2024-06-24"
                 },
@@ -299,6 +301,7 @@ class MetadataService:
                     "cube_name": "Budget & Forecast",
                     "description": "Budget vs Forecast variance analysis cube",
                     "dimension_count": 6,
+                    "measure_count": 5,
                     "status": "active",
                     "last_update": "2024-06-24"
                 },
@@ -307,6 +310,7 @@ class MetadataService:
                     "cube_name": "P&L Statement",
                     "description": "Profit & Loss statement financial cube",
                     "dimension_count": 4,
+                    "measure_count": 4,
                     "status": "active",
                     "last_update": "2024-06-24"
                 },
@@ -315,14 +319,7 @@ class MetadataService:
                     "cube_name": "Balance Sheet",
                     "description": "Balance sheet financial cube",
                     "dimension_count": 4,
-                    "status": "active",
-                    "last_update": "2024-06-24"
-                },
-                {
-                    "cube_id": "consolidation",
-                    "cube_name": "Financial Consolidation",
-                    "description": "Multi-entity financial consolidation cube",
-                    "dimension_count": 5,
+                    "measure_count": 3,
                     "status": "active",
                     "last_update": "2024-06-24"
                 }
@@ -342,12 +339,12 @@ class MetadataService:
                     "cube_name": "Revenue Planning",
                     "description": "Revenue forecasting and planning cube with product, customer, and time dimensions",
                     "dimensions": [
-                        {"name": "Year", "type": "Time", "element_count": 5},
-                        {"name": "Entity", "type": "Entity", "element_count": 20},
-                        {"name": "Product", "type": "Product", "element_count": 150},
-                        {"name": "Customer", "type": "Customer", "element_count": 500},
-                        {"name": "Scenario", "type": "Scenario", "element_count": 3},
-                        {"name": "Version", "type": "Version", "element_count": 2}
+                        {"name": "Year", "type": "Time", "count": 5},
+                        {"name": "Entity", "type": "Entity", "count": 20},
+                        {"name": "Product", "type": "Product", "count": 150},
+                        {"name": "Customer", "type": "Customer", "count": 500},
+                        {"name": "Scenario", "type": "Scenario", "count": 3},
+                        {"name": "Version", "type": "Version", "count": 2}
                     ],
                     "measures": ["Quantity", "Price", "Revenue", "Cost", "Margin"],
                     "view": "Planning.vw_ForecastCube_Source WITH (NOLOCK)",
@@ -359,11 +356,11 @@ class MetadataService:
                     "cube_name": "Workforce Planning",
                     "description": "Headcount and compensation planning cube",
                     "dimensions": [
-                        {"name": "Year", "type": "Time", "element_count": 5},
-                        {"name": "Entity", "type": "Entity", "element_count": 20},
-                        {"name": "Department", "type": "Department", "element_count": 30},
-                        {"name": "Employee Type", "type": "Category", "element_count": 10},
-                        {"name": "Version", "type": "Version", "element_count": 2}
+                        {"name": "Year", "type": "Time", "count": 5},
+                        {"name": "Entity", "type": "Entity", "count": 20},
+                        {"name": "Department", "type": "Department", "count": 30},
+                        {"name": "Employee Type", "type": "Category", "count": 10},
+                        {"name": "Version", "type": "Version", "count": 2}
                     ],
                     "measures": ["BaseSalary", "Bonus", "Benefits", "TotalCompensation", "BonusPercent", "BenefitsPercent"],
                     "view": "HR.vw_WorkforceCube_Source WITH (NOLOCK)",
@@ -375,12 +372,12 @@ class MetadataService:
                     "cube_name": "Budget & Forecast",
                     "description": "Budget vs Forecast variance analysis cube",
                     "dimensions": [
-                        {"name": "Year", "type": "Time", "element_count": 5},
-                        {"name": "Entity", "type": "Entity", "element_count": 20},
-                        {"name": "Department", "type": "Department", "element_count": 30},
-                        {"name": "Account", "type": "Account", "element_count": 200},
-                        {"name": "Scenario", "type": "Scenario", "element_count": 3},
-                        {"name": "Version", "type": "Version", "element_count": 2}
+                        {"name": "Year", "type": "Time", "count": 5},
+                        {"name": "Entity", "type": "Entity", "count": 20},
+                        {"name": "Department", "type": "Department", "count": 30},
+                        {"name": "Account", "type": "Account", "count": 200},
+                        {"name": "Scenario", "type": "Scenario", "count": 3},
+                        {"name": "Version", "type": "Version", "count": 2}
                     ],
                     "measures": ["Budget", "Forecast", "Actual", "Variance", "Variance %"],
                     "view": "Planning.vw_BudgetForecastVariance WITH (NOLOCK)",
@@ -392,10 +389,10 @@ class MetadataService:
                     "cube_name": "P&L Statement",
                     "description": "Profit & Loss statement financial cube",
                     "dimensions": [
-                        {"name": "Year", "type": "Time", "element_count": 5},
-                        {"name": "Entity", "type": "Entity", "element_count": 20},
-                        {"name": "Account Type", "type": "Category", "element_count": 2},
-                        {"name": "Account", "type": "Account", "element_count": 220}
+                        {"name": "Year", "type": "Time", "count": 5},
+                        {"name": "Entity", "type": "Entity", "count": 20},
+                        {"name": "Account Type", "type": "Category", "count": 2},
+                        {"name": "Account", "type": "Account", "count": 220}
                     ],
                     "measures": ["Actual Amount", "Budget Amount", "Forecast Amount", "Variance"],
                     "view": "Finance.vw_PL_Statement WITH (NOLOCK)",
@@ -407,29 +404,13 @@ class MetadataService:
                     "cube_name": "Balance Sheet",
                     "description": "Balance sheet financial cube",
                     "dimensions": [
-                        {"name": "Year", "type": "Time", "element_count": 5},
-                        {"name": "Entity", "type": "Entity", "element_count": 20},
-                        {"name": "Account Type", "type": "Category", "element_count": 3},
-                        {"name": "Account", "type": "Account", "element_count": 80}
+                        {"name": "Year", "type": "Time", "count": 5},
+                        {"name": "Entity", "type": "Entity", "count": 20},
+                        {"name": "Account Type", "type": "Category", "count": 3},
+                        {"name": "Account", "type": "Account", "count": 80}
                     ],
                     "measures": ["Balance Amount", "Budget Amount", "Variance"],
                     "view": "Finance.vw_BalanceSheet WITH (NOLOCK)",
-                    "cell_count": 0,
-                    "last_update": "2024-06-24"
-                },
-                "consolidation": {
-                    "cube_id": "consolidation",
-                    "cube_name": "Financial Consolidation",
-                    "description": "Multi-entity financial consolidation cube",
-                    "dimensions": [
-                        {"name": "Year", "type": "Time", "element_count": 5},
-                        {"name": "Entity", "type": "Entity", "element_count": 20},
-                        {"name": "Region", "type": "Category", "element_count": 3},
-                        {"name": "Account Type", "type": "Category", "element_count": 3},
-                        {"name": "Measure", "type": "Measure", "element_count": 7}
-                    ],
-                    "measures": ["Revenue", "Expense", "EBITDA", "Net Income", "Assets", "Liabilities", "Equity"],
-                    "view": "Finance.vw_EntityConsolidation WITH (NOLOCK)",
                     "cell_count": 0,
                     "last_update": "2024-06-24"
                 }
@@ -548,7 +529,7 @@ class MetadataService:
                     "dimension_id": "entity",
                     "dimension_name": "Entity",
                     "description": "Business entities (companies, subsidiaries)",
-                    "element_count": 20,
+                    "count": 20,
                     "has_hierarchy": True,
                     "type": "Entity"
                 },
@@ -556,7 +537,7 @@ class MetadataService:
                     "dimension_id": "department",
                     "dimension_name": "Department",
                     "description": "Organizational departments",
-                    "element_count": 30,
+                    "count": 30,
                     "has_hierarchy": True,
                     "type": "Department"
                 },
@@ -564,7 +545,7 @@ class MetadataService:
                     "dimension_id": "account",
                     "dimension_name": "Account",
                     "description": "Chart of accounts",
-                    "element_count": 300,
+                    "count": 300,
                     "has_hierarchy": True,
                     "type": "Account"
                 },
@@ -572,7 +553,7 @@ class MetadataService:
                     "dimension_id": "product",
                     "dimension_name": "Product",
                     "description": "Products and services",
-                    "element_count": 150,
+                    "count": 150,
                     "has_hierarchy": True,
                     "type": "Product"
                 },
@@ -580,7 +561,7 @@ class MetadataService:
                     "dimension_id": "customer",
                     "dimension_name": "Customer",
                     "description": "Customer accounts",
-                    "element_count": 500,
+                    "count": 500,
                     "has_hierarchy": False,
                     "type": "Customer"
                 },
@@ -588,7 +569,7 @@ class MetadataService:
                     "dimension_id": "time",
                     "dimension_name": "Time",
                     "description": "Time periods (year, quarter, month)",
-                    "element_count": 60,
+                    "count": 60,
                     "has_hierarchy": True,
                     "type": "Time"
                 },
@@ -596,7 +577,7 @@ class MetadataService:
                     "dimension_id": "scenario",
                     "dimension_name": "Scenario",
                     "description": "Planning scenarios (Actual, Budget, Forecast)",
-                    "element_count": 3,
+                    "count": 3,
                     "has_hierarchy": False,
                     "type": "Scenario"
                 },
@@ -604,7 +585,7 @@ class MetadataService:
                     "dimension_id": "version",
                     "dimension_name": "Version",
                     "description": "Data versions (Working, Final)",
-                    "element_count": 2,
+                    "count": 2,
                     "has_hierarchy": False,
                     "type": "Version"
                 }
@@ -623,7 +604,7 @@ class MetadataService:
                     "dimension_id": "entity",
                     "dimension_name": "Entity",
                     "description": "Business entities organized by geographic regions",
-                    "element_count": 20,
+                    "count": 20,
                     "has_hierarchy": True,
                     "hierarchy_levels": ["Global", "Region", "Entity"],
                     "type": "Entity",
@@ -633,7 +614,7 @@ class MetadataService:
                     "dimension_id": "department",
                     "dimension_name": "Department",
                     "description": "Organizational departments with rollup structure",
-                    "element_count": 30,
+                    "count": 30,
                     "has_hierarchy": True,
                     "hierarchy_levels": ["Total Company", "Division", "Department"],
                     "type": "Department",
@@ -643,7 +624,7 @@ class MetadataService:
                     "dimension_id": "account",
                     "dimension_name": "Account",
                     "description": "Chart of accounts with financial statement structure",
-                    "element_count": 300,
+                    "count": 300,
                     "has_hierarchy": True,
                     "hierarchy_levels": ["Total", "Category", "Account Type", "Account"],
                     "type": "Account",
@@ -653,7 +634,7 @@ class MetadataService:
                     "dimension_id": "product",
                     "dimension_name": "Product",
                     "description": "Products organized by brand, family, and category",
-                    "element_count": 150,
+                    "count": 150,
                     "has_hierarchy": True,
                     "hierarchy_levels": ["Total Products", "Brand", "Family", "Category", "Product"],
                     "type": "Product",
@@ -663,7 +644,7 @@ class MetadataService:
                     "dimension_id": "customer",
                     "dimension_name": "Customer",
                     "description": "Customer accounts",
-                    "element_count": 500,
+                    "count": 500,
                     "has_hierarchy": False,
                     "hierarchy_levels": [],
                     "type": "Customer",
@@ -673,7 +654,7 @@ class MetadataService:
                     "dimension_id": "time",
                     "dimension_name": "Time",
                     "description": "Time periods with year-quarter-month hierarchy",
-                    "element_count": 60,
+                    "count": 60,
                     "has_hierarchy": True,
                     "hierarchy_levels": ["Total", "Year", "Quarter", "Month"],
                     "type": "Time",
@@ -683,7 +664,7 @@ class MetadataService:
                     "dimension_id": "scenario",
                     "dimension_name": "Scenario",
                     "description": "Planning scenarios",
-                    "element_count": 3,
+                    "count": 3,
                     "has_hierarchy": False,
                     "hierarchy_levels": [],
                     "type": "Scenario",
@@ -693,7 +674,7 @@ class MetadataService:
                     "dimension_id": "version",
                     "dimension_name": "Version",
                     "description": "Data versions",
-                    "element_count": 2,
+                    "count": 2,
                     "has_hierarchy": False,
                     "hierarchy_levels": [],
                     "type": "Version",

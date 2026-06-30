@@ -16,5 +16,23 @@
       ]
     },
     "created_at": "2026-06-30T06:51:34.955119"
+  },
+  {
+    "id": "918ab310-aa37-469a-af97-5acf9f779ee9",
+    "name": "REv by Entity",
+    "config": {
+      "dataSource": "revenue",
+      "rowDimensions": [
+        "product_category",
+        "entity"
+      ],
+      "columnDimension": "region",
+      "filters": {},
+      "measures": [
+        "revenue",
+        "margin"
+      ]
+    },
+    "created_at": "2026-06-30T07:48:14.425191"
   }
 ]

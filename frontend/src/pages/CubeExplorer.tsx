@@ -593,44 +593,6 @@ export default function CubeExplorer() {
     }
   }, [selectedCube]);
 
-const DUMMY_CUBES: Cube[] = [
-  {
-    cube_id: 'demo-revenue',
-    cube_name: 'Revenue Cube',
-    description: 'Demo cube with 6 dimensions (no backend connected — showing sample data)',
-    dimensions: ['Year', 'Customer', 'Product', 'Scenario', 'Entity', 'Version'],
-    measures: ['Revenue', 'Cost', 'Margin'],
-    dimension_count: 6,
-    measure_count: 3,
-  },
-];
-
-  const DUMMY_DETAILS: CubeDetails = {
-    cube_id: 'demo-revenue',
-    cube_name: 'Revenue Cube',
-    description: 'Demo cube with 6 dimensions (no backend connected — showing sample data)',
-    dimensions: [
-      { name: 'Year',     type: 'Time',     count: 5 },
-      { name: 'Customer', type: 'Regular',  count: 1240 },
-      { name: 'Product',  type: 'Regular',  count: 380 },
-      { name: 'Scenario', type: 'Regular',  count: 4 },
-      { name: 'Entity',   type: 'Regular',  count: 22 },
-      { name: 'Version',  type: 'Regular',  count: 3 },
-    ],
-    measures: ['Revenue', 'Cost', 'Margin'],
-    cell_count: 1240 * 380 * 5,
-    last_update: new Date().toISOString().split('T')[0],
-  };
-
-  const DUMMY_SAMPLE = Array.from({ length: 8 }, (_, i) => ({
-    Year: 2020 + (i % 5),
-    Customer: `Customer ${i + 1}`,
-    Product: `Product ${(i % 4) + 1}`,
-    Scenario: ['Actual', 'Budget', 'Forecast'][i % 3],
-    Revenue: Math.round(50000 + Math.random() * 200000),
-    Margin: `${(15 + Math.random() * 20).toFixed(1)}%`,
-  }));
-
   const loadCubes = async () => {
     try {
       setLoading(true);
@@ -639,51 +601,43 @@ const DUMMY_CUBES: Cube[] = [
         setCubes(res.data.data);
         setSelectedCube(res.data.data[0].cube_id);
       } else {
-        setCubes(DUMMY_CUBES);
-        setSelectedCube(DUMMY_CUBES[0].cube_id);
+        setCubes([]);
+        setError('No cubes found in the database.');
       }
     } catch (err: any) {
-      console.error('Failed to load cubes, using dummy data:', err);
-      setCubes(DUMMY_CUBES);
-      setSelectedCube(DUMMY_CUBES[0].cube_id);
+      console.error('Failed to load cubes:', err);
+      setError('Unable to connect to the backend. Please ensure the API server is running.');
+      setCubes([]);
     } finally {
       setLoading(false);
     }
   };
 
   const loadCubeDetails = async (cubeId: string) => {
-    if (cubeId === 'demo-revenue') {
-      setCubeDetails(DUMMY_DETAILS);
-      return;
-    }
     try {
       const res = await getCubeDetails(cubeId);
       if (res.data.success) {
         setCubeDetails(res.data.data);
       } else {
-        setCubeDetails(DUMMY_DETAILS);
+        setCubeDetails(null);
       }
     } catch (err: any) {
-      console.error('Failed to load cube details, using dummy data:', err);
-      setCubeDetails(DUMMY_DETAILS);
+      console.error('Failed to load cube details:', err);
+      setCubeDetails(null);
     }
   };
 
   const loadSampleData = async (cubeId: string) => {
-    if (cubeId === 'demo-revenue') {
-      setSampleData(DUMMY_SAMPLE);
-      return;
-    }
     try {
       const res = await getCubeSampleData(cubeId, 20);
       if (res.data.success) {
         setSampleData(res.data.data.sample_data || []);
       } else {
-        setSampleData(DUMMY_SAMPLE);
+        setSampleData([]);
       }
     } catch (err: any) {
-      console.error('Failed to load sample data, using dummy data:', err);
-      setSampleData(DUMMY_SAMPLE);
+      console.error('Failed to load sample data:', err);
+      setSampleData([]);
     }
   };
 
@@ -715,6 +669,11 @@ const DUMMY_CUBES: Cube[] = [
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
             <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Available Cubes</h2>
             <div className="space-y-2">
+              {cubes.length === 0 && (
+                <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                  No cubes available
+                </p>
+              )}
               {cubes.map((cube) => (
                 <button
                   key={cube.cube_id}
