@@ -266,7 +266,7 @@ function IsometricCube({ dimensions, cubeName }: {
 
 
 // ─── Star Topology Diagram (cube in center, dimensions radiate out) ─────────
-// ─── Star Topology Diagram (cube in center, dimensions radiate out) ─────────
+
 function StarTopology({ dimensions, measures, cubeName }: {
   dimensions: Array<{ name: string; type: string; count: number }>;
   measures: string[];
@@ -278,15 +278,15 @@ function StarTopology({ dimensions, measures, cubeName }: {
 
   const NODE_R = n <= 4 ? 78 : n <= 6 ? 70 : n <= 8 ? 60 : 50;
   const HOVER_PAD = 6;
-  const CUBE_SIZE = 160; // overall width/height footprint of the 3D cube hub
+  const CUBE_SIZE = 200; // overall width/height footprint of the 3D cube hub
 
   const minRadiusForSpacing =
     (NODE_R + HOVER_PAD + 20) / Math.sin(Math.PI / n) + CUBE_SIZE * 0.75;
   const RADIUS = Math.max(210, minRadiusForSpacing);
 
   // Extra top margin so the cube's top face never clips
-  const MARGIN = NODE_R + HOVER_PAD + 30;
-  const TOP_EXTRA = 25;
+  const MARGIN = NODE_R + HOVER_PAD + 50;
+  const TOP_EXTRA = 50;
 
   const W = (RADIUS + MARGIN) * 2;
   const H = (RADIUS + MARGIN) * 2 + TOP_EXTRA;
@@ -306,37 +306,33 @@ function StarTopology({ dimensions, measures, cubeName }: {
     order.push(hoveredDim);
   }
 
-  // ── Word-wrap helper for long names — wraps by word, falls back to char-split for single long words ──
-  const wrapLabel = (text: string, maxChars: number, maxLines: number = 2): string[] => {
-    const words = text.split(' ');
-    const lines: string[] = [];
-    let current = '';
+  // ── Word-wrap helper — always wraps on word boundaries, balanced across max 2 lines ──
+  // ── Word-wrap helper — always splits multi-word labels into balanced lines ──
+  const wrapLabel = (text: string, maxLines: number = 2): string[] => {
+    const words = text.split(' ').filter(Boolean);
+    if (words.length <= 1) return [text];
 
-    words.forEach(word => {
-      const candidate = (current + ' ' + word).trim();
-      if (candidate.length <= maxChars) {
-        current = candidate;
-      } else {
-        if (current) lines.push(current);
-        // if a single word itself is too long, hard-break it
-        if (word.length > maxChars) {
-          let w = word;
-          while (w.length > maxChars) {
-            lines.push(w.slice(0, maxChars));
-            w = w.slice(maxChars);
-          }
-          current = w;
-        } else {
-          current = word;
-        }
+    if (words.length === 2) {
+      return [words[0], words[1]];
+    }
+
+    // For 3+ words, find the split point that best balances line lengths
+    let bestSplit = 1;
+    let bestDiff = Infinity;
+    for (let i = 1; i < words.length; i++) {
+      const line1 = words.slice(0, i).join(' ');
+      const line2 = words.slice(i).join(' ');
+      const diff = Math.abs(line1.length - line2.length);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        bestSplit = i;
       }
-    });
-    if (current) lines.push(current);
+    }
+
+    const lines = [words.slice(0, bestSplit).join(' '), words.slice(bestSplit).join(' ')];
 
     if (lines.length > maxLines) {
-      const truncated = lines.slice(0, maxLines);
-      truncated[maxLines - 1] = truncated[maxLines - 1].slice(0, maxChars - 1) + '…';
-      return truncated;
+      return lines.slice(0, maxLines);
     }
     return lines;
   };
@@ -369,7 +365,14 @@ function StarTopology({ dimensions, measures, cubeName }: {
   };
 
   const cubeCenterX = CX - 10;
-  const cubeNameLines = wrapLabel(cubeName ?? 'Cube', 14, 2);
+  const cubeNameLines = wrapLabel(cubeName ?? 'Cube');
+
+  // Vertically center the cube's name + stats block inside the front face
+  const cubeNameFontSize = 24;
+  const cubeNameLineHeight = cubeNameFontSize + 6;
+  const statsLineHeight = 22;
+  const cubeBlockHeight = cubeNameLines.length * cubeNameLineHeight + 2 * statsLineHeight;
+  const cubeBlockTop = CY - cubeBlockHeight / 2 + cubeNameFontSize / 2;
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
@@ -380,7 +383,6 @@ function StarTopology({ dimensions, measures, cubeName }: {
             {n} dimension{n !== 1 ? 's' : ''} radiating from the cube
           </p>
         </div>
-        
       </div>
 
       <div className="w-full overflow-x-auto">
@@ -408,11 +410,15 @@ function StarTopology({ dimensions, measures, cubeName }: {
             const cc = DIM_COLORS[i % DIM_COLORS.length];
             const isHov = hoveredDim === i;
             const r = isHov ? NODE_R + HOVER_PAD : NODE_R;
-            const nameLines = wrapLabel(dim.name, 10, 2);
+            const nameLines = wrapLabel(dim.name);
             const nameFontSize = n > 6 ? 18 : 20;
-            const lineHeight = nameFontSize + 3;
-            // vertical block: name lines centered above the type/count block
-            const nameBlockTop = p.y - 14 - ((nameLines.length - 1) * lineHeight) / 2;
+            const lineHeight = nameFontSize + 4;
+            const hasCount = dim.count > 0;
+            const countLineHeight = 18;
+
+            // Total vertical block (name lines + optional count line), centered on p.y
+            const blockHeight = nameLines.length * lineHeight + (hasCount ? countLineHeight : 0);
+            const blockTop = p.y - blockHeight / 2 + lineHeight / 2;
 
             return (
               <g key={`node-${i}`}
@@ -423,19 +429,18 @@ function StarTopology({ dimensions, measures, cubeName }: {
                   fill={cc.light} stroke={cc.edge} strokeWidth={isHov ? 2.5 : 1.5}
                   style={{ transition: 'r 0.15s, stroke-width 0.15s' }} />
 
-                {/* Wrapped dimension name */}
+                {/* Wrapped dimension name, vertically centered */}
                 <text x={p.x} textAnchor="middle" fontWeight="700" fill={cc.text} fontFamily="sans-serif">
                   {nameLines.map((line, li) => (
-                    <tspan key={li} x={p.x} y={p.y+8} fontSize={nameFontSize}>
+                    <tspan key={li} x={p.x} y={blockTop + li * lineHeight} fontSize={nameFontSize}>
                       {line}
                     </tspan>
                   ))}
                 </text>
 
-              
-                {dim.count > 0 && (
-                  <text x={p.x} y={p.y + 41} textAnchor="middle" fontSize={11.5} fontWeight="600"
-                    fill={cc.edge} fontFamily="sans-serif">
+                {hasCount && (
+                  <text x={p.x} y={blockTop + nameLines.length * lineHeight} textAnchor="middle"
+                    fontSize={11.5} fontWeight="600" fill={cc.edge} fontFamily="sans-serif">
                     {dim.count.toLocaleString()}
                   </text>
                 )}
@@ -457,28 +462,27 @@ function StarTopology({ dimensions, measures, cubeName }: {
             points={`${front.tl.x},${front.tl.y} ${front.tr.x},${front.tr.y} ${front.br.x},${front.br.y} ${front.bl.x},${front.bl.y}`}
             fill="#D5E1FF" stroke="#8DA4E8" strokeWidth={1.5} />
 
-          {/* Cube name — now wraps instead of truncating with … */}
-          {/* Cube name — now wraps instead of truncating with … */}
-            <text x={cubeCenterX} textAnchor="middle" fontWeight="800" fill="#233876" fontFamily="sans-serif">
-              {cubeNameLines.map((line, li) => (
-                <tspan
-                  key={li}
-                  x={cubeCenterX}
-                  y={CY - 6 + li * 30 - (cubeNameLines.length - 1) * 15}
-                  fontSize={24}
-                >
-                  {line}
-                </tspan>
-              ))}
-            </text>
-            <text x={cubeCenterX} textAnchor="middle" fontSize={18} fill="#233876" fontFamily="sans-serif">
-              <tspan x={cubeCenterX} y={CY + 12 + cubeNameLines.length * 16}>
-                {n} dims
+          {/* Cube name — wraps on word boundaries, vertically centered in front face */}
+          <text x={cubeCenterX} textAnchor="middle" fontWeight="800" fill="#233876" fontFamily="sans-serif">
+            {cubeNameLines.map((line, li) => (
+              <tspan
+                key={li}
+                x={cubeCenterX - 10}
+                y={cubeBlockTop + li * cubeNameLineHeight}
+                fontSize={cubeNameFontSize}
+              >
+                {line}
               </tspan>
-              <tspan x={cubeCenterX} y={CY + 12 + cubeNameLines.length * 16 + 22}>
-                {measures.length} measures
-              </tspan>
-            </text>
+            ))}
+          </text>
+          <text x={cubeCenterX} textAnchor="middle" fontSize={20} fill="#233876" fontFamily="sans-serif">
+            <tspan x={cubeCenterX} y={cubeBlockTop + cubeNameLines.length * cubeNameLineHeight + statsLineHeight}>
+              {n} dims
+            </tspan>
+            <tspan x={cubeCenterX} y={cubeBlockTop + cubeNameLines.length * cubeNameLineHeight + 2 * statsLineHeight}>
+              {measures.length} measures
+            </tspan>
+          </text>
         </svg>
       </div>
     </div>
@@ -814,7 +818,7 @@ const DUMMY_CUBES: Cube[] = [
                   {viewMode === 'structure' && (
                     <div>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                        Hierarchical structure view — similar to IBM TM1 Architect / Planning Analytics Workspace tree panel.
+                        
                         Click any node to expand or collapse.
                       </p>
                       <DimensionTree cubeDetails={cubeDetails} />
