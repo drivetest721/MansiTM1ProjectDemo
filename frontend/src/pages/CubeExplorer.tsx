@@ -266,6 +266,7 @@ function IsometricCube({ dimensions, cubeName }: {
 
 
 // ─── Star Topology Diagram (cube in center, dimensions radiate out) ─────────
+// ─── Star Topology Diagram (cube in center, dimensions radiate out) ─────────
 function StarTopology({ dimensions, measures, cubeName }: {
   dimensions: Array<{ name: string; type: string; count: number }>;
   measures: string[];
@@ -275,13 +276,13 @@ function StarTopology({ dimensions, measures, cubeName }: {
 
   const n = Math.max(dimensions.length, 1);
 
-  const NODE_R = n <= 4 ? 56 : n <= 6 ? 50 : n <= 8 ? 44 : 36;
+  const NODE_R = n <= 4 ? 78 : n <= 6 ? 70 : n <= 8 ? 60 : 50;
   const HOVER_PAD = 6;
-  const CUBE_SIZE = 140; // overall width/height footprint of the 3D cube hub
+  const CUBE_SIZE = 160; // overall width/height footprint of the 3D cube hub
 
   const minRadiusForSpacing =
-    (NODE_R + HOVER_PAD) / Math.sin(Math.PI / n) + CUBE_SIZE * 0.7;
-  const RADIUS = Math.max(190, minRadiusForSpacing);
+    (NODE_R + HOVER_PAD + 20) / Math.sin(Math.PI / n) + CUBE_SIZE * 0.75;
+  const RADIUS = Math.max(210, minRadiusForSpacing);
 
   // Extra top margin so the cube's top face never clips
   const MARGIN = NODE_R + HOVER_PAD + 30;
@@ -305,47 +306,85 @@ function StarTopology({ dimensions, measures, cubeName }: {
     order.push(hoveredDim);
   }
 
+  // ── Word-wrap helper for long names — wraps by word, falls back to char-split for single long words ──
+  const wrapLabel = (text: string, maxChars: number, maxLines: number = 2): string[] => {
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let current = '';
+
+    words.forEach(word => {
+      const candidate = (current + ' ' + word).trim();
+      if (candidate.length <= maxChars) {
+        current = candidate;
+      } else {
+        if (current) lines.push(current);
+        // if a single word itself is too long, hard-break it
+        if (word.length > maxChars) {
+          let w = word;
+          while (w.length > maxChars) {
+            lines.push(w.slice(0, maxChars));
+            w = w.slice(maxChars);
+          }
+          current = w;
+        } else {
+          current = word;
+        }
+      }
+    });
+    if (current) lines.push(current);
+
+    if (lines.length > maxLines) {
+      const truncated = lines.slice(0, maxLines);
+      truncated[maxLines - 1] = truncated[maxLines - 1].slice(0, maxChars - 1) + '…';
+      return truncated;
+    }
+    return lines;
+  };
+
   // ── 3D cube hub geometry (simple isometric cube, drawn in screen space) ──
-const cs = CUBE_SIZE;
-const depth = cs * 0.20;
+  const cs = CUBE_SIZE;
+  const depth = cs * 0.20;
 
-// Shift the cube so the WHOLE 3D cube is centered on CX,CY
-const cubeOffsetX = depth / 2;
-const cubeOffsetY = depth / 2;
+  const cubeOffsetX = depth / 2;
+  const cubeOffsetY = depth / 2;
 
-const fx = CX - cs / 2 - cubeOffsetX;
-const fy = CY - cs / 2 + cubeOffsetY;
+  const fx = CX - cs / 2 - cubeOffsetX;
+  const fy = CY - cs / 2 + cubeOffsetY;
 
-const front = {
-  tl: { x: fx, y: fy },
-  tr: { x: fx + cs, y: fy },
-  br: { x: fx + cs, y: fy + cs },
-  bl: { x: fx, y: fy + cs },
-};
+  const front = {
+    tl: { x: fx, y: fy },
+    tr: { x: fx + cs, y: fy },
+    br: { x: fx + cs, y: fy + cs },
+    bl: { x: fx, y: fy + cs },
+  };
 
-const top = {
-  tl: { x: front.tl.x + depth, y: front.tl.y - depth },
-  tr: { x: front.tr.x + depth, y: front.tr.y - depth },
-};
+  const top = {
+    tl: { x: front.tl.x + depth, y: front.tl.y - depth },
+    tr: { x: front.tr.x + depth, y: front.tr.y - depth },
+  };
 
-const rightFace = {
-  tr: top.tr,
-  br: { x: front.br.x + depth, y: front.br.y - depth },
-};
+  const rightFace = {
+    tr: top.tr,
+    br: { x: front.br.x + depth, y: front.br.y - depth },
+  };
+
+  const cubeCenterX = CX - 10;
+  const cubeNameLines = wrapLabel(cubeName ?? 'Cube', 14, 2);
+
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
       <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 dark:border-gray-700">
         <div>
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Cube Topology</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Cube </p>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
             {n} dimension{n !== 1 ? 's' : ''} radiating from the cube
           </p>
         </div>
-        <span className="text-xs text-gray-400 italic">Hover a node for details</span>
+        
       </div>
 
       <div className="w-full overflow-x-auto">
-        <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ minWidth: 500, maxHeight: 560 }}>
+        <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ minWidth: 540, maxHeight: 600 }}>
           {/* Spokes */}
           {dimensions.map((dim, i) => {
             const p = nodePos(i);
@@ -369,6 +408,12 @@ const rightFace = {
             const cc = DIM_COLORS[i % DIM_COLORS.length];
             const isHov = hoveredDim === i;
             const r = isHov ? NODE_R + HOVER_PAD : NODE_R;
+            const nameLines = wrapLabel(dim.name, 10, 2);
+            const nameFontSize = n > 6 ? 18 : 20;
+            const lineHeight = nameFontSize + 3;
+            // vertical block: name lines centered above the type/count block
+            const nameBlockTop = p.y - 14 - ((nameLines.length - 1) * lineHeight) / 2;
+
             return (
               <g key={`node-${i}`}
                 onMouseEnter={() => setHoveredDim(i)}
@@ -377,16 +422,19 @@ const rightFace = {
                 <circle cx={p.x} cy={p.y} r={r}
                   fill={cc.light} stroke={cc.edge} strokeWidth={isHov ? 2.5 : 1.5}
                   style={{ transition: 'r 0.15s, stroke-width 0.15s' }} />
-                <text x={p.x} y={p.y - 6} textAnchor="middle" fontSize={n > 6 ? 10.5 : 12} fontWeight="700"
-                  fill={cc.text} fontFamily="sans-serif">
-                  {dim.name.length > 14 ? dim.name.slice(0, 13) + '…' : dim.name}
+
+                {/* Wrapped dimension name */}
+                <text x={p.x} textAnchor="middle" fontWeight="700" fill={cc.text} fontFamily="sans-serif">
+                  {nameLines.map((line, li) => (
+                    <tspan key={li} x={p.x} y={p.y+8} fontSize={nameFontSize}>
+                      {line}
+                    </tspan>
+                  ))}
                 </text>
-                <text x={p.x} y={p.y + 11} textAnchor="middle" fontSize={9} opacity={0.75}
-                  fill={cc.text} fontFamily="sans-serif">
-                  {dim.type}
-                </text>
+
+              
                 {dim.count > 0 && (
-                  <text x={p.x} y={p.y + 24} textAnchor="middle" fontSize={8.5} fontWeight="600"
+                  <text x={p.x} y={p.y + 41} textAnchor="middle" fontSize={11.5} fontWeight="600"
                     fill={cc.edge} fontFamily="sans-serif">
                     {dim.count.toLocaleString()}
                   </text>
@@ -408,24 +456,37 @@ const rightFace = {
           <polygon
             points={`${front.tl.x},${front.tl.y} ${front.tr.x},${front.tr.y} ${front.br.x},${front.br.y} ${front.bl.x},${front.bl.y}`}
             fill="#D5E1FF" stroke="#8DA4E8" strokeWidth={1.5} />
-          <text x={CX-10} y={CY + 2} textAnchor="middle" fontSize={15} fontWeight="800" fill="#233876" fontFamily="sans-serif"
-             >
-            {(cubeName ?? 'Cube').length > 14 ? (cubeName ?? 'Cube').slice(0, 13) + '…' : (cubeName ?? 'Cube')}
-          </text>
-          <text x={CX-10} y={CY + 28} textAnchor="middle" fontSize={14}
-            fill="#233876" fontFamily="sans-serif">
-            {n} dims · {measures.length} measures
-          </text>
+
+          {/* Cube name — now wraps instead of truncating with … */}
+          {/* Cube name — now wraps instead of truncating with … */}
+            <text x={cubeCenterX} textAnchor="middle" fontWeight="800" fill="#233876" fontFamily="sans-serif">
+              {cubeNameLines.map((line, li) => (
+                <tspan
+                  key={li}
+                  x={cubeCenterX}
+                  y={CY - 6 + li * 30 - (cubeNameLines.length - 1) * 15}
+                  fontSize={24}
+                >
+                  {line}
+                </tspan>
+              ))}
+            </text>
+            <text x={cubeCenterX} textAnchor="middle" fontSize={18} fill="#233876" fontFamily="sans-serif">
+              <tspan x={cubeCenterX} y={CY + 12 + cubeNameLines.length * 16}>
+                {n} dims
+              </tspan>
+              <tspan x={cubeCenterX} y={CY + 12 + cubeNameLines.length * 16 + 22}>
+                {measures.length} measures
+              </tspan>
+            </text>
         </svg>
       </div>
-
-      {/* Tooltip lives OUTSIDE the SVG now, so it can never overlap a node */}
-   
-
-      
     </div>
   );
 }
+
+
+
 // ─── Structure Tree (TM1 Architect style) ─────────────────────────────────────
 function DimensionTree({ cubeDetails }: { cubeDetails: { cube_name:string; dimensions:Array<{name:string;type:string;count:number}>; measures:string[]; cell_count:number; last_update:string } }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set(['dims','measures']));
@@ -717,10 +778,7 @@ const DUMMY_CUBES: Cube[] = [
                   {/* Cube Diagram */}
                   {viewMode === 'diagram' && (
                     <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                        First 3 dimensions are mapped to the X / Y / Z axes. Extra dimensions connect from the top corner.
-                        Hover a face or label to inspect that dimension.
-                      </p>
+                     
                       <StarTopology
                           dimensions={cubeDetails.dimensions}
                           measures={cubeDetails.measures}
