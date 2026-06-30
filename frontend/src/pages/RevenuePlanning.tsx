@@ -6,7 +6,7 @@ import GlobalFilters from '../components/GlobalFilters';
 import type { FilterOption } from '../components/GlobalFilters';
 import PivotDialog, { type PivotConfig } from '../components/PivotDialog';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { getRevenueByRegionAgg, getRevenueByProduct, getRevenueByCustomerSegment, getRevenueDrillDown, getEntities } from '../services/api';
+import { getRevenueByRegionAgg, getRevenueByProduct, getRevenueByCustomerSegment, getRevenueDrillDown, getEntities, getRevenueCube } from '../services/api';
 import { exportCubeToExcel } from '../utils/exportToExcel';
 import { Settings2 } from 'lucide-react';
 import { THEME_COLORS, formatCurrency2dp } from '../theme/colors';
@@ -235,19 +235,32 @@ export default function RevenuePlanning() {
     }
   };
 
-  const handlePivotApply = (config: PivotConfig) => {
-    setPivotConfig(config);
-    setShowPivotDialog(false);
+const handlePivotApply = async (config: PivotConfig) => {
+  setPivotConfig(config);
+  setShowPivotDialog(false);
+
+  const params: any = { page: 1, page_size: 5000 };
+  if (filters.year !== 'all') params.year = parseInt(filters.year);
+  if (filters.quarter !== 'all') params.quarter = filters.quarter;
+  if (filters.region !== 'all') params.region = filters.region;
+  if (filters.entity !== 'all') params.entity = filters.entity;
+
+  try {
+    const res = await getRevenueCube(params);
+    const rawData = res.data.data;
 
     navigate('/revenue-planning/pivot', {
       state: {
         title: 'Revenue Planning',
-        sourceData: cubeData,
+        sourceData: rawData,
         pivotConfig: config,
         sourcePage: '/revenue-planning',
       },
     });
-  };
+  } catch (err) {
+    console.error('Failed to load pivot source data:', err);
+  }
+};
 
   // Pass all active filters through drill-down
   const handleDrillDown = async (row: CubeRow) => {
@@ -360,7 +373,7 @@ export default function RevenuePlanning() {
 
       {/* Action Buttons */}
       <div className="flex items-center justify-end gap-3 mb-4">
-         <p className='font-bold'>Work In Progress</p>
+         {/* <p className='font-bold'>Work In Progress</p> */}
         <button
           onClick={() => setShowPivotDialog(true)}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md transition-colors shadow-sm"

@@ -13,6 +13,7 @@ import {
   getWorkforceByJobLevel,
   getWorkforceByEntity,
   getWorkforceDrillDown,
+  getWorkforceCube,
 } from '../services/api';
 import { exportCubeToExcel } from '../utils/exportToExcel';
 import { THEME_COLORS, formatCurrency2dp } from '../theme/colors';
@@ -238,13 +239,47 @@ export default function WorkforcePlanning() {
     }
   };
 
-  const handlePivotApply = (config: PivotConfig) => {
-    setPivotConfig(config);
-    setShowPivotDialog(false);
+ const fetchAllWorkforceRows = async (baseParams: Record<string, any>) => {
+  const pageSize = 5000; // matches backend's le=5000 cap — do NOT exceed this
+  let page = 1;
+  let allRows: any[] = [];
+
+  while (true) {
+    const res = await getWorkforceCube({ ...baseParams, page, page_size: pageSize });
+    const rows = res.data?.data ?? [];
+    allRows = allRows.concat(rows);
+
+    const pagination = res.data?.pagination;
+    if (!pagination || !pagination.has_next || rows.length === 0) break;
+    page += 1;
+
+    if (page > 50) break; // safety cap
+  }
+
+  return allRows;
+};
+
+const handlePivotApply = async (config: PivotConfig) => {
+  setPivotConfig(config);
+  setShowPivotDialog(false);
+
+  const params: any = { page: 1, page_size: 5000 };
+  if (filters.year !== 'all') params.year = parseInt(filters.year);
+  if (filters.entity !== 'all') params.entity = filters.entity;
+  if (filters.department !== 'all') params.department = filters.department;
+  if (filters.jobLevel !== 'all') params.job_level = filters.jobLevel;
+
+  try {
+    const res = await getWorkforceCube(params);
+    const rawData = res.data.data;
+
     navigate('/workforce-planning/pivot', {
-      state: { title: 'Workforce Planning', sourceData: cubeData, pivotConfig: config, sourcePage: '/workforce-planning' },
+      state: { title: 'Workforce Planning', sourceData: rawData, pivotConfig: config, sourcePage: '/workforce-planning' },
     });
-  };
+  } catch (err) {
+    console.error('Failed to load pivot source data:', err);
+  }
+};
 
   const handleDrillDown = async (row: CubeRow) => {
     const level = row.level || 'department';
@@ -350,7 +385,7 @@ export default function WorkforcePlanning() {
       {/* Action Buttons */}
       <div className="flex items-center justify-end gap-3 mb-4">
 
-        <p className='font-bold'>Work In Progress</p>
+        {/* <p className='font-bold'>Work In Progress</p> */}
         <button
           onClick={() => setShowPivotDialog(true)}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md transition-colors shadow-sm"

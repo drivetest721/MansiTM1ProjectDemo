@@ -322,7 +322,23 @@ class MetadataService:
                     "measure_count": 3,
                     "status": "active",
                     "last_update": "2024-06-24"
-                }
+                },
+                {
+                    "cube_id": "consolidation",
+                    "cube_name": "Financial Consolidation",
+                    "description": "Multi-entity financial consolidation cube",
+                    "dimensions": [
+                        {"name": "Year", "type": "Time", "element_count": 5},
+                        {"name": "Entity", "type": "Entity", "element_count": 20},
+                        {"name": "Region", "type": "Category", "element_count": 3},
+                        {"name": "Account Type", "type": "Category", "element_count": 3},
+                        {"name": "Measure", "type": "Measure", "element_count": 7}
+                    ],
+                    "measures": ["Revenue", "Expense", "EBITDA", "Net Income", "Assets", "Liabilities", "Equity"],
+                    "view": "Finance.vw_EntityConsolidation WITH (NOLOCK)",
+                    "cell_count": 0,
+                    "last_update": "2024-06-24"
+                },
             ]
             
             return cubes
@@ -337,16 +353,16 @@ class MetadataService:
                 "revenue": {
                     "cube_id": "revenue",
                     "cube_name": "Revenue Planning",
-                    "description": "Revenue forecasting and planning cube with product, customer, and time dimensions",
+                    "description": "Revenue forecasting and planning cube",
                     "dimensions": [
                         {"name": "Year", "type": "Time", "count": 5},
                         {"name": "Entity", "type": "Entity", "count": 20},
-                        {"name": "Product", "type": "Product", "count": 150},
-                        {"name": "Customer", "type": "Customer", "count": 500},
+                        {"name": "Department", "type": "Department", "count": 30},
+                        {"name": "Account", "type": "Account", "count": 200},
                         {"name": "Scenario", "type": "Scenario", "count": 3},
-                        {"name": "Version", "type": "Version", "count": 2}
+                        {"name": "Version", "type": "Version", "count": 2},
                     ],
-                    "measures": ["Quantity", "Price", "Revenue", "Cost", "Margin"],
+                    "measures": ["ForecastAmount"],
                     "view": "Planning.vw_ForecastCube_Source WITH (NOLOCK)",
                     "cell_count": 0,
                     "last_update": "2024-06-24"
@@ -359,8 +375,9 @@ class MetadataService:
                         {"name": "Year", "type": "Time", "count": 5},
                         {"name": "Entity", "type": "Entity", "count": 20},
                         {"name": "Department", "type": "Department", "count": 30},
-                        {"name": "Employee Type", "type": "Category", "count": 10},
-                        {"name": "Version", "type": "Version", "count": 2}
+                        {"name": "Cost Center", "type": "CostCenter", "count": 30},
+                        {"name": "Employee", "type": "Employee", "count": 0},
+                        {"name": "Version", "type": "Version", "count": 2},
                     ],
                     "measures": ["BaseSalary", "Bonus", "Benefits", "TotalCompensation", "BonusPercent", "BenefitsPercent"],
                     "view": "HR.vw_WorkforceCube_Source WITH (NOLOCK)",
@@ -373,13 +390,12 @@ class MetadataService:
                     "description": "Budget vs Forecast variance analysis cube",
                     "dimensions": [
                         {"name": "Year", "type": "Time", "count": 5},
+                        {"name": "Month", "type": "Time", "count": 12},
                         {"name": "Entity", "type": "Entity", "count": 20},
                         {"name": "Department", "type": "Department", "count": 30},
                         {"name": "Account", "type": "Account", "count": 200},
-                        {"name": "Scenario", "type": "Scenario", "count": 3},
-                        {"name": "Version", "type": "Version", "count": 2}
                     ],
-                    "measures": ["Budget", "Forecast", "Actual", "Variance", "Variance %"],
+                    "measures": ["BudgetAmount", "ForecastAmount", "ActualAmount", "VarianceAmount", "VariancePercent"],
                     "view": "Planning.vw_BudgetForecastVariance WITH (NOLOCK)",
                     "cell_count": 0,
                     "last_update": "2024-06-24"
@@ -392,9 +408,9 @@ class MetadataService:
                         {"name": "Year", "type": "Time", "count": 5},
                         {"name": "Entity", "type": "Entity", "count": 20},
                         {"name": "Account Type", "type": "Category", "count": 2},
-                        {"name": "Account", "type": "Account", "count": 220}
+                        {"name": "Account", "type": "Account", "count": 220},
                     ],
-                    "measures": ["Actual Amount", "Budget Amount", "Forecast Amount", "Variance"],
+                    "measures": ["ActualAmount"],
                     "view": "Finance.vw_PL_Statement WITH (NOLOCK)",
                     "cell_count": 0,
                     "last_update": "2024-06-24"
@@ -407,15 +423,17 @@ class MetadataService:
                         {"name": "Year", "type": "Time", "count": 5},
                         {"name": "Entity", "type": "Entity", "count": 20},
                         {"name": "Account Type", "type": "Category", "count": 3},
-                        {"name": "Account", "type": "Account", "count": 80}
+                        {"name": "Account", "type": "Account", "count": 80},
                     ],
-                    "measures": ["Balance Amount", "Budget Amount", "Variance"],
+                    "measures": ["BalanceAmount"],
                     "view": "Finance.vw_BalanceSheet WITH (NOLOCK)",
                     "cell_count": 0,
                     "last_update": "2024-06-24"
                 }
+                
             }
-            
+
+
             cube = cube_configs.get(cube_id)
             if not cube:
                 raise ValueError(f"Cube not found: {cube_id}")
@@ -439,60 +457,71 @@ class MetadataService:
             cube_queries = {
                 "revenue": """
                     SELECT TOP {limit}
-                        YearNumber,
-                        EntityName,
-                        ScenarioName,
-                        ForecastAmount
+                        YearNumber   AS Year,
+                        EntityName   AS Entity,
+                        DepartmentName AS Department,
+                        AccountName  AS Account,
+                        ScenarioName AS Scenario,
+                        VersionName  AS Version,
+                        ForecastAmount AS ForecastAmount
                     FROM Planning.vw_ForecastCube_Source WITH (NOLOCK)
                     ORDER BY YearNumber DESC
                 """,
                 "workforce": """
                     SELECT TOP {limit}
-                        YearNumber,
-                        EntityName,
-                        DepartmentName,
-                        JobLevel,
-                        EmploymentStatus,
-                        BaseSalary,
-                        Bonus,
-                        TotalCompensation
+                        YearNumber       AS Year,
+                        EntityName       AS Entity,
+                        DepartmentName   AS Department,
+                        CostCenterName   AS "Cost Center",
+                        EmployeeName     AS Employee,
+                        VersionName      AS Version,
+                        BaseSalary       AS BaseSalary,
+                        Bonus            AS Bonus,
+                        Benefits         AS Benefits,
+                        TotalCompensation AS TotalCompensation,
+                        BonusPercent     AS BonusPercent,
+                        BenefitsPercent  AS BenefitsPercent
                     FROM HR.vw_WorkforceCube_Source WITH (NOLOCK)
                     ORDER BY YearNumber DESC
                 """,
                 "budget": """
                     SELECT TOP {limit}
-                        YearNumber,
-                        EntityName,
-                        DepartmentName,
-                        AccountName,
-                        BudgetAmount,
-                        ForecastAmount,
-                        VarianceAmount
+                        YearNumber     AS Year,
+                        MonthName      AS Month,
+                        EntityName     AS Entity,
+                        DepartmentName AS Department,
+                        AccountName    AS Account,
+                        BudgetAmount   AS BudgetAmount,
+                        ForecastAmount AS ForecastAmount,
+                        ActualAmount   AS ActualAmount,
+                        VarianceAmount AS VarianceAmount,
+                        VariancePercent AS VariancePercent
                     FROM Planning.vw_BudgetForecastVariance WITH (NOLOCK)
                     ORDER BY YearNumber DESC
                 """,
                 "pl_statement": """
                     SELECT TOP {limit}
-                        YearNumber,
-                        EntityName,
-                        AccountType,
-                        AccountName,
-                        ActualAmount
+                        YearNumber  AS Year,
+                        EntityName  AS Entity,
+                        AccountType AS "Account Type",
+                        AccountName AS Account,
+                        ActualAmount AS ActualAmount
                     FROM Finance.vw_PL_Statement WITH (NOLOCK)
                     ORDER BY YearNumber DESC
                 """,
                 "balance_sheet": """
                     SELECT TOP {limit}
-                        YearNumber,
-                        EntityName,
-                        AccountType,
-                        AccountName,
-                        BalanceAmount
+                        YearNumber  AS Year,
+                        EntityName  AS Entity,
+                        AccountType AS "Account Type",
+                        AccountName AS Account,
+                        BalanceAmount AS BalanceAmount
                     FROM Finance.vw_BalanceSheet WITH (NOLOCK)
                     ORDER BY YearNumber DESC
                 """
             }
-            
+
+
             query_template = cube_queries.get(cube_id)
             if not query_template:
                 raise ValueError(f"Cube not found: {cube_id}")

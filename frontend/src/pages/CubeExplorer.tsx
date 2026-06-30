@@ -551,6 +551,130 @@ function DimensionTree({ cubeDetails }: { cubeDetails: { cube_name:string; dimen
   );
 }
 
+// ─── Top Values Table (per-dimension breakdown from sample data) ──────────
+function TopValuesTable({
+  cubeDetails,
+  sampleData,
+}: {
+  cubeDetails: { dimensions: Array<{ name: string; type: string; count: number }>; measures: string[] };
+  sampleData: any[];
+}) {
+  const [activeDim, setActiveDim] = useState(0);
+
+  if (sampleData.length === 0) {
+    return (
+      <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-6">
+        No sample data available to summarize.
+      </div>
+    );
+  }
+
+  // Figure out which sample-data keys correspond to dimensions vs measures.
+  // We match dimension/measure names loosely against the sample row keys.
+  const sampleKeys = Object.keys(sampleData[0]);
+
+  const findKey = (name: string) =>
+    sampleKeys.find(
+      (k) => k.toLowerCase().replace(/[_\s]/g, '') === name.toLowerCase().replace(/[_\s]/g, '')
+    );
+
+  const measureKey = cubeDetails.measures
+    .map(findKey)
+    .find((k) => k && typeof sampleData[0][k] === 'number');
+
+  const activeDimName = cubeDetails.dimensions[activeDim]?.name;
+  const activeDimKey = activeDimName ? findKey(activeDimName) : undefined;
+
+  // Group sample rows by the active dimension's value, summing the measure (or counting rows).
+  const grouped: Record<string, number> = {};
+  if (activeDimKey) {
+    for (const row of sampleData) {
+      const key = String(row[activeDimKey] ?? 'Unknown');
+      const val = measureKey && typeof row[measureKey] === 'number' ? row[measureKey] : 1;
+      grouped[key] = (grouped[key] ?? 0) + val;
+    }
+  }
+
+  const topRows = Object.entries(grouped)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10);
+
+  return (
+    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 dark:border-gray-700">
+        <div>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Top Values</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+            Top 10 values per dimension {measureKey ? `(ranked by ${measureKey})` : '(ranked by row count)'}
+          </p>
+        </div>
+      </div>
+
+      {/* Dimension tabs */}
+      <div className="flex flex-wrap gap-2 px-5 pt-3">
+        {cubeDetails.dimensions.map((dim, idx) => {
+          const cc = DIM_COLORS[idx % DIM_COLORS.length];
+          const isActive = activeDim === idx;
+          return (
+            <button
+              key={idx}
+              onClick={() => setActiveDim(idx)}
+              className="px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors"
+              style={
+                isActive
+                  ? { background: cc.face, borderColor: cc.face, color: 'white' }
+                  : { background: cc.light, borderColor: cc.face, color: cc.text }
+              }
+            >
+              {dim.name}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Table */}
+      <div className="p-5">
+        {!activeDimKey && (
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Couldn't match "{activeDimName}" to a column in the sample data.
+          </p>
+        )}
+        {activeDimKey && topRows.length === 0 && (
+          <p className="text-sm text-gray-500 dark:text-gray-400">No values found.</p>
+        )}
+        {activeDimKey && topRows.length > 0 && (
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-800">
+              <tr>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Rank
+                </th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  {activeDimName}
+                </th>
+                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  {measureKey ?? 'Row Count'}
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {topRows.map(([value, total], i) => (
+                <tr key={value} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                  <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">{i + 1}</td>
+                  <td className="px-4 py-2 text-sm font-medium text-gray-900 dark:text-white">{value}</td>
+                  <td className="px-4 py-2 text-sm text-right text-gray-900 dark:text-white">
+                    {total.toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
 type ViewMode = 'diagram' | 'structure' ;
 
 interface Cube {
@@ -628,18 +752,18 @@ export default function CubeExplorer() {
   };
 
   const loadSampleData = async (cubeId: string) => {
-    try {
-      const res = await getCubeSampleData(cubeId, 20);
-      if (res.data.success) {
-        setSampleData(res.data.data.sample_data || []);
-      } else {
-        setSampleData([]);
-      }
-    } catch (err: any) {
-      console.error('Failed to load sample data:', err);
+  try {
+    const res = await getCubeSampleData(cubeId, 20);
+    if (res.data.success) {
+      setSampleData(Array.isArray(res.data.data) ? res.data.data : []);
+    } else {
       setSampleData([]);
     }
-  };
+  } catch (err: any) {
+    console.error('Failed to load sample data:', err);
+    setSampleData([]);
+  }
+};
 
   if (loading) {
     return (
@@ -852,6 +976,11 @@ export default function CubeExplorer() {
                     </table>
                   </div>
                 </div>
+              )}
+
+              {/* Top Values per Dimension */}
+              {cubeDetails && sampleData.length > 0 && (
+                <TopValuesTable cubeDetails={cubeDetails} sampleData={sampleData} />
               )}
             </div>
           )}
