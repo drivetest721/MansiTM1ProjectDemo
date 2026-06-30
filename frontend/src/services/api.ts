@@ -132,7 +132,7 @@ export const getCostCenters = () => api.get('/api/metadata/cost-centers');
 // REVENUE CUBE APIs
 // ==========================================
 export const getRevenueCube = (params?: RevenueFilters) =>
-  api.get('/api/revenue', { params });
+  api.get('/api/revenue/', { params });
 
 export const getRevenueByRegionAgg = (params?: { year?: number; quarter?: string; entity?: string; scenario?: string; version?: string }) =>
   api.get('/api/revenue/by-region', { params });
@@ -147,7 +147,7 @@ export const getRevenueByCustomerSegment = (params?: { year?: number; quarter?: 
 // WORKFORCE PLANNING APIs
 // ==========================================
 export const getWorkforceCube = (params?: WorkforceFilters) =>
-  api.get('/api/workforce/', { params });
+  api.get('/api/workforce/', { params });  // trailing slash matches FastAPI route
 
 export const getWorkforceByDepartment = (params?: { year?: number; entity?: string; department?: string; job_level?: string; version?: string }) =>
   api.get('/api/workforce/by-department', { params });

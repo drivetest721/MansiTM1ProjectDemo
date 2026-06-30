@@ -13,7 +13,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Database, ChevronRight, ChevronDown, X, Plus, Download,
   FileSpreadsheet, Loader2, RefreshCw, Filter, LayoutGrid,
-  Rows, Columns, SlidersHorizontal, Info
+  Rows, Columns, SlidersHorizontal, Info, Save, CheckCircle
 } from 'lucide-react';
 // @ts-ignore
 import XLSXStyle from 'xlsx-js-style';
@@ -22,6 +22,7 @@ import {
   getWorkforceCube,
   getVariance,
 } from '../services/api';
+import { useReportContext } from '../context/ReportContext';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -59,7 +60,6 @@ const CUBES: CubeDef[] = [
     label: 'Revenue Cube',
     description: 'Sales revenue, cost, margin & quantity by product, region, time',
     fields: [
-      // Dimensions — keys match exact JSON field names from RevenueRecord
       { key: 'year',             label: 'Year',             type: 'dimension' },
       { key: 'quarter',          label: 'Quarter',          type: 'dimension' },
       { key: 'month',            label: 'Month',            type: 'dimension' },
@@ -67,75 +67,104 @@ const CUBES: CubeDef[] = [
       { key: 'entity',           label: 'Entity',           type: 'dimension' },
       { key: 'product_category', label: 'Product Category', type: 'dimension' },
       { key: 'customer_segment', label: 'Customer Segment', type: 'dimension' },
-      // Measures — keys match RevenueRecord field names
       { key: 'revenue',          label: 'Revenue',          type: 'measure'   },
-      { key: 'cost',             label: 'Cost',             type: 'measure'   },
+      { key: 'cost',             label: 'COGS',             type: 'measure'   },
       { key: 'margin',           label: 'Margin',           type: 'measure'   },
       { key: 'quantity',         label: 'Quantity',         type: 'measure'   },
     ],
     defaultRows:    ['product_category'],
     defaultCol:     'region',
-    defaultMeasures:['revenue'],
+    defaultMeasures:['revenue', 'margin'],
   },
   {
     id: 'workforce',
     label: 'Workforce Cube',
     description: 'Headcount, compensation & payroll by department, entity, time',
     fields: [
-      // Dimensions — keys match WorkforceRecord field names
-      { key: 'year',              label: 'Year',              type: 'dimension' },
-      { key: 'month',             label: 'Month',             type: 'dimension' },
-      { key: 'entity',            label: 'Entity',            type: 'dimension' },
-      { key: 'department',        label: 'Department',        type: 'dimension' },
-      { key: 'cost_center',       label: 'Cost Center',       type: 'dimension' },
-      { key: 'job_level',         label: 'Job Level',         type: 'dimension' },
-      // Measures — keys match WorkforceRecord field names
-      { key: 'base_salary',       label: 'Base Salary',       type: 'measure'   },
-      { key: 'bonus',             label: 'Bonus',             type: 'measure'   },
-      { key: 'benefits',          label: 'Benefits',          type: 'measure'   },
-      { key: 'total_compensation', label: 'Total Compensation', type: 'measure' },
+      { key: 'year',               label: 'Year',               type: 'dimension' },
+      { key: 'month',              label: 'Month',              type: 'dimension' },
+      { key: 'entity',             label: 'Entity',             type: 'dimension' },
+      { key: 'department',         label: 'Department',         type: 'dimension' },
+      { key: 'cost_center',        label: 'Cost Center',        type: 'dimension' },
+      { key: 'job_level',          label: 'Job Level',          type: 'dimension' },
+      { key: 'base_salary',        label: 'Base Salary',        type: 'measure'   },
+      { key: 'bonus',              label: 'Bonus',              type: 'measure'   },
+      { key: 'benefits',           label: 'Benefits',           type: 'measure'   },
+      { key: 'total_compensation', label: 'Total Compensation', type: 'measure'   },
     ],
     defaultRows:    ['department'],
-    defaultCol:     'year',
+    defaultCol:     'entity',
     defaultMeasures:['total_compensation'],
-  },
-  {
-    id: 'budget',
-    label: 'Budget vs Forecast Cube',
-    description: 'Budget, forecast & variance by account, entity, department',
-    fields: [
-      // Dimensions — keys match VarianceRecord field names
-      { key: 'year',            label: 'Year',         type: 'dimension' },
-      { key: 'month',           label: 'Month',        type: 'dimension' },
-      { key: 'entity',          label: 'Entity',       type: 'dimension' },
-      { key: 'department',      label: 'Department',   type: 'dimension' },
-      { key: 'account',         label: 'Account',      type: 'dimension' },
-      { key: 'account_type',    label: 'Account Type', type: 'dimension' },
-      // Measures — keys match VarianceRecord field names
-      { key: 'budget_amount',   label: 'Budget',       type: 'measure'   },
-      { key: 'forecast_amount', label: 'Forecast',     type: 'measure'   },
-      { key: 'variance_amount', label: 'Variance',     type: 'measure'   },
-    ],
-    defaultRows:    ['account'],
-    defaultCol:     'department',
-    defaultMeasures:['budget_amount', 'forecast_amount', 'variance_amount'],
   },
 ];
 
+// ─── Suggested report templates per cube ──────────────────────────────────
+
+interface SuggestedReport {
+  label:    string;
+  desc:     string;
+  rows:     string[];
+  col:      string | null;
+  measures: string[];
+}
+
+const CUBE_SUGGESTIONS: Record<DataSource, SuggestedReport[]> = {
+  revenue: [
+    {
+      label: 'Revenue by Region',
+      desc: 'Product categories × regions — Revenue & Margin',
+      rows: ['product_category'], col: 'region', measures: ['revenue', 'margin'],
+    },
+    {
+      label: 'Monthly Revenue Trend',
+      desc: 'Product categories × months — Revenue',
+      rows: ['product_category'], col: 'month', measures: ['revenue'],
+    },
+    {
+      label: 'Customer Segment Analysis',
+      desc: 'Products × customer segments — Revenue & Cost',
+      rows: ['product_category'], col: 'customer_segment', measures: ['revenue', 'cost'],
+    },
+  ],
+  workforce: [
+    {
+      label: 'Payroll by Entity',
+      desc: 'Departments × entities — Total Compensation',
+      rows: ['department'], col: 'entity', measures: ['total_compensation'],
+    },
+    {
+      label: 'Compensation Breakdown',
+      desc: 'Job levels — Base Salary, Bonus & Benefits',
+      rows: ['job_level'], col: null, measures: ['base_salary', 'bonus', 'benefits'],
+    },
+    {
+      label: 'Annual Payroll Trend',
+      desc: 'Departments × years — Total Compensation',
+      rows: ['department'], col: 'year', measures: ['total_compensation'],
+    },
+  ],
+  budget: [],
+};
+
 // ─── API fetcher ───────────────────────────────────────────────────────────
 
-async function fetchCubeData(source: DataSource): Promise<any[]> {
+async function fetchCubeData(
+  source: DataSource,
+  year?: number,
+  entity?: string,
+): Promise<any[]> {
   try {
-    let res: any;
-    if (source === 'revenue')        res = await getRevenueCube({ page_size: 500 });
-    else if (source === 'workforce') res = await getWorkforceCube({ page_size: 500 });
-    else                             res = await getVariance({ page_size: 500 });
+    const params: Record<string, any> = { page_size: 2000 };
+    if (year)   params.year   = year;
+    if (entity) params.entity = entity;
 
-    // These APIs return { data: [...records], pagination: {...} } directly — no success wrapper.
+    let res: any;
+    if (source === 'revenue')        res = await getRevenueCube(params);
+    else if (source === 'workforce') res = await getWorkforceCube(params);
+    else                             res = await getVariance(params);
+
     const payload = res?.data;
     if (!payload) return [];
-
-    // Handle both shapes: { data: [...] } and { success: true, data: { data: [...] } }
     if (Array.isArray(payload.data)) return payload.data;
     if (payload.success && Array.isArray(payload.data?.data)) return payload.data.data;
     return [];
@@ -475,46 +504,86 @@ function ZoneBadge({ label, onRemove }: { label: string; onRemove: () => void })
 // ─── Main Component ────────────────────────────────────────────────────────
 
 export default function CustomReportStudio() {
+  const { params: reportParams } = useReportContext();
+
   const [sourceId, setSourceId]   = useState<DataSource>('revenue');
   const [rawData, setRawData]     = useState<any[]>([]);
   const [loading, setLoading]     = useState(false);
   const [config, setConfig]       = useState<StudioConfig>(() => {
     const cube = CUBES[0];
+    const suggestion = CUBE_SUGGESTIONS[cube.id][0];
     return {
       dataSource:      cube.id,
-      rowDimensions:   cube.defaultRows,
-      columnDimension: cube.defaultCol,
+      rowDimensions:   suggestion?.rows    ?? cube.defaultRows,
+      columnDimension: suggestion?.col     ?? cube.defaultCol,
       filters:         {},
-      measures:        cube.defaultMeasures,
+      measures:        suggestion?.measures ?? cube.defaultMeasures,
     };
   });
-  const [filterOpen, setFilterOpen] = useState<string | null>(null);
+  const [filterOpen, setFilterOpen]     = useState<string | null>(null);
+  const [saveOpen,   setSaveOpen]       = useState(false);
+  const [saveName,   setSaveName]       = useState('');
+  const [saving,     setSaving]         = useState(false);
+  const [saveOk,     setSaveOk]         = useState(false);
+  // editingReport: set when launched from Management Reports "Edit" link
+  const [editingReport, setEditingReport] = useState<{ id: string; name: string } | null>(null);
 
   const cubeDef = CUBES.find((c) => c.id === sourceId)!;
   const dimensions = cubeDef.fields.filter((f) => f.type === 'dimension');
   const measures   = cubeDef.fields.filter((f) => f.type === 'measure');
 
-  // ── Load data when source changes ──
+  // ── On mount: check if we were launched from "Edit in Custom Report Studio" ──
+  useEffect(() => {
+    const raw = localStorage.getItem('studioEditReport');
+    if (!raw) return;
+    localStorage.removeItem('studioEditReport');
+    try {
+      const saved = JSON.parse(raw) as { id: string; name: string; config: StudioConfig };
+      const src = saved.config.dataSource as DataSource;
+      setSourceId(src);
+      setConfig({ ...saved.config, dataSource: src });
+      setEditingReport({ id: saved.id, name: saved.name });
+      setSaveName(saved.name);
+    } catch { /* malformed — ignore */ }
+  }, []);
+
+  // ── Load data — filtered by current Report Parameters (year + entity) ──
   const loadData = useCallback(async (src: DataSource) => {
     setLoading(true);
     setRawData([]);
-    const data = await fetchCubeData(src);
+    const data = await fetchCubeData(
+      src,
+      reportParams.year   || undefined,
+      reportParams.entity || undefined,
+    );
     setRawData(data);
     setLoading(false);
-  }, []);
+  }, [reportParams.year, reportParams.entity]);
 
   useEffect(() => { loadData(sourceId); }, [sourceId, loadData]);
 
-  // ── Switch cube ──
+  // ── Switch cube — auto-apply first suggestion ──
   const switchCube = (id: DataSource) => {
     const cube = CUBES.find((c) => c.id === id)!;
+    const suggestion = CUBE_SUGGESTIONS[id][0];
     setSourceId(id);
     setConfig({
       dataSource:      id,
-      rowDimensions:   cube.defaultRows,
-      columnDimension: cube.defaultCol,
+      rowDimensions:   suggestion?.rows    ?? cube.defaultRows,
+      columnDimension: suggestion?.col     ?? cube.defaultCol,
       filters:         {},
-      measures:        cube.defaultMeasures,
+      measures:        suggestion?.measures ?? cube.defaultMeasures,
+    });
+  };
+
+  // ── Apply a suggested report template ──
+  const applySuggestion = (s: SuggestedReport) => {
+    setConfig({
+      dataSource:      sourceId,
+      rowDimensions:   s.rows,
+      columnDimension: s.col,
+      filters:         {},
+      measures:        s.measures,
     });
   };
 
@@ -553,6 +622,32 @@ export default function CustomReportStudio() {
   const clearFilter = (dimKey: string) =>
     setConfig((c) => { const f = { ...c.filters }; delete f[dimKey]; return { ...c, filters: f }; });
 
+  // ── Save / update report ──
+  const handleSaveReport = async () => {
+    if (!saveName.trim()) return;
+    setSaving(true);
+    try {
+      const isUpdate = !!editingReport;
+      const url = isUpdate
+        ? `http://localhost:8000/api/reports/saved/${editingReport!.id}`
+        : 'http://localhost:8000/api/reports/saved';
+      await fetch(url, {
+        method: isUpdate ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: saveName.trim(), config }),
+      });
+      setSaveOk(true);
+      setSaveOpen(false);
+      setSaveName('');
+      if (isUpdate) setEditingReport(null);
+      setTimeout(() => setSaveOk(false), 3000);
+    } catch (err) {
+      console.error('Save report failed:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // ── Pivot ──
   const pivot = useMemo(() => {
     if (!rawData.length || !config.rowDimensions.length || !config.measures.length) return null;
@@ -582,17 +677,91 @@ export default function CustomReportStudio() {
           <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">
             PAX-style web exploration — pick dimensions, build your pivot, export to Excel
           </p>
+          <p className="text-xs text-indigo-500 dark:text-indigo-400 mt-0.5">
+            Showing: <strong>{reportParams.entity || 'All Entities'}</strong> · <strong>{reportParams.year}</strong>
+            &nbsp;— change in{' '}
+            <a href="/report-parameters" onClick={e => { e.preventDefault(); window.location.href='/report-parameters'; }}
+              className="underline hover:text-indigo-700">Report Parameters</a>
+          </p>
         </div>
 
-        {/* Export buttons */}
+        {/* Action buttons */}
         <div className="flex items-center gap-2">
+
+          {/* Save / Update Report — opens inline modal */}
+          <div className="relative">
+            {editingReport && (
+              <span className="absolute -top-5 left-0 text-[10px] text-amber-600 dark:text-amber-400 whitespace-nowrap font-medium">
+                Editing: {editingReport.name}
+              </span>
+            )}
+            <button
+              disabled={!pivot}
+              onClick={() => { setSaveOpen(o => !o); if (!saveOpen) setSaveName(editingReport?.name ?? ''); }}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white disabled:opacity-40 transition-colors shadow-sm ${
+                editingReport ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'
+              }`}
+            >
+              {saveOk ? <CheckCircle size={15} /> : <Save size={15} />}
+              {saveOk ? 'Saved!' : editingReport ? 'Update Report' : 'Save as Report'}
+            </button>
+
+            {saveOpen && (
+              <div className="absolute right-0 top-11 z-50 w-80 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-4">
+                <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1">
+                  {editingReport ? 'Update Report' : 'Save to Management Reports'}
+                </p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">
+                  {editingReport
+                    ? 'Save changes to the existing report. It will update in Management Reports immediately.'
+                    : 'This report will appear as a new tab in Management Reports, controlled by Report Parameters.'}
+                </p>
+                <input
+                  type="text"
+                  autoFocus
+                  value={saveName}
+                  onChange={e => setSaveName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleSaveReport(); if (e.key === 'Escape') setSaveOpen(false); }}
+                  placeholder="e.g. Revenue by Region"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 mb-3"
+                />
+                <div className="flex gap-2">
+                  <button
+                    disabled={!saveName.trim() || saving}
+                    onClick={handleSaveReport}
+                    className={`flex-1 px-3 py-2 rounded-lg text-white text-sm font-semibold disabled:opacity-40 transition-colors ${
+                      editingReport ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'
+                    }`}
+                  >
+                    {saving ? 'Saving…' : editingReport ? 'Update' : 'Save'}
+                  </button>
+                  <button
+                    onClick={() => setSaveOpen(false)}
+                    className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  {editingReport && (
+                    <button
+                      onClick={() => { setEditingReport(null); setSaveName(''); setSaveOpen(false); }}
+                      className="px-3 py-2 rounded-lg text-gray-400 text-xs hover:text-gray-600 transition-colors"
+                      title="Discard edits, save as new report instead"
+                    >
+                      Save as new
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
           <button
             disabled={!pivot}
             onClick={() => pivot && exportPivot(pivot, config, cubeDef, false)}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 transition-colors"
           >
             <Download size={15} />
-            Export (values only)
+            Export
           </button>
           <button
             disabled={!pivot}
@@ -600,7 +769,7 @@ export default function CustomReportStudio() {
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-40 transition-colors shadow-sm"
           >
             <FileSpreadsheet size={15} />
-            Export with formulas
+            Export + Formulas
           </button>
         </div>
       </div>
@@ -633,6 +802,50 @@ export default function CustomReportStudio() {
               ))}
             </div>
           </div>
+
+          {/* Suggested report templates */}
+          {CUBE_SUGGESTIONS[sourceId].length > 0 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+              <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                <Plus size={13} className="text-emerald-500" /> Suggested Reports
+              </h3>
+              <div className="space-y-2">
+                {CUBE_SUGGESTIONS[sourceId].map((s, i) => {
+                  const isActive =
+                    JSON.stringify(config.rowDimensions) === JSON.stringify(s.rows) &&
+                    config.columnDimension === s.col &&
+                    JSON.stringify(config.measures) === JSON.stringify(s.measures);
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => applySuggestion(s)}
+                      className={`w-full text-left px-3 py-2.5 rounded-lg border transition-colors ${
+                        isActive
+                          ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-emerald-300 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10'
+                      }`}
+                    >
+                      <p className={`text-xs font-semibold ${isActive ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-800 dark:text-gray-200'}`}>
+                        {s.label}
+                        {isActive && <span className="ml-1.5 text-[10px] font-normal opacity-70">✓ active</span>}
+                      </p>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">{s.desc}</p>
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300">
+                          Row: {s.rows.join(', ')}
+                        </span>
+                        {s.col && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300">
+                            Col: {s.col}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Field list */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 flex-1 overflow-y-auto">
@@ -882,11 +1095,17 @@ export default function CustomReportStudio() {
                         {pivot.colValues.length > 0
                           ? pivot.colValues.flatMap((cv) =>
                               pivot.measures.map((m) => {
-                                const v = pivot.cells[rowKey]?.[cv]?.[m] ?? 0;
+                                const v = pivot.cells[rowKey]?.[cv]?.[m];
+                                const missing = v === undefined;
+                                const display = missing ? '–' : fmt(v, m);
                                 return (
                                   <td key={`${cv}-${m}`}
-                                    className={`px-3 py-2 text-right border border-gray-100 dark:border-gray-700 tabular-nums ${isNegative(v, m) ? 'text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300'}`}>
-                                    {fmt(v, m)}
+                                    className={`px-3 py-2 text-right border border-gray-100 dark:border-gray-700 tabular-nums ${
+                                      missing ? 'text-gray-300 dark:text-gray-600'
+                                      : isNegative(v!, m) ? 'text-red-600 dark:text-red-400'
+                                      : 'text-gray-700 dark:text-gray-300'
+                                    }`}>
+                                    {display}
                                   </td>
                                 );
                               })

@@ -17,7 +17,7 @@ router = APIRouter()
 @router.get("/", response_model=WorkforceListResponse, summary="Get Workforce Data")
 async def get_workforce(
     page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(50, ge=1, le=500, description="Page size"),
+    page_size: int = Query(50, ge=1, le=5000, description="Page size"),
     year: Optional[int] = Query(None, description="Filter by year"),
     entity: Optional[str] = Query(None, description="Filter by entity name"),
     department: Optional[str] = Query(None, description="Filter by department"),
