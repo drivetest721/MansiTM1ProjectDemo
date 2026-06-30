@@ -264,6 +264,172 @@ function IsometricCube({ dimensions, cubeName }: {
   );
 }
 
+
+// ─── Star Topology Diagram (cube in center, dimensions radiate out) ─────────
+function StarTopology({ dimensions, measures, cubeName }: {
+  dimensions: Array<{ name: string; type: string; count: number }>;
+  measures: string[];
+  cubeName?: string;
+}) {
+  const [hoveredDim, setHoveredDim] = useState<number | null>(null);
+
+  const n = Math.max(dimensions.length, 1);
+
+  const NODE_R = n <= 4 ? 56 : n <= 6 ? 50 : n <= 8 ? 44 : 36;
+  const HOVER_PAD = 6;
+  const CUBE_SIZE = 140; // overall width/height footprint of the 3D cube hub
+
+  const minRadiusForSpacing =
+    (NODE_R + HOVER_PAD) / Math.sin(Math.PI / n) + CUBE_SIZE * 0.7;
+  const RADIUS = Math.max(190, minRadiusForSpacing);
+
+  // Extra top margin so the cube's top face never clips
+  const MARGIN = NODE_R + HOVER_PAD + 30;
+  const TOP_EXTRA = 25;
+
+  const W = (RADIUS + MARGIN) * 2;
+  const H = (RADIUS + MARGIN) * 2 + TOP_EXTRA;
+  const CX = W / 2, CY = H / 2 + TOP_EXTRA / 2;
+
+  const nodePos = (i: number) => {
+    const angle = (-90 + (360 / n) * i) * (Math.PI / 180);
+    return {
+      x: CX + RADIUS * Math.cos(angle),
+      y: CY + RADIUS * Math.sin(angle),
+    };
+  };
+
+  const order = dimensions.map((_, i) => i);
+  if (hoveredDim !== null) {
+    order.splice(order.indexOf(hoveredDim), 1);
+    order.push(hoveredDim);
+  }
+
+  // ── 3D cube hub geometry (simple isometric cube, drawn in screen space) ──
+const cs = CUBE_SIZE;
+const depth = cs * 0.20;
+
+// Shift the cube so the WHOLE 3D cube is centered on CX,CY
+const cubeOffsetX = depth / 2;
+const cubeOffsetY = depth / 2;
+
+const fx = CX - cs / 2 - cubeOffsetX;
+const fy = CY - cs / 2 + cubeOffsetY;
+
+const front = {
+  tl: { x: fx, y: fy },
+  tr: { x: fx + cs, y: fy },
+  br: { x: fx + cs, y: fy + cs },
+  bl: { x: fx, y: fy + cs },
+};
+
+const top = {
+  tl: { x: front.tl.x + depth, y: front.tl.y - depth },
+  tr: { x: front.tr.x + depth, y: front.tr.y - depth },
+};
+
+const rightFace = {
+  tr: top.tr,
+  br: { x: front.br.x + depth, y: front.br.y - depth },
+};
+  return (
+    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 dark:border-gray-700">
+        <div>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Cube Topology</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+            {n} dimension{n !== 1 ? 's' : ''} radiating from the cube
+          </p>
+        </div>
+        <span className="text-xs text-gray-400 italic">Hover a node for details</span>
+      </div>
+
+      <div className="w-full overflow-x-auto">
+        <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ minWidth: 500, maxHeight: 560 }}>
+          {/* Spokes */}
+          {dimensions.map((dim, i) => {
+            const p = nodePos(i);
+            const cc = DIM_COLORS[i % DIM_COLORS.length];
+            const isHov = hoveredDim === i;
+            return (
+              <line key={`spoke-${i}`}
+                x1={CX} y1={CY} x2={p.x} y2={p.y}
+                stroke={isHov ? cc.edge : '#CBD5E1'}
+                strokeWidth={isHov ? 3 : 1.5}
+                strokeDasharray={isHov ? undefined : '4 3'}
+                style={{ transition: 'all 0.15s' }}
+              />
+            );
+          })}
+
+          {/* Satellite nodes — hovered one drawn last so it's on top */}
+          {order.map((i) => {
+            const dim = dimensions[i];
+            const p = nodePos(i);
+            const cc = DIM_COLORS[i % DIM_COLORS.length];
+            const isHov = hoveredDim === i;
+            const r = isHov ? NODE_R + HOVER_PAD : NODE_R;
+            return (
+              <g key={`node-${i}`}
+                onMouseEnter={() => setHoveredDim(i)}
+                onMouseLeave={() => setHoveredDim(null)}
+                style={{ cursor: 'pointer' }}>
+                <circle cx={p.x} cy={p.y} r={r}
+                  fill={cc.light} stroke={cc.edge} strokeWidth={isHov ? 2.5 : 1.5}
+                  style={{ transition: 'r 0.15s, stroke-width 0.15s' }} />
+                <text x={p.x} y={p.y - 6} textAnchor="middle" fontSize={n > 6 ? 10.5 : 12} fontWeight="700"
+                  fill={cc.text} fontFamily="sans-serif">
+                  {dim.name.length > 14 ? dim.name.slice(0, 13) + '…' : dim.name}
+                </text>
+                <text x={p.x} y={p.y + 11} textAnchor="middle" fontSize={9} opacity={0.75}
+                  fill={cc.text} fontFamily="sans-serif">
+                  {dim.type}
+                </text>
+                {dim.count > 0 && (
+                  <text x={p.x} y={p.y + 24} textAnchor="middle" fontSize={8.5} fontWeight="600"
+                    fill={cc.edge} fontFamily="sans-serif">
+                    {dim.count.toLocaleString()}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+
+          {/* ── 3D Cube hub ── */}
+          {/* Right face (darkest) */}
+          <polygon
+            points={`${front.tr.x},${front.tr.y} ${rightFace.tr.x},${rightFace.tr.y} ${rightFace.br.x},${rightFace.br.y} ${front.br.x},${front.br.y}`}
+            fill="#B8C8F5" stroke="#8DA4E8" strokeWidth={1.5} />
+          {/* Top face (lighter) */}
+          <polygon
+            points={`${front.tl.x},${front.tl.y} ${top.tl.x},${top.tl.y} ${top.tr.x},${top.tr.y} ${front.tr.x},${front.tr.y}`}
+            fill="#E6ECFF" stroke="#8DA4E8" strokeWidth={1.5} />
+          {/* Front face (mid tone) */}
+          <polygon
+            points={`${front.tl.x},${front.tl.y} ${front.tr.x},${front.tr.y} ${front.br.x},${front.br.y} ${front.bl.x},${front.bl.y}`}
+            fill="#D5E1FF" stroke="#8DA4E8" strokeWidth={1.5} />
+          <text x={CX-10} y={CY + 2} textAnchor="middle" fontSize={15} fontWeight="800" fill="#233876" fontFamily="sans-serif"
+             >
+            {(cubeName ?? 'Cube').length > 14 ? (cubeName ?? 'Cube').slice(0, 13) + '…' : (cubeName ?? 'Cube')}
+          </text>
+          <text x={CX-10} y={CY + 28} textAnchor="middle" fontSize={14}
+            fill="#233876" fontFamily="sans-serif">
+            {n} dims · {measures.length} measures
+          </text>
+        </svg>
+      </div>
+
+      {/* Tooltip lives OUTSIDE the SVG now, so it can never overlap a node */}
+   
+
+      <div className="flex flex-wrap items-center gap-2 px-5 py-3 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+        <span className="text-xs text-gray-600 dark:text-gray-300 font-medium">
+          Star topology: the <strong>cube</strong> is the hub; each <strong>dimension</strong> is a spoke. Scales to any number of dimensions.
+        </span>
+      </div>
+    </div>
+  );
+}
 // ─── Structure Tree (TM1 Architect style) ─────────────────────────────────────
 function DimensionTree({ cubeDetails }: { cubeDetails: { cube_name:string; dimensions:Array<{name:string;type:string;count:number}>; measures:string[]; cell_count:number; last_update:string } }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set(['dims','measures']));
@@ -324,7 +490,7 @@ function DimensionTree({ cubeDetails }: { cubeDetails: { cube_name:string; dimen
   );
 }
 
-type ViewMode = 'diagram' | 'structure' | 'data';
+type ViewMode = 'diagram' | 'structure' ;
 
 interface Cube {
   cube_id: string;
@@ -366,43 +532,97 @@ export default function CubeExplorer() {
     }
   }, [selectedCube]);
 
+const DUMMY_CUBES: Cube[] = [
+  {
+    cube_id: 'demo-revenue',
+    cube_name: 'Revenue Cube',
+    description: 'Demo cube with 6 dimensions (no backend connected — showing sample data)',
+    dimensions: ['Year', 'Customer', 'Product', 'Scenario', 'Entity', 'Version'],
+    measures: ['Revenue', 'Cost', 'Margin'],
+    dimension_count: 6,
+    measure_count: 3,
+  },
+];
+
+  const DUMMY_DETAILS: CubeDetails = {
+    cube_id: 'demo-revenue',
+    cube_name: 'Revenue Cube',
+    description: 'Demo cube with 6 dimensions (no backend connected — showing sample data)',
+    dimensions: [
+      { name: 'Year',     type: 'Time',     count: 5 },
+      { name: 'Customer', type: 'Regular',  count: 1240 },
+      { name: 'Product',  type: 'Regular',  count: 380 },
+      { name: 'Scenario', type: 'Regular',  count: 4 },
+      { name: 'Entity',   type: 'Regular',  count: 22 },
+      { name: 'Version',  type: 'Regular',  count: 3 },
+    ],
+    measures: ['Revenue', 'Cost', 'Margin'],
+    cell_count: 1240 * 380 * 5,
+    last_update: new Date().toISOString().split('T')[0],
+  };
+
+  const DUMMY_SAMPLE = Array.from({ length: 8 }, (_, i) => ({
+    Year: 2020 + (i % 5),
+    Customer: `Customer ${i + 1}`,
+    Product: `Product ${(i % 4) + 1}`,
+    Scenario: ['Actual', 'Budget', 'Forecast'][i % 3],
+    Revenue: Math.round(50000 + Math.random() * 200000),
+    Margin: `${(15 + Math.random() * 20).toFixed(1)}%`,
+  }));
+
   const loadCubes = async () => {
     try {
       setLoading(true);
       const res = await getCubes();
-      if (res.data.success) {
-        setCubes(res.data.data || []);
-        if (res.data.data && res.data.data.length > 0) {
-          setSelectedCube(res.data.data[0].cube_id);
-        }
+      if (res.data.success && res.data.data && res.data.data.length > 0) {
+        setCubes(res.data.data);
+        setSelectedCube(res.data.data[0].cube_id);
+      } else {
+        setCubes(DUMMY_CUBES);
+        setSelectedCube(DUMMY_CUBES[0].cube_id);
       }
     } catch (err: any) {
-      console.error('Failed to load cubes:', err);
-      setError('Failed to load cubes from backend');
+      console.error('Failed to load cubes, using dummy data:', err);
+      setCubes(DUMMY_CUBES);
+      setSelectedCube(DUMMY_CUBES[0].cube_id);
     } finally {
       setLoading(false);
     }
   };
 
   const loadCubeDetails = async (cubeId: string) => {
+    if (cubeId === 'demo-revenue') {
+      setCubeDetails(DUMMY_DETAILS);
+      return;
+    }
     try {
       const res = await getCubeDetails(cubeId);
       if (res.data.success) {
         setCubeDetails(res.data.data);
+      } else {
+        setCubeDetails(DUMMY_DETAILS);
       }
     } catch (err: any) {
-      console.error('Failed to load cube details:', err);
+      console.error('Failed to load cube details, using dummy data:', err);
+      setCubeDetails(DUMMY_DETAILS);
     }
   };
 
   const loadSampleData = async (cubeId: string) => {
+    if (cubeId === 'demo-revenue') {
+      setSampleData(DUMMY_SAMPLE);
+      return;
+    }
     try {
       const res = await getCubeSampleData(cubeId, 20);
       if (res.data.success) {
         setSampleData(res.data.data.sample_data || []);
+      } else {
+        setSampleData(DUMMY_SAMPLE);
       }
     } catch (err: any) {
-      console.error('Failed to load sample data:', err);
+      console.error('Failed to load sample data, using dummy data:', err);
+      setSampleData(DUMMY_SAMPLE);
     }
   };
 
@@ -485,7 +705,6 @@ export default function CubeExplorer() {
                   {([
                     { id: 'diagram',   label: 'Cube Diagram',   icon: <Box className="w-4 h-4" /> },
                     { id: 'structure', label: 'Structure',       icon: <List className="w-4 h-4" /> },
-                    { id: 'data',      label: 'Data & Metadata', icon: <Grid3X3 className="w-4 h-4" /> },
                   ] as { id: ViewMode; label: string; icon: React.ReactNode }[]).map(tab => (
                     <button key={tab.id} onClick={() => setViewMode(tab.id)}
                       className={`flex items-center gap-2 px-5 py-3 text-sm font-medium transition-colors ${
@@ -506,7 +725,11 @@ export default function CubeExplorer() {
                         First 3 dimensions are mapped to the X / Y / Z axes. Extra dimensions connect from the top corner.
                         Hover a face or label to inspect that dimension.
                       </p>
-                      <IsometricCube dimensions={cubeDetails.dimensions} cubeName={cubeDetails.cube_name} />
+                      <StarTopology
+                          dimensions={cubeDetails.dimensions}
+                          measures={cubeDetails.measures}
+                          cubeName={cubeDetails.cube_name}
+                        />
                       <div className="mt-4 flex flex-wrap gap-2">
                         {cubeDetails.dimensions.map((dim, idx) => {
                           const cc = DIM_COLORS[idx % DIM_COLORS.length];
@@ -545,7 +768,7 @@ export default function CubeExplorer() {
                   )}
 
                   {/* Data & Metadata (original view) */}
-                  {viewMode === 'data' && (
+                  {/* {viewMode === 'data' && (
                     <div className="space-y-5">
                       <div>
                         <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2 uppercase tracking-wide">Dimensions</h3>
@@ -575,7 +798,7 @@ export default function CubeExplorer() {
                         </div>
                       </div>
                     </div>
-                  )}
+                  )} */}
                 </div>
               </div>
 

@@ -15,9 +15,9 @@ import { exportFinancialTableToExcel } from '../utils/exportToExcel';
 // Static fallback data — used when API is unavailable
 // ---------------------------------------------------------------------------
 const scenariosFallback = [
-  { name: 'Most Likely Case', revenue: 145800000, ebitda: -54400000, netIncome: -61200000, probability: '50%', color: 'blue' },
-  { name: 'Best Case',        revenue: 158200000, ebitda: -48900000, netIncome: -55100000, probability: '25%', color: 'green' },
-  { name: 'Worst Case',       revenue: 132400000, ebitda: -62100000, netIncome: -69800000, probability: '25%', color: 'red' },
+  { name: 'Base Case',  revenue: 145800000, ebitda: -54400000, netIncome: -61200000, probability: '100%', color: 'blue' },
+  { name: 'Best Case',  revenue: 158200000, ebitda: -48900000, netIncome: -55100000, probability: '109%', color: 'green' },  // 158.2/145.8 * 100
+  { name: 'Worst Case', revenue: 132400000, ebitda: -62100000, netIncome: -69800000, probability: '91%',  color: 'red' },   // 132.4/145.8 * 100
 ];
 
 const forecastTrendFallback = [
@@ -184,14 +184,14 @@ export default function ForecastingAnalysis() {
           const scenarioData = scenarioRes.value.data.data;
           if (scenarioData?.scenarios?.length > 0) {
             const mapped = scenarioData.scenarios.map((s: any) => ({
-              name:        s.scenario_name === 'Base Case' ? 'Most Likely Case' : s.scenario_name,
+              name:        s.scenario_name, 
               revenue:     s.revenue,
               ebitda:      s.ebitda ?? s.net_income * 1.1,
               netIncome:   s.net_income,
-              probability: s.probability ? `${(s.probability * 100).toFixed(0)}%` : '33%',
+              probability: s.probability != null ? `${(s.probability * 100).toFixed(0)}%` : '100%',
               color:       s.color || 'blue',
             }));
-            const order: Record<string, number> = { 'Most Likely Case': 2, 'Best Case': 1, 'Worst Case': 3 };
+            const order: Record<string, number> = { 'Base Case': 2, 'Best Case': 1, 'Worst Case': 3 };
             mapped.sort((a: any, b: any) => (order[a.name] || 99) - (order[b.name] || 99));
             setScenarios(mapped);
           } else {

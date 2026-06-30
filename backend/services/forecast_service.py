@@ -36,7 +36,6 @@ class ForecastService:
             FROM Planning.vw_ForecastCube_Source WITH (NOLOCK)
             ORDER BY ScenarioID
             """
-            
             result = self.db.execute(text(query))
             rows = result.fetchall()
             result.close()
@@ -49,7 +48,6 @@ class ForecastService:
                 }
                 for row in rows
             ]
-            
         except Exception as e:
             logger.error(f"Error fetching scenarios: {str(e)}")
             raise
@@ -108,7 +106,6 @@ class ForecastService:
                 }
                 for row in rows
             ]
-            
         except Exception as e:
             logger.error(f"Error fetching scenario data: {str(e)}")
             raise
@@ -118,57 +115,68 @@ class ForecastService:
         year: int,
         entity: Optional[str] = None
     ) -> Dict[str, Any]:
-        """
-        Get summary of all scenarios for comparison
-        
-        Returns aggregated metrics for Base, Best, and Worst cases
-        """
         try:
-            data = self.get_scenario_data(year=year, entity=entity)
-            
-            # Group by scenario
-            scenarios_summary = {}
-            
-            for row in data:
-                scenario_name = row['scenario_name']
-                if scenario_name not in scenarios_summary:
-                    scenarios_summary[scenario_name] = {
-                        "scenario_id": row['scenario_id'],
-                        "scenario_name": scenario_name,
-                        "revenue": 0.0,
-                        "expenses": 0.0,
-                        "net_income": 0.0,
-                        "ebitda": 0.0
-                    }
-                
-                # Aggregate revenue and expenses
-                if row['account_type'] == 'Revenue':
-                    scenarios_summary[scenario_name]['revenue'] += row['amount']
-                elif row['account_type'] == 'Expense':
-                    scenarios_summary[scenario_name]['expenses'] += row['amount']
-            
-            # Calculate net income and EBITDA for each scenario
-            for scenario in scenarios_summary.values():
-                scenario['net_income'] = scenario['revenue'] - scenario['expenses']
-                scenario['ebitda'] = scenario['revenue'] - (scenario['expenses'] * 0.8)  # Simplified
-            
-            # Assign probabilities (hardcoded for now)
-            scenario_probabilities = {
-                "Base Case": {"probability": 0.50, "color": "blue"},
-                "Best Case": {"probability": 0.25, "color": "green"},
-                "Worst Case": {"probability": 0.25, "color": "red"}
-            }
-            
-            for scenario_name, scenario in scenarios_summary.items():
-                prob_info = scenario_probabilities.get(scenario_name, {"probability": 0.33, "color": "gray"})
-                scenario.update(prob_info)
-            
+            # ── Step 1: fetch only Base Case from DB ──────────────────────────
+            where_clauses = [
+                "YearNumber = :year",
+                "ScenarioName = 'Base Case'"
+            ]
+            params: Dict[str, Any] = {"year": year}
+
+            if entity:
+                where_clauses.append("EntityName = :entity")
+                params["entity"] = entity
+
+            where_clause = " AND ".join(where_clauses)
+
+            query = f"""
+            SELECT
+                AccountType,
+                SUM(ISNULL(ForecastAmount, 0)) AS Amount
+            FROM Planning.vw_ForecastCube_Source WITH (NOLOCK)
+            WHERE {where_clause}
+            GROUP BY AccountType
+            """
+
+            result = self.db.execute(text(query), params)
+            rows = result.fetchall()
+            result.close()
+
+            # ── Step 2: build Base Case totals ────────────────────────────────
+            base_revenue  = 0.0
+            base_expenses = 0.0
+
+            for row in rows:
+                if row.AccountType == "Revenue":
+                    base_revenue  += float(row.Amount or 0)
+                elif row.AccountType == "Expense":
+                    base_expenses += float(row.Amount or 0)
+
+            base_net_income = base_revenue - base_expenses
+            base_ebitda     = base_revenue - (base_expenses * 0.8)
+
+            # ── Step 3: derive all three scenarios from Base Case ─────────────
+            color_map       = {"Base Case": "blue",  "Best Case": "green", "Worst Case": "red"}
+            probability_map = {"Base Case": 1.0,     "Best Case": 1.25,    "Worst Case": 0.75}
+
+            scenarios = []
+            for scenario_name, multiplier in probability_map.items():
+                scenarios.append({
+                    "scenario_name": scenario_name,
+                    "revenue":       round(base_revenue    * multiplier, 2),
+                    "expenses":      round(base_expenses   * multiplier, 2),
+                    "net_income":    round(base_net_income * multiplier, 2),
+                    "ebitda":        round(base_ebitda     * multiplier, 2),
+                    "probability":   multiplier,   # 1.0 / 1.25 / 0.75  →  100% / 125% / 75%
+                    "color":         color_map[scenario_name],
+                })
+
             return {
-                "year": year,
-                "entity": entity or "All Entities",
-                "scenarios": list(scenarios_summary.values())
+                "year":      year,
+                "entity":    entity or "All Entities",
+                "scenarios": scenarios,
             }
-            
+
         except Exception as e:
             logger.error(f"Error fetching scenario summary: {str(e)}")
             raise
@@ -216,16 +224,13 @@ class ForecastService:
             
             return [
                 {
-                    "id": f"forecast-{idx}",
-                    "label": row.Account,
-                    "actual": None,  # Not available in this view
-                    
+                    "id":       f"forecast-{idx}",
+                    "label":    row.Account,
+                    "actual":   None,
                     "forecast": float(row.Forecast) if row.Forecast else 0.0,
-                    
                 }
                 for idx, row in enumerate(rows)
             ]
-            
         except Exception as e:
             logger.error(f"Error fetching forecast table data: {str(e)}")
             raise
@@ -241,38 +246,31 @@ class ForecastService:
         """
         try:
             results = {}
-            
             for scenario_id in scenario_ids:
-                data = self.get_scenario_data(
-                    year=year,
-                    scenario_id=scenario_id,
-                    entity=entity
-                )
-                
-                # Aggregate by scenario
-                revenue = sum(d['amount'] for d in data if d['account_type'] == 'Revenue')
+                data = self.get_scenario_data(year=year, scenario_id=scenario_id, entity=entity)
+                revenue  = sum(d['amount'] for d in data if d['account_type'] == 'Revenue')
                 expenses = sum(d['amount'] for d in data if d['account_type'] == 'Expense')
-                
                 scenario_name = data[0]['scenario_name'] if data else f"Scenario {scenario_id}"
-                
                 results[scenario_name] = {
                     "scenario_id": scenario_id,
-                    "revenue": revenue,
-                    "expenses": expenses,
-                    "net_income": revenue - expenses,
+                    "revenue":     revenue,
+                    "expenses":    expenses,
+                    "net_income":  revenue - expenses,
                     "margin_percent": (revenue - expenses) / revenue * 100 if revenue > 0 else 0
                 }
-            
             return {
-                "year": year,
-                "entity": entity or "All Entities",
+                "year":      year,
+                "entity":    entity or "All Entities",
                 "scenarios": results
             }
-            
         except Exception as e:
             logger.error(f"Error comparing scenarios: {str(e)}")
             raise
     
+    # ============================================================================
+    # MONTHLY TREND
+    # ============================================================================
+
     def get_monthly_trend(
         self,
         year: int,
@@ -360,6 +358,10 @@ class ForecastService:
             logger.error(f"Error fetching monthly trend: {str(e)}")
             raise
 
+    # ============================================================================
+    # ASSUMPTIONS
+    # ============================================================================
+
     def get_forecast_assumptions(
         self,
         year: int,
@@ -373,7 +375,7 @@ class ForecastService:
                 3: {"revenue_growth": -5.0, "cost_inflation": 5.0, "headcount_growth": -3.0, "currency_rate": 1.10},
             }
             return {
-                "year": year,
+                "year":        year,
                 "scenario_id": scenario_id,
                 "assumptions": assumptions_map.get(scenario_id, {})
             }

@@ -230,7 +230,7 @@ export default function WorkforcePlanning() {
     try {
       exportCubeToExcel(
         cubeData,
-        ['Headcount', 'Base Salary', 'Bonus', 'Benefits', 'Total Compensation', 'Avg Salary'],
+        ['Headcount', 'Base Salary', 'Bonus', 'Benefits', 'Total Compensation'],
         'Workforce_Planning_Cube'
       );
     } catch (error) {
