@@ -84,7 +84,7 @@ export default function ReportParameters() {
   const years     = meta.years.length ? meta.years : [new Date().getFullYear(), new Date().getFullYear() - 1];
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-8xl mx-auto space-y-6">
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -119,10 +119,10 @@ export default function ReportParameters() {
 
       {/* Section: Company & Entity */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-4">
+        <h2 className="text-md font-bold uppercase tracking-wider text-black-400 dark:text-black-500 mb-4">
           Company &amp; Entity
         </h2>
-
+        <div className="grid grid-cols-2 gap-x-4">
         <Row label="Entity" hint="Leave blank for all entities">
           {loading
             ? <div className="h-9 w-48 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" />
@@ -139,37 +139,40 @@ export default function ReportParameters() {
               </select>
             )}
         </Row>
+        </div>
       </div>
 
-      {/* Section: Time Period */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-4">
-          Time Period
-        </h2>
+       {/* Section: Time Period */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-md font-bold uppercase tracking-wider text-black-400 dark:text-black-500 mb-4">
+              Time Period
+            </h2>
 
-        <Row label="Fiscal Year">
-          <Select value={local.year} onChange={v => set('year', Number(v))} options={years} placeholder="" />
-        </Row>
+            <div className="grid grid-cols-2 gap-x-4">
+              <Row label="Fiscal Year">
+                <Select value={local.year} onChange={v => set('year', Number(v))} options={years} placeholder="" />
+              </Row>
 
-        <Row label="Current Period" hint="The most recent closed month">
-          <Select value={local.currentPeriod} onChange={v => set('currentPeriod', v)} options={MONTHS} placeholder="" />
-        </Row>
+              <Row label="Current Period" hint="The most recent closed month">
+                <Select value={local.currentPeriod} onChange={v => set('currentPeriod', v)} options={MONTHS} placeholder="" />
+              </Row>
 
-        <Row label="Comparison Year" hint="Prior year shown alongside current">
-          <Select value={local.compareYear} onChange={v => set('compareYear', Number(v))} options={years} placeholder="" />
-        </Row>
+              <Row label="Comparison Year" hint="Prior year shown alongside current">
+                <Select value={local.compareYear} onChange={v => set('compareYear', Number(v))} options={years} placeholder="" />
+              </Row>
 
-        <Row label="Comparison Period">
-          <Select value={local.comparePeriod} onChange={v => set('comparePeriod', v)} options={MONTHS} placeholder="" />
-        </Row>
-      </div>
+              <Row label="Comparison Period">
+                <Select value={local.comparePeriod} onChange={v => set('comparePeriod', v)} options={MONTHS} placeholder="" />
+              </Row>
+            </div>
+          </div>
 
       {/* Section: Scenarios */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-4">
+        <h2 className="text-md font-bold uppercase tracking-wider text-black-400 dark:text-black-500 mb-4">
           Scenarios
         </h2>
-
+        <div className="grid grid-cols-2 gap-x-4">
         <Row label="Budget Scenario" hint="Used for plan/budget columns">
           <Select
             value={local.budgetScenario}
@@ -196,17 +199,18 @@ export default function ReportParameters() {
             placeholder=""
           />
         </Row>
+        </div>
       </div>
 
       {/* Section: Column Layout */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-4">
+        <h2 className="text-md font-bold uppercase tracking-wider text-black-400 dark:text-black-500 mb-4">
           Monthly Column Layout
         </h2>
         <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
           The report shows a rolling 12 months. Choose how many are Actual vs Forecast.
         </p>
-
+        <div className="grid grid-cols-2 gap-x-4">
         <Row label="Actual Months" hint="Trailing months using Actual scenario">
           <div className="flex items-center gap-3">
             <input
@@ -238,7 +242,7 @@ export default function ReportParameters() {
             <span className="text-sm font-semibold text-blue-500 w-8">{local.forecastMonths}</span>
           </div>
         </Row>
-
+        </div>
         {/* Visual month strip */}
         <div className="mt-4 flex gap-1 flex-wrap">
           {MONTHS.map((m, i) => {
@@ -274,7 +278,7 @@ export default function ReportParameters() {
 
       {/* Reports quick-nav */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-4">
+        <h2 className="text-md font-bold uppercase tracking-wider text-black-400 dark:text-black-500 mb-4">
           Available Reports
         </h2>
         <div className="grid grid-cols-2 gap-3">
@@ -299,16 +303,7 @@ export default function ReportParameters() {
         </div>
       </div>
 
-      {/* Bottom refresh */}
-      <div className="flex justify-end pb-6">
-        <button
-          onClick={handleRefresh}
-          className="flex items-center gap-2 px-6 py-3 rounded-lg bg-indigo-600 hover:bg-indigo-700
-            text-white font-semibold shadow-lg transition-colors"
-        >
-          {saved ? <><CheckCircle size={18} /> Parameters applied!</> : <><RefreshCw size={18} /> Refresh All Reports</>}
-        </button>
-      </div>
+     
     </div>
   );
 }

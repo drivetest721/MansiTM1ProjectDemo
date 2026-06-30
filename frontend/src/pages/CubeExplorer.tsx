@@ -422,11 +422,7 @@ const rightFace = {
       {/* Tooltip lives OUTSIDE the SVG now, so it can never overlap a node */}
    
 
-      <div className="flex flex-wrap items-center gap-2 px-5 py-3 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-        <span className="text-xs text-gray-600 dark:text-gray-300 font-medium">
-          Star topology: the <strong>cube</strong> is the hub; each <strong>dimension</strong> is a spoke. Scales to any number of dimensions.
-        </span>
-      </div>
+      
     </div>
   );
 }
@@ -730,7 +726,7 @@ const DUMMY_CUBES: Cube[] = [
                           measures={cubeDetails.measures}
                           cubeName={cubeDetails.cube_name}
                         />
-                      <div className="mt-4 flex flex-wrap gap-2">
+                      {/* <div className="mt-4 flex flex-wrap gap-2">
                         {cubeDetails.dimensions.map((dim, idx) => {
                           const cc = DIM_COLORS[idx % DIM_COLORS.length];
                           return (
@@ -742,8 +738,8 @@ const DUMMY_CUBES: Cube[] = [
                             </div>
                           );
                         })}
-                      </div>
-                      <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                      </div> */}
+                      {/* <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                         <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2 uppercase tracking-wide">Measures</p>
                         <div className="flex flex-wrap gap-2">
                           {cubeDetails.measures.map((m, idx) => (
@@ -752,7 +748,7 @@ const DUMMY_CUBES: Cube[] = [
                             </span>
                           ))}
                         </div>
-                      </div>
+                      </div> */}
                     </div>
                   )}
 
