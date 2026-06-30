@@ -40,6 +40,16 @@ const DEFAULTS: ReportParams = {
   comparePeriod:    'Jun',
 };
 
+const STORAGE_KEY = 'tm1_report_params';
+
+function loadStoredParams(): ReportParams {
+  try {
+    const s = localStorage.getItem(STORAGE_KEY);
+    if (s) return { ...DEFAULTS, ...JSON.parse(s) };
+  } catch { /* ignore */ }
+  return DEFAULTS;
+}
+
 const ReportContext = createContext<ReportContextValue>({
   params:     DEFAULTS,
   setParams:  () => {},
@@ -48,8 +58,13 @@ const ReportContext = createContext<ReportContextValue>({
 });
 
 export function ReportProvider({ children }: { children: ReactNode }) {
-  const [params,     setParams]     = useState<ReportParams>(DEFAULTS);
+  const [params,     _setParams]   = useState<ReportParams>(loadStoredParams);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  const setParams = (p: ReportParams) => {
+    _setParams(p);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(p)); } catch { /* ignore */ }
+  };
 
   return (
     <ReportContext.Provider value={{

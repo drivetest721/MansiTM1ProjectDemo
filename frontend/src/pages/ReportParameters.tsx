@@ -21,6 +21,11 @@ interface Meta {
   months:    string[];
 }
 
+interface SavedReport {
+  id:   string;
+  name: string;
+}
+
 // ── small helper ──
 function Row({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -57,17 +62,22 @@ function Select({ value, onChange, options, placeholder = 'Select…' }: {
 export default function ReportParameters() {
   const { params, setParams, refresh } = useReportContext();
 
-  const [meta,    setMeta]    = useState<Meta>({ entities: [], years: [], scenarios: [], months: MONTHS });
-  const [local,   setLocal]   = useState<ReportParams>(params);
-  const [saved,   setSaved]   = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [meta,         setMeta]         = useState<Meta>({ entities: [], years: [], scenarios: [], months: MONTHS });
+  const [local,        setLocal]        = useState<ReportParams>(params);
+  const [saved,        setSaved]        = useState(false);
+  const [loading,      setLoading]      = useState(true);
+  const [savedReports, setSavedReports] = useState<SavedReport[]>([]);
 
-  // Load dropdown metadata
+  // Load dropdown metadata + saved reports
   useEffect(() => {
     axios.get(`${API}/api/reports/metadata`)
       .then(r => setMeta(r.data))
       .catch(() => {})
       .finally(() => setLoading(false));
+
+    axios.get(`${API}/api/reports/saved`)
+      .then(r => setSavedReports(r.data))
+      .catch(() => {});
   }, []);
 
   const set = (key: keyof ReportParams, value: string | number) =>
@@ -80,8 +90,17 @@ export default function ReportParameters() {
     setTimeout(() => setSaved(false), 2500);
   };
 
-  const scenarios = meta.scenarios.map(s => s.name).filter(Boolean);
-  const years     = meta.years.length ? meta.years : [new Date().getFullYear(), new Date().getFullYear() - 1];
+  // Group scenarios by their financial type (Budget, Actual, Forecast)
+  const budgetScenarios  = meta.scenarios.filter(s => /budget/i.test(s.type || '')).map(s => s.name).filter(Boolean);
+  const actualScenarios  = meta.scenarios.filter(s => /actual/i.test(s.type || '')).map(s => s.name).filter(Boolean);
+  const forecastScenarios= meta.scenarios.filter(s => /forecast/i.test(s.type || '')).map(s => s.name).filter(Boolean);
+
+  // Fallbacks when DB has no scenario data or no type differentiation
+  const budgetOpts  = budgetScenarios.length  ? budgetScenarios  : ['Budget'];
+  const actualOpts  = actualScenarios.length  ? actualScenarios  : ['Actual'];
+  const forecastOpts= forecastScenarios.length? forecastScenarios: ['Forecast'];
+
+  const years = meta.years.length ? meta.years : [new Date().getFullYear(), new Date().getFullYear() - 1];
 
   return (
     <div className="max-w-8xl mx-auto space-y-6">
@@ -112,8 +131,7 @@ export default function ReportParameters() {
       <div className="flex items-start gap-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
         <Info size={18} className="text-blue-500 flex-shrink-0 mt-0.5" />
         <p className="text-sm text-blue-800 dark:text-blue-200">
-          Change any parameter below and click <strong>Refresh All Reports</strong>.
-          The Management Report, ACT vs BUD, and any saved report tabs will all reload with the new values.
+          Change any parameter below and click <strong>Refresh All Reports</strong> — all saved report tabs in Management Report will reload with the new values.
         </p>
       </div>
 
@@ -123,22 +141,57 @@ export default function ReportParameters() {
           Company &amp; Entity
         </h2>
         <div className="grid grid-cols-2 gap-x-4">
-        <Row label="Entity" hint="Leave blank for all entities">
-          {loading
-            ? <div className="h-9 w-48 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" />
-            : (
-              <select
-                value={local.entity}
-                onChange={e => set('entity', e.target.value)}
-                className="w-full max-w-xs px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600
-                  bg-white dark:bg-gray-700 text-sm text-gray-800 dark:text-gray-100
-                  focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="">All Entities</option>
-                {meta.entities.map(e => <option key={e} value={e}>{e}</option>)}
-              </select>
+          <Row label="Entity" hint="Leave blank for all entities">
+            {loading
+              ? <div className="h-9 w-48 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" />
+              : (
+                <select
+                  value={local.entity}
+                  onChange={e => set('entity', e.target.value)}
+                  className="w-full max-w-xs px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600
+                    bg-white dark:bg-gray-700 text-sm text-gray-800 dark:text-gray-100
+                    focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">All Entities</option>
+                  {meta.entities.map(e => <option key={e} value={e}>{e}</option>)}
+                </select>
+              )}
+          </Row>
+
+          <Row label="Available Reports" hint="Select a report to open in Management Report">
+            {savedReports.length === 0 ? (
+              <p className="text-xs text-gray-400 dark:text-gray-500 py-1">
+                No saved reports yet.{' '}
+                <a
+                  href="/custom-report-studio"
+                  onClick={e => { e.preventDefault(); window.location.href = '/custom-report-studio'; }}
+                  className="text-indigo-500 hover:underline">
+                  Build one in Custom Report Studio →
+                </a>
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {savedReports.map(r => (
+                  <button
+                    key={r.id}
+                    onClick={() => { window.location.href = '/management-report'; }}
+                    className="px-3 py-1.5 rounded-lg border border-indigo-300 dark:border-indigo-700
+                      bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300
+                      text-xs font-medium hover:bg-indigo-100 dark:hover:bg-indigo-800/40 transition-colors"
+                  >
+                    {r.name}
+                  </button>
+                ))}
+                <a
+                  href="/management-report"
+                  onClick={e => { e.preventDefault(); window.location.href = '/management-report'; }}
+                  className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600
+                    text-gray-500 dark:text-gray-400 text-xs hover:text-indigo-600 hover:border-indigo-400 transition-colors">
+                  View All →
+                </a>
+              </div>
             )}
-        </Row>
+          </Row>
         </div>
       </div>
 
@@ -149,7 +202,7 @@ export default function ReportParameters() {
             </h2>
 
             <div className="grid grid-cols-2 gap-x-4">
-              <Row label="Fiscal Year">
+              <Row label="Fiscal Year" hint="All reports and cube data will be loaded for this year">
                 <Select value={local.year} onChange={v => set('year', Number(v))} options={years} placeholder="" />
               </Row>
 
@@ -173,29 +226,29 @@ export default function ReportParameters() {
           Scenarios
         </h2>
         <div className="grid grid-cols-2 gap-x-4">
-        <Row label="Budget Scenario" hint="Used for plan/budget columns">
+        <Row label="Budget Scenario" hint="e.g. Budget, Budget v2.0, Revised Budget">
           <Select
             value={local.budgetScenario}
             onChange={v => set('budgetScenario', v)}
-            options={scenarios.length ? scenarios : ['Budget']}
+            options={budgetOpts}
             placeholder=""
           />
         </Row>
 
-        <Row label="Actual Scenario" hint="Used for historical months">
+        <Row label="Actual Scenario" hint="Historical closed months (e.g. Actual, Actuals YTD)">
           <Select
             value={local.actualScenario}
             onChange={v => set('actualScenario', v)}
-            options={scenarios.length ? scenarios : ['Actual']}
+            options={actualOpts}
             placeholder=""
           />
         </Row>
 
-        <Row label="Forecast Scenario" hint="Used for future months">
+        <Row label="Forecast Scenario" hint="e.g. Forecast, Rolling Forecast, Reforecast Q3">
           <Select
             value={local.forecastScenario}
             onChange={v => set('forecastScenario', v)}
-            options={scenarios.length ? scenarios : ['Forecast']}
+            options={forecastOpts}
             placeholder=""
           />
         </Row>
@@ -276,34 +329,6 @@ export default function ReportParameters() {
         </div>
       </div>
 
-      {/* Reports quick-nav */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <h2 className="text-md font-bold uppercase tracking-wider text-black-400 dark:text-black-500 mb-4">
-          Available Reports
-        </h2>
-        <div className="grid grid-cols-2 gap-3">
-          {[
-            { label: 'ACT vs BUD', href: '/management-report', desc: 'Monthly Actual vs Budget with MTD & YTD' },
-            { label: 'Custom Report Studio', href: '/custom-report-studio', desc: 'Free-form pivot explorer' },
-            { label: 'P&L Statement',  href: '/pl-statement',  desc: 'Annual profit & loss' },
-            { label: 'Balance Sheet',  href: '/balance-sheet', desc: 'Assets, liabilities & equity' },
-          ].map(r => (
-            <a
-              key={r.href}
-              href={r.href}
-              onClick={e => { e.preventDefault(); window.location.href = r.href; }}
-              className="flex flex-col px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700
-                hover:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20
-                transition-colors cursor-pointer"
-            >
-              <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{r.label}</span>
-              <span className="text-xs text-gray-400 mt-0.5">{r.desc}</span>
-            </a>
-          ))}
-        </div>
-      </div>
-
-     
     </div>
   );
 }

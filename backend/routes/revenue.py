@@ -17,7 +17,7 @@ router = APIRouter()
 @router.get("/", response_model=RevenueListResponse, summary="Get Revenue Data")
 async def get_revenue(
     page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(50, ge=1, le=500, description="Page size"),
+    page_size: int = Query(50, ge=1, le=5000, description="Page size"),
     year: Optional[int] = Query(None, description="Filter by year"),
     quarter: Optional[str] = Query(None, description="Filter by quarter (Q1, Q2, Q3, Q4)"),
     month: Optional[str] = Query(None, description="Filter by month"),

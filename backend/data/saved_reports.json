@@ -1,0 +1,20 @@
+[
+  {
+    "id": "e4b7e552-3ee9-4c6f-abd2-472ef7124ac4",
+    "name": "Revenue",
+    "config": {
+      "dataSource": "revenue",
+      "rowDimensions": [
+        "product_category",
+        "year"
+      ],
+      "columnDimension": "region",
+      "filters": {},
+      "measures": [
+        "revenue",
+        "COGS"
+      ]
+    },
+    "created_at": "2026-06-30T06:51:34.955119"
+  }
+]

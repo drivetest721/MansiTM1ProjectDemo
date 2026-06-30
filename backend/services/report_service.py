@@ -141,21 +141,53 @@ class ReportService:
             ORDER BY SortOrder, Account
             """
             rows = self.db.execute(text(query)).fetchall()
+            if rows:
+                return [
+                    {
+                        "account_key":  idx,
+                        "account_code": r.AccountName,
+                        "account_name": r.AccountName,
+                        "account_type": r.AccountType,
+                        "parent":       r.AccountType,
+                        "sort_order":   int(r.SortOrder),
+                        "is_total":     bool(r.IsTotal),
+                        "level":        int(r.Level),
+                    }
+                    for idx, r in enumerate(rows)
+                ]
+        except Exception as e:
+            logger.warning(f"vw_PL_Statement fallback failed: {e}")
+
+        # Third fallback: derive from Planning.vw_BudgetCube_Source
+        return self._get_accounts_from_budget_view()
+
+    def _get_accounts_from_budget_view(self) -> List[Dict[str, Any]]:
+        """Last-resort fallback: build account list from the budget cube view."""
+        try:
+            query = """
+            SELECT DISTINCT
+                AccountName,
+                ISNULL(AccountType, 'Other') AS AccountType
+            FROM Planning.vw_BudgetCube_Source WITH (NOLOCK)
+            WHERE AccountName IS NOT NULL
+            ORDER BY AccountType, AccountName
+            """
+            rows = self.db.execute(text(query)).fetchall()
             return [
                 {
                     "account_key":  idx,
                     "account_code": r.AccountName,
                     "account_name": r.AccountName,
-                    "account_type": r.AccountType,
-                    "parent":       r.AccountType,   # group by type
-                    "sort_order":   int(r.SortOrder),
-                    "is_total":     bool(r.IsTotal),
-                    "level":        int(r.Level),
+                    "account_type": r.AccountType or "Other",
+                    "parent":       r.AccountType or "Other",
+                    "sort_order":   idx,
+                    "is_total":     False,
+                    "level":        1,
                 }
                 for idx, r in enumerate(rows)
             ]
         except Exception as e:
-            logger.error(f"Account fallback also failed: {e}")
+            logger.error(f"All account hierarchy fallbacks failed: {e}")
             return []
 
     # ------------------------------------------------------------------ #
@@ -248,13 +280,17 @@ class ReportService:
         current_month_num: int,
         actual_months: int,
     ) -> Dict[str, Dict[str, float]]:
-        """Returns {account_name: {month_name: amount}} for actual months."""
+        """Returns {account_name: {month_name: amount}} for actual months.
+        Tries Planning.vw_BudgetCube_Source with ScenarioName first,
+        then falls back to Finance.FactGL for real GL actuals.
+        """
         cutoff = current_month_num
         start  = max(1, cutoff - actual_months + 1)
         month_names = [MONTH_ORDER[m - 1] for m in range(start, cutoff + 1)]
         if not month_names:
             return {}
 
+        # Try 1: budget cube view with the given scenario name
         try:
             params: Dict[str, Any] = {"year": year, "scenario": scenario}
             entity_filter = ""
@@ -282,9 +318,39 @@ class ReportService:
                 mon = r.MonthName[:3] if r.MonthName else ""
                 amt = float(r.Amount or 0)
                 result.setdefault(acc, {})[mon] = result.get(acc, {}).get(mon, 0) + amt
+            if result:
+                return result
+        except Exception as e:
+            logger.warning(f"_fetch_actuals from budget view failed: {e}")
+
+        # Try 2: Finance.FactGL (real GL actuals)
+        try:
+            in_clause = ", ".join(f"'{m}'" for m in month_names)
+            entity_filter = f"AND e.EntityName = '{entity}'" if entity else ""
+            query = f"""
+            SELECT
+                a.AccountName,
+                LEFT(DATENAME(month, DATEFROMPARTS(d.Year, d.Month, 1)), 3) AS MonthName,
+                SUM(f.Amount) AS Amount
+            FROM Finance.FactGL f WITH (NOLOCK)
+            JOIN MasterData.DimDate d       ON f.DateKey       = d.DateKey
+            JOIN MasterData.DimEntity e     ON f.EntityKey     = e.EntityKey
+            JOIN MasterData.DimAccount a    ON f.AccountKey    = a.AccountKey
+            WHERE d.Year = {year}
+              AND LEFT(DATENAME(month, DATEFROMPARTS(d.Year, d.Month, 1)), 3) IN ({in_clause})
+              {entity_filter}
+            GROUP BY a.AccountName, d.Month
+            """
+            rows = self.db.execute(text(query)).fetchall()
+            result = {}
+            for r in rows:
+                acc = r.AccountName
+                mon = r.MonthName[:3] if r.MonthName else ""
+                amt = float(r.Amount or 0)
+                result.setdefault(acc, {})[mon] = result.get(acc, {}).get(mon, 0) + amt
             return result
         except Exception as e:
-            logger.error(f"_fetch_actuals error: {e}")
+            logger.error(f"_fetch_actuals GL fallback failed: {e}")
             return {}
 
     def _fetch_forecast(
