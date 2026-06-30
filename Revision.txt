@@ -1,0 +1,103 @@
+A cube combines dimensions to store business data.
+
+Feeders (performance optimization):TM1 calculates only required cells.
+To tell TM1 which cells need calculation.Improves performance.
+For Example : If Revenue exists Calculate Profit
+
+Turbo Integrator (ETL scripts):
+We can use Turbo Integrator processes to connect to SQL Server, execute queries, load dimensions, and populate cubes.
+Turbo Integrator (TI) is TM1's ETL engine used for loading data, creating dimensions, and building cubes.
+
+MDX queries
+
+What is TM1?
+TM1 is an in-memory multidimensional OLAP database used for budgeting,
+forecasting, planning and analytics.
+Why do companies use TM1?
+How would you load Actuals from SQL?
+Incremental load vs Full load?
+Reconciliation process?
+Slowly changing dimensions?
+Performance optimization?
+What is a dimension?A Dimension is a collection of related business elements used to organize and analyze data within a TM1 Cube.
+What is a hierarchy? A hierarchy is the parent-child structure. TM1 allows multiple hierarchies inside one dimension.
+What is a consolidation? The top node is called a Consolidation. It aggregates its children.
+A Consolidation is a parent element within a hierarchy that rolls up and aggregates values from its child elements.
+How would you design a P&L cube?
+How would you build an Account hierarchy?
+How would you load Actuals from SQL Server?
+What are Feeders?
+Difference between Actual, Budget and Forecast?
+How would you restrict department managers?
+N Level
+C Level
+Feeders
+SKIPCHECK
+How would you load data from SQL Server into TM1?
+What is Turbo Integrator?
+How would you restrict users by department?
+What is a View?
+What is PAW?
+What is PAX?
+How does data flow from SQL → TM1 Cube → Report?
+Why not just use SQL?
+What is a cell?
+SQL stores transactional data.
+TM1 stores planning data.
+TM1 supports:
+Budgeting
+Forecasting
+What-if Analysis
+Writeback
+Scenario Planning
+Difference between SQL table and Cube?
+What problem does TM1 solve?
+Why companies use TM1 instead of Excel?
+What is an Element? An Element is the smallest member inside a dimension. SQL Row -> TM1 Element
+What is OLAP(Online Analytical Processing)?
+What is a Cube internally?
+How will our SQL tables eventually become TM1 dimensions?
+What is a Attribute.? Attributes are metadata about elements.
+Attributes are descriptive properties attached to dimension elements. For example, an employee element may have attributes such as Department, Region, Job Title, and Salary.
+
+
+When you create a dimension, you identify the leaf-level elements that comprise the dimension and, optionally, any hierarchies (consolidations) within the dimension.
+
+
+Database Engine : Microsoft SQL Server Express
+SQL Server Management Studio (SSMS) : This is where we'll write SQL. This is just a GUI tool.
+SSMS sends that query to SQL Server.
+SQL Server executes it.
+SSMS displays the results.
+
+INNER JOIN
+LEFT JOIN
+SUM
+COUNT
+AVG
+MIN
+MAX
+ROW_NUMBER()
+RANK()
+LAG()
+LEAD()
+DATEADD()
+DATEDIFF()
+EOMONTH()
+
+Think of schemas as folders.
+USE TM1TrainingDB;
+GO
+
+SELECT name
+FROM sys.schemas
+ORDER BY name;
+
+TI(Turbo Integrator) Architecture:
+Prolog =  Runs first.  Connect to SQL
+Metadata = Create Dimension Elements
+Data = Loads actual values into a Cube.
+Epilog = Runs after everything finishes. Logging , Cleanup , Run Next Process
+
+What is a Multiple Hierarchy?
+Multiple hierarchies allow the same dimension elements to be organized and aggregated in different ways. For example, employees can be viewed by Department, Region, Job Title, or Legal Entity without duplicating the dimension.

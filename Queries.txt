@@ -1,0 +1,276 @@
+/* ============================================================
+   FACT TABLES
+============================================================ */
+
+CREATE TABLE Sales.FactSales
+(
+    SaleID BIGINT IDENTITY(1,1) PRIMARY KEY,
+    DateID INT NOT NULL,
+    CustomerID INT NOT NULL,
+    ProductID INT NOT NULL,
+    RegionID INT NOT NULL,
+    EntityID INT NOT NULL,
+    SalesRepEmployeeID INT NOT NULL,
+    VersionID INT NOT NULL,
+    Quantity INT NOT NULL,
+    UnitPrice DECIMAL(18,2) NOT NULL,
+    Revenue DECIMAL(18,2) NOT NULL,
+    Cost DECIMAL(18,2) NOT NULL,
+    Margin AS (Revenue - Cost) PERSISTED,
+
+    CONSTRAINT FK_FactSales_Date FOREIGN KEY (DateID) REFERENCES MasterData.DimDate(DateID),
+    CONSTRAINT FK_FactSales_Customer FOREIGN KEY (CustomerID) REFERENCES MasterData.DimCustomer(CustomerID),
+    CONSTRAINT FK_FactSales_Product FOREIGN KEY (ProductID) REFERENCES MasterData.DimProduct(ProductID),
+    CONSTRAINT FK_FactSales_Region FOREIGN KEY (RegionID) REFERENCES MasterData.DimRegion(RegionID),
+    CONSTRAINT FK_FactSales_Entity FOREIGN KEY (EntityID) REFERENCES MasterData.DimEntity(EntityID),
+    CONSTRAINT FK_FactSales_Employee FOREIGN KEY (SalesRepEmployeeID) REFERENCES MasterData.DimEmployee(EmployeeID),
+    CONSTRAINT FK_FactSales_Version FOREIGN KEY (VersionID) REFERENCES MasterData.DimVersion(VersionID)
+);
+GO
+
+CREATE TABLE Finance.FactGL
+(
+    GLID BIGINT IDENTITY(1,1) PRIMARY KEY,
+    DateID INT NOT NULL,
+    EntityID INT NOT NULL,
+    DepartmentID INT NOT NULL,
+    CostCenterID INT NOT NULL,
+    AccountID INT NOT NULL,
+    CurrencyID INT NOT NULL,
+    VersionID INT NOT NULL,
+    Amount DECIMAL(18,2) NOT NULL,
+
+    CONSTRAINT FK_FactGL_Date FOREIGN KEY (DateID) REFERENCES MasterData.DimDate(DateID),
+    CONSTRAINT FK_FactGL_Entity FOREIGN KEY (EntityID) REFERENCES MasterData.DimEntity(EntityID),
+    CONSTRAINT FK_FactGL_Department FOREIGN KEY (DepartmentID) REFERENCES MasterData.DimDepartment(DepartmentID),
+    CONSTRAINT FK_FactGL_CostCenter FOREIGN KEY (CostCenterID) REFERENCES MasterData.DimCostCenter(CostCenterID),
+    CONSTRAINT FK_FactGL_Account FOREIGN KEY (AccountID) REFERENCES MasterData.DimAccount(AccountID),
+    CONSTRAINT FK_FactGL_Currency FOREIGN KEY (CurrencyID) REFERENCES MasterData.DimCurrency(CurrencyID),
+    CONSTRAINT FK_FactGL_Version FOREIGN KEY (VersionID) REFERENCES MasterData.DimVersion(VersionID)
+);
+GO
+
+CREATE TABLE HR.FactPayroll
+(
+    PayrollID BIGINT IDENTITY(1,1) PRIMARY KEY,
+    DateID INT NOT NULL,
+    EmployeeID INT NOT NULL,
+    DepartmentID INT NOT NULL,
+    CostCenterID INT NOT NULL,
+    EntityID INT NOT NULL,
+    VersionID INT NOT NULL,
+    BaseSalary DECIMAL(18,2) NOT NULL,
+    Bonus DECIMAL(18,2) NOT NULL,
+    Benefits DECIMAL(18,2) NOT NULL,
+    TaxAmount DECIMAL(18,2) NOT NULL,
+    OvertimeAmount DECIMAL(18,2) NOT NULL,
+    TotalCompensation AS (BaseSalary + Bonus + Benefits + TaxAmount + OvertimeAmount) PERSISTED,
+
+    CONSTRAINT FK_FactPayroll_Date FOREIGN KEY (DateID) REFERENCES MasterData.DimDate(DateID),
+    CONSTRAINT FK_FactPayroll_Employee FOREIGN KEY (EmployeeID) REFERENCES MasterData.DimEmployee(EmployeeID),
+    CONSTRAINT FK_FactPayroll_Department FOREIGN KEY (DepartmentID) REFERENCES MasterData.DimDepartment(DepartmentID),
+    CONSTRAINT FK_FactPayroll_CostCenter FOREIGN KEY (CostCenterID) REFERENCES MasterData.DimCostCenter(CostCenterID),
+    CONSTRAINT FK_FactPayroll_Entity FOREIGN KEY (EntityID) REFERENCES MasterData.DimEntity(EntityID),
+    CONSTRAINT FK_FactPayroll_Version FOREIGN KEY (VersionID) REFERENCES MasterData.DimVersion(VersionID)
+);
+GO
+
+CREATE TABLE Planning.FactBudget
+(
+    BudgetID BIGINT IDENTITY(1,1) PRIMARY KEY,
+    DateID INT NOT NULL,
+    EntityID INT NOT NULL,
+    DepartmentID INT NOT NULL,
+    CostCenterID INT NOT NULL,
+    AccountID INT NOT NULL,
+    VersionID INT NOT NULL,
+    ScenarioID INT NOT NULL,
+    BudgetAmount DECIMAL(18,2) NOT NULL,
+
+    CONSTRAINT FK_FactBudget_Date FOREIGN KEY (DateID) REFERENCES MasterData.DimDate(DateID),
+    CONSTRAINT FK_FactBudget_Entity FOREIGN KEY (EntityID) REFERENCES MasterData.DimEntity(EntityID),
+    CONSTRAINT FK_FactBudget_Department FOREIGN KEY (DepartmentID) REFERENCES MasterData.DimDepartment(DepartmentID),
+    CONSTRAINT FK_FactBudget_CostCenter FOREIGN KEY (CostCenterID) REFERENCES MasterData.DimCostCenter(CostCenterID),
+    CONSTRAINT FK_FactBudget_Account FOREIGN KEY (AccountID) REFERENCES MasterData.DimAccount(AccountID),
+    CONSTRAINT FK_FactBudget_Version FOREIGN KEY (VersionID) REFERENCES MasterData.DimVersion(VersionID),
+    CONSTRAINT FK_FactBudget_Scenario FOREIGN KEY (ScenarioID) REFERENCES MasterData.DimScenario(ScenarioID)
+);
+GO
+
+CREATE TABLE Planning.FactForecast
+(
+    ForecastID BIGINT IDENTITY(1,1) PRIMARY KEY,
+    DateID INT NOT NULL,
+    EntityID INT NOT NULL,
+    DepartmentID INT NOT NULL,
+    CostCenterID INT NOT NULL,
+    AccountID INT NOT NULL,
+    VersionID INT NOT NULL,
+    ScenarioID INT NOT NULL,
+    ForecastAmount DECIMAL(18,2) NOT NULL,
+
+    CONSTRAINT FK_FactForecast_Date FOREIGN KEY (DateID) REFERENCES MasterData.DimDate(DateID),
+    CONSTRAINT FK_FactForecast_Entity FOREIGN KEY (EntityID) REFERENCES MasterData.DimEntity(EntityID),
+    CONSTRAINT FK_FactForecast_Department FOREIGN KEY (DepartmentID) REFERENCES MasterData.DimDepartment(DepartmentID),
+    CONSTRAINT FK_FactForecast_CostCenter FOREIGN KEY (CostCenterID) REFERENCES MasterData.DimCostCenter(CostCenterID),
+    CONSTRAINT FK_FactForecast_Account FOREIGN KEY (AccountID) REFERENCES MasterData.DimAccount(AccountID),
+    CONSTRAINT FK_FactForecast_Version FOREIGN KEY (VersionID) REFERENCES MasterData.DimVersion(VersionID),
+    CONSTRAINT FK_FactForecast_Scenario FOREIGN KEY (ScenarioID) REFERENCES MasterData.DimScenario(ScenarioID)
+);
+GO
+
+CREATE TABLE Finance.FactBalanceSheet
+(
+    BalanceSheetID BIGINT IDENTITY(1,1) PRIMARY KEY,
+    DateID INT NOT NULL,
+    EntityID INT NOT NULL,
+    AccountID INT NOT NULL,
+    CurrencyID INT NOT NULL,
+    VersionID INT NOT NULL,
+    Amount DECIMAL(18,2) NOT NULL,
+
+    CONSTRAINT FK_FactBS_Date FOREIGN KEY (DateID) REFERENCES MasterData.DimDate(DateID),
+    CONSTRAINT FK_FactBS_Entity FOREIGN KEY (EntityID) REFERENCES MasterData.DimEntity(EntityID),
+    CONSTRAINT FK_FactBS_Account FOREIGN KEY (AccountID) REFERENCES MasterData.DimAccount(AccountID),
+    CONSTRAINT FK_FactBS_Currency FOREIGN KEY (CurrencyID) REFERENCES MasterData.DimCurrency(CurrencyID),
+    CONSTRAINT FK_FactBS_Version FOREIGN KEY (VersionID) REFERENCES MasterData.DimVersion(VersionID)
+);
+GO
+
+
+
+CREATE INDEX IX_FactSales_Date ON Sales.FactSales(DateID);
+CREATE INDEX IX_FactSales_Customer ON Sales.FactSales(CustomerID);
+CREATE INDEX IX_FactSales_Product ON Sales.FactSales(ProductID);
+CREATE INDEX IX_FactSales_Region ON Sales.FactSales(RegionID);
+
+SELECT 
+    s.name AS SchemaName,
+    t.name AS TableName
+FROM sys.tables t
+INNER JOIN sys.schemas s
+    ON t.schema_id = s.schema_id
+ORDER BY s.name, t.name;
+
+SELECT
+    COLUMN_NAME,
+    DATA_TYPE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA='MasterData'
+AND TABLE_NAME='DimCustomer';
+
+INSERT INTO MasterData.DimCostCenter
+(
+    CostCenterCode,
+    CostCenterName,
+    DepartmentID
+)
+VALUES
+
+('FIN001','Corporate Finance',1),
+('FIN002','Accounts Payable',1),
+
+('HR001','Talent Acquisition',2),
+('HR002','Employee Relations',2),
+
+
+
+USE TM1EnterpriseDB;
+GO
+
+CREATE OR ALTER VIEW Sales.vw_RevenueCube_Source
+AS
+SELECT
+    D.YearNumber,
+    D.QuarterName,
+    D.MonthName,
+    FS.DateID,
+
+    C.CustomerID,
+    C.CustomerCode,
+    C.CustomerName,
+    C.Industry,
+    C.CustomerSegment,
+    C.RevenueBand,
+
+    P.ProductID,
+    P.ProductCode,
+    P.ProductName,
+    P.ProductCategory,
+    P.ProductFamily,
+    P.ProductLine,
+
+    R.RegionID,
+    R.RegionCode,
+    R.RegionName,
+
+    E.EntityID,
+    E.EntityCode,
+    E.EntityName,
+
+    V.VersionID,
+    V.VersionCode,
+    V.VersionName,
+
+    FS.Quantity,
+    FS.Revenue,
+    FS.Cost,
+    (FS.Revenue - FS.Cost) AS Margin,
+    CASE
+        WHEN FS.Revenue = 0 THEN 0
+        ELSE (FS.Revenue - FS.Cost) / FS.Revenue
+    END AS MarginPercent,
+    CASE
+        WHEN FS.Quantity = 0 THEN 0
+        ELSE FS.Revenue / FS.Quantity
+    END AS AverageSellingPrice
+FROM Sales.FactSales FS
+INNER JOIN MasterData.DimDate D
+    ON FS.DateID = D.DateID
+INNER JOIN MasterData.DimCustomer C
+    ON FS.CustomerID = C.CustomerID
+INNER JOIN MasterData.DimProduct P
+    ON FS.ProductID = P.ProductID
+INNER JOIN MasterData.DimRegion R
+    ON FS.RegionID = R.RegionID
+INNER JOIN MasterData.DimEntity E
+    ON FS.EntityID = E.EntityID
+INNER JOIN MasterData.DimVersion V
+    ON FS.VersionID = V.VersionID;
+GO
+
+
+SELECT
+    ProductCategory,
+    ProductFamily,
+    ProductLine,
+    ProductName
+FROM MasterData.DimProduct
+
+CREATE SCHEMA Cube;
+GO
+CREATE TABLE Cube.RevenueCube
+(
+    RevenueCubeID BIGINT IDENTITY(1,1),
+
+    YearNumber INT,
+    QuarterName VARCHAR(20),
+    MonthName VARCHAR(20),
+
+    Industry VARCHAR(100),
+    CustomerSegment VARCHAR(100),
+
+    ProductCategory VARCHAR(100),
+    ProductFamily VARCHAR(100),
+
+    RegionName VARCHAR(100),
+    EntityName VARCHAR(100),
+
+    VersionName VARCHAR(50),
+
+    Revenue DECIMAL(18,2),
+    Cost DECIMAL(18,2),
+    Quantity INT,
+
+    Margin AS (Revenue - Cost)
+);
