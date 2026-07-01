@@ -322,23 +322,7 @@ class MetadataService:
                     "measure_count": 3,
                     "status": "active",
                     "last_update": "2024-06-24"
-                },
-                {
-                    "cube_id": "consolidation",
-                    "cube_name": "Financial Consolidation",
-                    "description": "Multi-entity financial consolidation cube",
-                    "dimensions": [
-                        {"name": "Year", "type": "Time", "element_count": 5},
-                        {"name": "Entity", "type": "Entity", "element_count": 20},
-                        {"name": "Region", "type": "Category", "element_count": 3},
-                        {"name": "Account Type", "type": "Category", "element_count": 3},
-                        {"name": "Measure", "type": "Measure", "element_count": 7}
-                    ],
-                    "measures": ["Revenue", "Expense", "EBITDA", "Net Income", "Assets", "Liabilities", "Equity"],
-                    "view": "Finance.vw_EntityConsolidation WITH (NOLOCK)",
-                    "cell_count": 0,
-                    "last_update": "2024-06-24"
-                },
+                }
             ]
             
             return cubes
@@ -430,7 +414,6 @@ class MetadataService:
                     "cell_count": 0,
                     "last_update": "2024-06-24"
                 }
-                
             }
 
 

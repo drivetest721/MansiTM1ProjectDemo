@@ -46,7 +46,7 @@ const consolidationItems = [
   { path: '/tm1-architecture', label: 'TM1 Architecture', icon: Network },
   { path: '/dimension-explorer', label: 'Dimension Explorer', icon: Database },
   { path: '/cube-explorer', label: 'Cube Explorer', icon: Box },
-  { path: '/financial-consolidation', label: 'Financial Consolidation', icon: Globe },
+  // { path: '/financial-consolidation', label: 'Financial Consolidation', icon: Globe },
   { path: '/admin-data-health', label: 'Admin / Data Health', icon: Settings },
 ];
 

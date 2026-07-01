@@ -280,8 +280,10 @@ function StarTopology({ dimensions, measures, cubeName }: {
   const HOVER_PAD = 6;
   const CUBE_SIZE = 200; // overall width/height footprint of the 3D cube hub
 
-  const minRadiusForSpacing =
-    (NODE_R + HOVER_PAD + 20) / Math.sin(Math.PI / n) + CUBE_SIZE * 0.75;
+  // Special case for single dimension to avoid division issues
+  const minRadiusForSpacing = n === 1 
+    ? 260  // Fixed radius for single dimension
+    : (NODE_R + HOVER_PAD + 20) / Math.sin(Math.PI / n) + CUBE_SIZE * 0.75;
   const RADIUS = Math.max(210, minRadiusForSpacing);
 
   // Extra top margin so the cube's top face never clips
@@ -599,80 +601,80 @@ function TopValuesTable({
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10);
 
-  return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 dark:border-gray-700">
-        <div>
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Top Values</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-            Top 10 values per dimension {measureKey ? `(ranked by ${measureKey})` : '(ranked by row count)'}
-          </p>
-        </div>
-      </div>
+  // return (
+  //   <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+  //     <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 dark:border-gray-700">
+  //       {/* <div>
+  //         <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Top Values</p>
+  //         <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+  //           Top 10 values per dimension {measureKey ? `(ranked by ${measureKey})` : '(ranked by row count)'}
+  //         </p>
+  //       </div> */}
+  //     </div>
 
-      {/* Dimension tabs */}
-      <div className="flex flex-wrap gap-2 px-5 pt-3">
-        {cubeDetails.dimensions.map((dim, idx) => {
-          const cc = DIM_COLORS[idx % DIM_COLORS.length];
-          const isActive = activeDim === idx;
-          return (
-            <button
-              key={idx}
-              onClick={() => setActiveDim(idx)}
-              className="px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors"
-              style={
-                isActive
-                  ? { background: cc.face, borderColor: cc.face, color: 'white' }
-                  : { background: cc.light, borderColor: cc.face, color: cc.text }
-              }
-            >
-              {dim.name}
-            </button>
-          );
-        })}
-      </div>
+  //     {/* Dimension tabs */}
+  //     <div className="flex flex-wrap gap-2 px-5 pt-3">
+  //       {cubeDetails.dimensions.map((dim, idx) => {
+  //         const cc = DIM_COLORS[idx % DIM_COLORS.length];
+  //         const isActive = activeDim === idx;
+  //         return (
+  //           <button
+  //             key={idx}
+  //             onClick={() => setActiveDim(idx)}
+  //             className="px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors"
+  //             style={
+  //               isActive
+  //                 ? { background: cc.face, borderColor: cc.face, color: 'white' }
+  //                 : { background: cc.light, borderColor: cc.face, color: cc.text }
+  //             }
+  //           >
+  //             {dim.name}
+  //           </button>
+  //         );
+  //       })}
+  //     </div>
 
-      {/* Table */}
-      <div className="p-5">
-        {!activeDimKey && (
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Couldn't match "{activeDimName}" to a column in the sample data.
-          </p>
-        )}
-        {activeDimKey && topRows.length === 0 && (
-          <p className="text-sm text-gray-500 dark:text-gray-400">No values found.</p>
-        )}
-        {activeDimKey && topRows.length > 0 && (
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-800">
-              <tr>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Rank
-                </th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  {activeDimName}
-                </th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  {measureKey ?? 'Row Count'}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {topRows.map(([value, total], i) => (
-                <tr key={value} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                  <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">{i + 1}</td>
-                  <td className="px-4 py-2 text-sm font-medium text-gray-900 dark:text-white">{value}</td>
-                  <td className="px-4 py-2 text-sm text-right text-gray-900 dark:text-white">
-                    {total.toLocaleString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-    </div>
-  );
+  //     {/* Table */}
+  //     <div className="p-5">
+  //       {!activeDimKey && (
+  //         <p className="text-sm text-gray-500 dark:text-gray-400">
+  //           Couldn't match "{activeDimName}" to a column in the sample data.
+  //         </p>
+  //       )}
+  //       {activeDimKey && topRows.length === 0 && (
+  //         <p className="text-sm text-gray-500 dark:text-gray-400">No values found.</p>
+  //       )}
+  //       {activeDimKey && topRows.length > 0 && (
+  //         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+  //           <thead className="bg-gray-50 dark:bg-gray-800">
+  //             <tr>
+  //               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+  //                 Rank
+  //               </th>
+  //               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+  //                 {activeDimName}
+  //               </th>
+  //               <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+  //                 {measureKey ?? 'Row Count'}
+  //               </th>
+  //             </tr>
+  //           </thead>
+  //           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+  //             {topRows.map(([value, total], i) => (
+  //               <tr key={value} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+  //                 <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">{i + 1}</td>
+  //                 <td className="px-4 py-2 text-sm font-medium text-gray-900 dark:text-white">{value}</td>
+  //                 <td className="px-4 py-2 text-sm text-right text-gray-900 dark:text-white">
+  //                   {total.toLocaleString()}
+  //                 </td>
+  //               </tr>
+  //             ))}
+  //           </tbody>
+  //         </table>
+  //       )}
+  //     </div>
+  //   </div>
+  // );
 }
 
 type ViewMode = 'diagram' | 'structure' ;
@@ -778,7 +780,7 @@ export default function CubeExplorer() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Cube Explorer</h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-1">✅ Explore TM1 cubes with real metadata from SQL Server</p>
+        {/* <p className="text-gray-600 dark:text-gray-400 mt-1">✅ Explore TM1 cubes with real metadata from SQL Server</p> */}
       </div>
 
       {error && (
@@ -944,39 +946,56 @@ export default function CubeExplorer() {
               </div>
 
               {/* Sample Data — always visible below tabs */}
-              {sampleData.length > 0 && (
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-                  <div className="p-5 border-b border-gray-200 dark:border-gray-700">
-                    <h3 className="text-base font-bold text-gray-900 dark:text-white">
-                      Sample Data <span className="text-gray-400 font-normal text-sm">(first 20 rows)</span>
-                    </h3>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                      <thead className="bg-gray-50 dark:bg-gray-900">
-                        <tr>
-                          {Object.keys(sampleData[0]).map((key, idx) => (
-                            <th key={idx} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                              {key}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                        {sampleData.map((row, idx) => (
-                          <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                            {Object.values(row).map((value: any, vidx) => (
-                              <td key={vidx} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                                {typeof value === 'number' ? value.toLocaleString() : value}
-                              </td>
+              {sampleData.length > 0 && cubeDetails && (() => {
+                // Filter to show only dimension columns
+                const sampleKeys = Object.keys(sampleData[0]);
+                const findKey = (name: string) =>
+                  sampleKeys.find(
+                    (k) => k.toLowerCase().replace(/[_\s]/g, '') === name.toLowerCase().replace(/[_\s]/g, '')
+                  );
+                
+                // Map dimension names to actual column keys in sample data
+                const dimensionKeys = cubeDetails.dimensions
+                  .map(dim => findKey(dim.name))
+                  .filter((k): k is string => k !== undefined);
+                
+                // Show only first 10 rows
+                const displayData = sampleData.slice(0, 10);
+                
+                return (
+                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+                    <div className="p-5 border-b border-gray-200 dark:border-gray-700">
+                      <h3 className="text-base font-bold text-gray-900 dark:text-white">
+                        Dimension Data <span className="text-gray-400 font-normal text-sm">(first 10 rows)</span>
+                      </h3>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead className="bg-gray-50 dark:bg-gray-900">
+                          <tr>
+                            {dimensionKeys.map((key, idx) => (
+                              <th key={idx} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                {key}
+                              </th>
                             ))}
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                          {displayData.map((row, idx) => (
+                            <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                              {dimensionKeys.map((key, vidx) => (
+                                <td key={vidx} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                  {row[key]}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Top Values per Dimension */}
               {cubeDetails && sampleData.length > 0 && (
