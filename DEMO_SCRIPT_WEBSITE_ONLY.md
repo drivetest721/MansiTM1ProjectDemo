@@ -1,60 +1,33 @@
-# TM1 Enterprise Portal — 30-Minute Demo Script
-### *Website-Only Walkthrough for Non-Technical Audience*
+"What we built here is a modern web portal for enterprise financial planning 
 
-> **Audience in the room:**
-> - 💼 Finance Manager / CFO — understands numbers, not code
-> - 🔧 Technical Architect — will ask deep questions, watch for depth
-> - 📋 Project Manager / Client — cares about delivery and business value
->
-> **Rule:** Never open a code file. Everything happens on the website.  
-> **Your goal:** Prove you understand OLAP systems and can translate them into a real product.
 
+It talks to a SQL Server database built on the exact same dimensional model that TM1 uses —  cubes,  dimensions,  hierarchy logic.
 ---
 
-## OPENING (Before you click anything) — *2 min*
-
-> *Stand / sit confidently. Don't touch the mouse yet.*
-
-"What we built here is a modern web portal for enterprise financial planning — specifically designed to replace the traditional TM1 way of working, where every report lives inside an Excel workbook connected to a TM1 server.
-
-
-It talks to a SQL Server database built on the exact same dimensional model that TM1 uses —  cubes,  dimensions,  hierarchy logic. The finance team doesn't need to learn anything new. But now they have a dashboard they can open from anywhere."
-
----
-
-## STOP 1 — TM1 Architecture Page *(2 min)*
-
-**[CLICK] → 'TM1 Architecture' in the sidebar**
-
-> *This is your credibility page. Spend time here. It shows you understand TM1 deeply.*
 
 "I want to start with the architecture page because it sets the context for everything else you'll see.
 
-**[POINT to the flow diagram — top to bottom]**
 
-This is the TM1 data pipeline visualised. At the top is the SQL Server database — our data source. Below that are the source tables and views — the Sales view, the Payroll table, the Budget and Forecast tables, the General Ledger. These are the raw data stores.
+This is the TM1 data pipeline visualised. At the top is the SQL Server database — our data source. Below that are the source tables and views These are the raw data stores.
 
-The next layer is TurboIntegrator — TM1's ETL engine. TI processes extract data from these sources, transform it, and load it into cubes. In our architecture, a TI process called `Load_Revenue_Cube` runs every night at 2 AM and refreshes the Revenue Cube from the Sales view.
+The next layer is TurboIntegrator — TM1's ETL engine. TI processes extract data from these sources, transform it, and load it into cubes. 
 
-**[POINT to the Dimensions step]**
 
-Below TI are the dimensions — Time, Product, Customer, Employee, Entity, Account, Department, Version, Measure. In TM1, every dimension has a hierarchy. The Time dimension rolls up from individual days to months, months to quarters, quarters to years. That hierarchy is what gives you drill-down in reports.
+Below TI are the dimensions — Time, Product, Customer, Employee, Entity, Account, Department, Version, Measure. In TM1, every dimension has a hierarchy. 
 
-**[POINT to the Cubes step and the side panel example]**
 
-Then the cubes. A cube is where data actually lives in TM1. Each cell in a cube is the intersection of one element from every dimension. This example on the right shows a single Revenue Cube cell: Year 2024 × Entity USA × Product Widget A × Customer Acme Corp × Scenario Actual = $1,240,000. That is one number. A cube can hold hundreds of millions of these intersections.
+Then the cubes. A cube is where data actually lives in TM1. 
 
 **[POINT to Rules & Feeders]**
 
-Rules calculate derived measures automatically. For example, Gross Margin = Revenue minus Cost of Goods Sold. You write the rule once, and TM1 calculates it for every intersection. Feeders tell TM1 which cells trigger which calculations so it only computes what it needs to.
+Rules calculate derived measures automatically. For example, Gross Margin = Revenue minus Cost of Goods Sold. 
 
-**[POINT to the bottom — TM1 Core Concepts grid]**
+Feeders tell TM1 which cells trigger which calculations so it only computes what it needs to.
 
-At the bottom are the nine TM1 concepts — Dimension, Element, Consolidation, Cube, Rule, Feeder, TurboIntegrator, Chore, and Security. If someone in the room asks me about any of these, I can explain each one in detail."
 
-> **💡 For the Technical Architect:** If they ask "how does this compare to Cognos or Hyperion?" — say: "TM1 is an in-memory OLAP engine, which means consolidations happen instantly in RAM rather than being pre-computed like Essbase. The tradeoff is memory footprint vs query speed."
 
----
+At the bottom are the nine TM1 concepts
+
 
 ## STOP 2 — Executive Overview *(3 min)*
 
@@ -62,7 +35,7 @@ At the bottom are the nine TM1 concepts — Dimension, Element, Consolidation, C
 
 > *This is the CFO's page. Speak directly to them here.*
 
-"This is where the CFO or Finance Director would start their morning. Seven KPI cards at the top — Total Revenue, Total Cost, Gross Margin, Margin Percentage, Total Headcount, Total Customers, Total Products. These are live numbers pulled from the database in real time.
+. Seven KPI cards at the top — Total Revenue, Total Cost, Gross Margin, Margin Percentage, Total Headcount, Total Customers, Total Products. These are live numbers pulled from the database in real time.
 
 
 **[SCROLL DOWN to the Revenue by Year chart]**
